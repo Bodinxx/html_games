@@ -191,6 +191,7 @@ Scenes are pushed/popped on a stack. Rendering walks the stack bottom-up; input 
 | `COMMANDER` | Player status screen |
 | `CARGO` | Cargo manifest |
 | `SETTINGS` | Options |
+| `SAVE_LOAD` | Save / load browser slots and file import/export |
 | `HIGH_SCORE` | Score / retirement screen |
 | `QUIT_CONFIRM` | Quit dialog |
 
@@ -271,11 +272,12 @@ See `utils/Colours.js`. Key values:
 ```javascript
 GameState = {
   version: "1.0",
-  seed: Number,           // universe seed
+  seed: Number,           // universe seed — all static system data is regenerated from this
   day: Number,            // game day (increments on warp)
   difficulty: String,     // "beginner" | "easy" | "normal" | "hard" | "impossible"
   player: PlayerData,
-  universe: UniverseData,
+  universeState: UniverseState,   // only mutable per-system state; NOT the full generated data
+  wormholes: [WormholePair],      // fixed at generation; saved since they never change per seed
   currentSystemIndex: Number,
   currentPlanetIndex: Number,
   quests: QuestData,
@@ -336,13 +338,68 @@ ShipInstance = {
 }
 ```
 
-### 5.4 UniverseData
+### 5.4 Universe — Static vs. Mutable Data
+
+The universe is split into two categories. Only mutable state is saved; static data is always regenerated from the seed at load time.
+
+#### Static Data — Regenerated from `seed` (never saved)
 
 ```javascript
-UniverseData = {
-  systems: [SolarSystemData], // array of GALAXY_SIZE systems
-  wormholes: [WormholePair],  // pairs of system indices
+// Produced by Universe.generate(seed) on new game AND on every load
+SolarSystemStatic = {
+  index: Number,
+  name: String,               // from names.js table, position assigned by PRNG
+  x: Number,                  // grid position, derived from seed
+  y: Number,
+  size: Enum,                 // TINY | SMALL | MEDIUM | LARGE | HUGE
+  techLevel: Number,          // 0–7
+  government: Enum,
+  politicalActivity: Number,
+  resources: Enum,
+  police: Number,             // 0–7 base presence
+  pirates: Number,            // 0–7 base density
+  traders: Number,            // 0–7 base density
 }
+```
+
+#### Mutable Data — Saved in `GameState.universeState`
+
+```javascript
+// Only what changes during a playthrough
+UniverseState = {
+  systemStates: [SystemMutableState],  // one entry per system index
+}
+
+SystemMutableState = {
+  index: Number,
+  visited: Boolean,
+  condition: Enum,             // current event condition (WAR, PLAGUE, etc.) — can change
+  portInventory: [PortEntry],  // prices and quantities — regenerated on each visit, then saved
+  specialEventUsed: Boolean,   // one-time event consumed flag
+  colonistContracts: [ColonistGroup],  // active contracts at this port
+}
+```
+
+#### Wormholes — Saved Separately
+
+```javascript
+// Generated once from seed, fixed for the life of the game, saved explicitly
+// Saved because: small, fixed, and trivially cheap to store
+WormholePair = {
+  systemA: Number,   // system index
+  systemB: Number,   // system index
+}
+```
+
+#### Load Sequence
+
+```
+1. Read seed from GameState
+2. Universe.generate(seed) → rebuilds full SolarSystemStatic[] in memory
+3. Merge GameState.universeState on top:
+   - systemStates[i].visited, condition, portInventory, specialEventUsed applied
+4. Wormholes loaded directly from GameState.wormholes
+5. Game ready — player's map matches original exactly
 ```
 
 ---
@@ -351,17 +408,25 @@ UniverseData = {
 
 ### 6.1 Galaxy Generation
 
-- The universe contains **GALAXY_SIZE = 71** named solar systems.
-- Solar system positions are generated using a seeded PRNG spread across a **150 × 110** unit grid.
-- A minimum distance of **MIN_SYSTEM_DIST = 6** units is enforced between any two systems.
-- **CLOSE_DIST = 20** units: systems within this range are considered "nearby" (reachable with partial fuel).
+The universe is fully procedural, generated deterministically from a single integer `seed` stored in `GameState`. Given the same seed, `Universe.generate(seed)` always produces an identical galaxy. This means **only the seed needs to be saved** — all static system properties are reconstructed at load time.
 
-### 6.2 SolarSystemData
+- The universe contains **GALAXY_SIZE = 71** named solar systems
+- System positions are generated using a seeded PRNG (Mulberry32) spread across a **150 × 110** unit grid
+- A minimum distance of **MIN_SYSTEM_DIST = 6** units is enforced between any two systems
+- **CLOSE_DIST = 20** units: systems within this range are considered "nearby"
+- System names are drawn from a fixed 71-entry table in `names.js`, assigned to positions by the PRNG — so names shuffle per seed, but the table itself never changes
+- Wormhole pairs are generated from the seed at new game creation, then **saved explicitly** in `GameState.wormholes` (they are fixed for the lifetime of a playthrough and trivially small to store)
+- Port inventories are **not** part of static generation — they are calculated fresh on each player visit and then saved in `SystemMutableState.portInventory` until the next visit
+
+### 6.2 SolarSystemData (Full In-Memory Object)
+
+The following is the complete in-memory representation used at runtime, combining static (regenerated) and mutable (loaded from save) data. Only the fields marked **[MUTABLE — SAVED]** are persisted; the rest are always regenerated from the seed.
 
 ```javascript
 SolarSystemData = {
+  // --- STATIC (regenerated from seed — never saved) ---
   index: Number,
-  name: String,               // from names.js table (71 fixed canonical names)
+  name: String,               // from names.js table (71 fixed names, positions assigned by PRNG)
   x: Number,                  // grid position
   y: Number,
   size: Enum,                 // TINY | SMALL | MEDIUM | LARGE | HUGE
@@ -369,13 +434,16 @@ SolarSystemData = {
   government: Enum,           // see Section 6.4
   politicalActivity: Number,  // 0–7 (affects police presence)
   resources: Enum,            // see Section 6.5
-  condition: Enum,            // NOSPECIALRESOURCES | WAR | PLAGUE | DROUGHT | COLD | CROP_FAILURE | BOREDOM | LACE_WEATHER | NONE
-  police: Number,             // 0–7 police presence
-  pirates: Number,            // 0–7 pirate density
-  traders: Number,            // 0–7 trader density
-  visited: Boolean,
-  portInventory: [PortEntry], // per-good quantity and price, regenerated on visit
-  specialEvent: Enum | null,  // one-time special event index
+  police: Number,             // 0–7 base police presence
+  pirates: Number,            // 0–7 base pirate density
+  traders: Number,            // 0–7 base trader density
+
+  // --- MUTABLE (saved in GameState.universeState.systemStates[i]) ---
+  visited: Boolean,           // [MUTABLE — SAVED]
+  condition: Enum,            // [MUTABLE — SAVED] WAR | PLAGUE | DROUGHT | COLD | CROP_FAILURE | BOREDOM | NONE
+  portInventory: [PortEntry], // [MUTABLE — SAVED] regenerated on each visit, then cached
+  specialEventUsed: Boolean,  // [MUTABLE — SAVED] one-time event consumed flag
+  colonistContracts: [ColonistGroup], // [MUTABLE — SAVED] active Registry contracts
 }
 ```
 
@@ -1260,7 +1328,7 @@ All screens are drawn entirely on canvas. No HTML elements (except the canvas ta
 
 - Full-screen animated starfield background
 - Title "VOID MERCHANT" in large text with glow effect
-- Buttons: **New Game**, **Load Game** (if save exists), **High Scores**, **Settings**, **About**
+- Buttons: **New Game**, **Load Game** (opens Save / Load screen), **High Scores**, **Settings**, **About**
 - Version number in corner
 
 ### 21.2 New Game Screen
@@ -1504,37 +1572,189 @@ AudioManager = {
 
 ## 24. Save & Load System
 
-### 24.1 Save Slots
+### 24.1 Storage Overview
 
-- 3 save slots available
-- Auto-save on every scene transition (slot 0)
-- Manual save available from Commander screen
+The game uses two complementary save mechanisms that work together:
 
-### 24.2 Storage Format
+| Mechanism | Storage | Capacity | Persistence |
+|---|---|---|---|
+| **Browser Slots** | `localStorage` | 3 named slots | Until browser data cleared |
+| **File Export** | User's file system (`.json`) | Unlimited files | Permanent, user-managed |
+
+Both mechanisms use identical JSON format so saves are fully interchangeable between them.
+
+### 24.2 Browser Save Slots
+
+- **3 slots** available, labelled Slot 1, Slot 2, Slot 3 in the UI
+- **Slot 1 is the auto-save slot** — written automatically on every scene transition
+- Slots 2 and 3 are manual saves only
+- Each slot stores the full `GameState` object and a separate lightweight metadata entry for the slot picker
 
 ```javascript
+// Full save
 localStorage.setItem(`voidmerchant_save_${slot}`, JSON.stringify(GameState));
-```
 
-### 24.3 Save Validation
-
-On load:
-1. Parse JSON
-2. Check `version` field — if incompatible, warn player and offer reset
-3. Validate required fields present
-4. Rehydrate class instances from plain data (e.g., `new Ship(data.ship)`)
-
-### 24.4 Save Metadata (for slot picker)
-
-```javascript
+// Slot picker metadata (written alongside every save)
 localStorage.setItem(`voidmerchant_meta_${slot}`, JSON.stringify({
   playerName: String,
-  day: Number,
-  credits: Number,
+  day:        Number,
+  credits:    Number,
   difficulty: String,
-  timestamp: Number,
+  shipName:   String,
+  timestamp:  Number,   // Date.now()
 }));
 ```
+
+### 24.3 Save File Format (JSON Export)
+
+Exported save files are plain `.json` files. The top-level structure wraps the `GameState` with a small file header to allow validation and version checking on import:
+
+```json
+{
+  "fileType": "voidmerchant_save",
+  "fileVersion": "1.0",
+  "exportedAt": 1720000000000,
+  "meta": {
+    "playerName": "Kira Voss",
+    "day": 42,
+    "credits": 84500,
+    "difficulty": "normal",
+    "shipName": "Surveyor",
+    "timestamp": 1720000000000
+  },
+  "state": { ...full GameState object... }
+}
+```
+
+- `fileType` — sentinel string; import rejects files missing this field
+- `fileVersion` — matched against `SAVE_FILE_VERSION` constant; mismatch triggers a compatibility warning
+- `exportedAt` — Unix timestamp in milliseconds; display-only, used in the import preview
+- `meta` — mirrors the localStorage metadata object; shown in the import preview before committing
+- `state` — the complete `GameState` object, identical to what is written to `localStorage`
+
+### 24.4 Exporting a Save File
+
+Export is available from the **Save / Load screen** (accessible from the Commander screen and the Main Menu).
+
+**Flow:**
+```
+1. Player clicks "Export Save" next to any occupied browser slot
+2. SaveManager.exportToFile(slot):
+   a. Read GameState from localStorage slot
+   b. Wrap in file envelope (fileType, fileVersion, exportedAt, meta, state)
+   c. Serialise to JSON string
+   d. Create a Blob: new Blob([jsonString], { type: 'application/json' })
+   e. Create a temporary <a> element with download attribute
+   f. Trigger programmatic click → browser Save File dialog
+   g. Suggested filename: `voidmerchant_[playerName]_day[day]_[timestamp].json`
+      e.g.  voidmerchant_KiraVoss_day42_1720000000.json
+3. File is saved to user's chosen location
+4. Toast notification: "Save exported successfully."
+```
+
+No server communication occurs — the entire operation is client-side.
+
+### 24.5 Importing a Save File
+
+Import is available from the same **Save / Load screen**.
+
+**Flow:**
+```
+1. Player clicks "Import Save File"
+2. A hidden <input type="file" accept=".json"> element is programmatically clicked
+3. Player selects a .json file from their file system
+4. SaveManager.importFromFile(file):
+   a. Read file contents via FileReader.readAsText()
+   b. Parse JSON — on parse error: show modal "Invalid save file."
+   c. Validate fileType === "voidmerchant_save" — on fail: show modal "Not a Void Merchant save file."
+   d. Check fileVersion compatibility — on mismatch: show modal
+      "This save was created with version X. Load anyway?" [Yes] [Cancel]
+   e. Display import preview modal:
+      ┌─────────────────────────────────────┐
+      │  Import Save File                   │
+      │  ─────────────────────────────────  │
+      │  Commander:  Kira Voss              │
+      │  Day:        42                     │
+      │  Credits:    84,500 cr              │
+      │  Ship:       Surveyor               │
+      │  Difficulty: Normal                 │
+      │  Exported:   2024-07-03 14:22       │
+      │  ─────────────────────────────────  │
+      │  Load into slot:  [1] [2] [3]       │
+      │                                     │
+      │        [IMPORT]      [CANCEL]       │
+      └─────────────────────────────────────┘
+   f. Player selects target slot and confirms
+   g. Write state to localStorage slot (overwrites existing; confirmation shown if slot occupied)
+   h. Write metadata to localStorage meta slot
+   i. Toast notification: "Save imported into Slot [N]."
+   j. Slot picker refreshes to show newly imported save
+5. Player may now load the imported save normally via the slot picker
+```
+
+### 24.6 Save Validation
+
+Applied on both localStorage loads and file imports:
+
+1. Parse JSON — reject on syntax error
+2. Check `fileType` (imports only) and `version` fields
+3. Validate all required top-level keys present (`seed`, `player`, `universeState`, `wormholes`, `day`, `difficulty`, etc.)
+4. Validate nested critical fields (`player.ship.typeId`, `player.credits`, `universeState.systemStates`, etc.)
+5. On version mismatch: warn and offer to attempt load anyway (best-effort forward compatibility)
+6. On field missing: warn and substitute safe defaults where possible; log warnings to console
+7. Run `Universe.generate(seed)` to rebuild all static system data in memory
+8. Merge `universeState.systemStates` on top of generated data (visited flags, conditions, port inventories)
+9. Rehydrate class instances from plain data (e.g. `new Ship(data.player.ship)`, `new ColonistGroup(data)`)
+
+### 24.7 Save / Load UI Screen
+
+A dedicated **Save / Load screen** is accessible from the Commander screen (in-game) and the Main Menu (without an active game).
+
+**Layout:**
+
+```
+┌──────────────────────────────────────────┐
+│  SAVE / LOAD                             │
+├──────────────────────────────────────────┤
+│  SLOT 1 — AUTO-SAVE                      │
+│  Kira Voss · Day 42 · 84,500 cr          │
+│  Surveyor · Normal · 3 Jul 2024 14:22    │
+│  [LOAD]  [SAVE]  [EXPORT ↓]  [DELETE]    │
+├──────────────────────────────────────────┤
+│  SLOT 2                                  │
+│  Kira Voss · Day 18 · 12,300 cr          │
+│  Courier · Normal · 1 Jul 2024 09:05     │
+│  [LOAD]  [SAVE]  [EXPORT ↓]  [DELETE]    │
+├──────────────────────────────────────────┤
+│  SLOT 3 — EMPTY                          │
+│  [SAVE]                                  │
+├──────────────────────────────────────────┤
+│           [IMPORT SAVE FILE ↑]           │
+└──────────────────────────────────────────┘
+```
+
+- **LOAD** — loads the slot into the active game (confirmation if currently in-game)
+- **SAVE** — writes current game state to this slot (confirmation if overwriting)
+- **EXPORT ↓** — triggers browser file download of the slot as a `.json` file
+- **DELETE** — clears the slot from localStorage (double-confirmation required)
+- **IMPORT SAVE FILE ↑** — opens the file picker; see Section 24.5
+
+### 24.8 File Size Estimate
+
+Because all static system data is regenerated from the seed at load time, saves are significantly leaner than storing the full universe:
+
+| Component | Approx. Size |
+|---|---|
+| Seed + wormhole pairs (6 pairs) | < 1 KB |
+| Per-system mutable state (71 × visited, condition, specialEventUsed) | ~5 KB |
+| Port inventories (only visited systems, 12 goods each) | ~10–20 KB (scales with progress) |
+| Colonist contracts (active only) | ~2 KB |
+| Player data, ship, cargo, crew | ~5 KB |
+| Quest state, news | ~3 KB |
+| File envelope and metadata | < 1 KB |
+| **Total (uncompressed JSON)** | **~25–35 KB per save file** |
+
+This is roughly half the size of storing the full universe, and shrinks further early-game when few systems have been visited. Port inventories are the largest variable component — a fully explored galaxy will trend toward the higher estimate.
 
 ---
 
@@ -1658,6 +1878,7 @@ Difficulty multipliers:
 │   │   ├── EncounterScreen.js
 │   │   ├── CombatScreen.js
 │   │   ├── SettingsScreen.js
+│   │   ├── SaveLoadScreen.js
 │   │   └── HighScoreScreen.js
 │   └── components/
 │       ├── Button.js
@@ -1708,7 +1929,10 @@ INSURANCE_RATE           = 0.0025       // per day, of ship base price
 LOAN_RATE_DEFAULT        = 0.10         // annual, applied daily
 MOON_PRICE_DEFAULT       = 500_000
 
-// Ship Upgrades
+// Save System
+SAVE_FILE_VERSION        = "1.0"        // must match fileVersion in exported JSON
+SAVE_SLOTS               = 3            // number of localStorage save slots
+SAVE_FILE_TYPE           = "voidmerchant_save"  // sentinel for import validation
 LIFE_SUPPORT_COST        = 15_000       // install cost
 LIFE_SUPPORT_BAY_OVERHEAD= 5            // bays permanently reserved
 LIFE_SUPPORT_REMOVE_FEE  = 5_000        // labour cost to uninstall
