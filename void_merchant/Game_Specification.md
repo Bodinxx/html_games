@@ -374,7 +374,7 @@ SystemMutableState = {
   index: Number,
   visited: Boolean,
   condition: Enum,             // current event condition (WAR, PLAGUE, etc.) — can change
-  portInventory: [PortEntry],  // prices and quantities — regenerated on each visit, then saved
+  portInventory: [PortEntry],  // living inventory — stock updated by elapsed days on each visit; saved per visited system
   specialEventUsed: Boolean,   // one-time event consumed flag
   colonistContracts: [ColonistGroup],  // active contracts at this port
 }
@@ -416,7 +416,7 @@ The universe is fully procedural, generated deterministically from a single inte
 - **CLOSE_DIST = 20** units: systems within this range are considered "nearby"
 - System names are drawn from a fixed 71-entry table in `names.js`, assigned to positions by the PRNG — so names shuffle per seed, but the table itself never changes
 - Wormhole pairs are generated from the seed at new game creation, then **saved explicitly** in `GameState.wormholes` (they are fixed for the lifetime of a playthrough and trivially small to store)
-- Port inventories are **not** part of static generation — they are calculated fresh on each player visit and then saved in `SystemMutableState.portInventory` until the next visit
+- Port inventories are **not** part of static generation — each port's living inventory (stock levels, production/consumption rates) is initialised from seed on first visit and then persisted in `SystemMutableState.portInventory`, updated for elapsed days on every subsequent visit
 
 ### 6.2 SolarSystemData (Full In-Memory Object)
 
@@ -441,7 +441,7 @@ SolarSystemData = {
   // --- MUTABLE (saved in GameState.universeState.systemStates[i]) ---
   visited: Boolean,           // [MUTABLE — SAVED]
   condition: Enum,            // [MUTABLE — SAVED] WAR | PLAGUE | DROUGHT | COLD | CROP_FAILURE | BOREDOM | NONE
-  portInventory: [PortEntry], // [MUTABLE — SAVED] regenerated on each visit, then cached
+  portInventory: [PortEntry], // [MUTABLE — SAVED] living stock levels; updated for elapsed days on arrival
   specialEventUsed: Boolean,  // [MUTABLE — SAVED] one-time event consumed flag
   colonistContracts: [ColonistGroup], // [MUTABLE — SAVED] active Registry contracts
 }
@@ -513,27 +513,66 @@ Tech level governs which goods are produced, which are consumed, and at what bas
 
 ### 7.2 Port Inventory
 
-Each port maintains a per-good entry:
+Each port maintains a persistent inventory that evolves between player visits. Inventory is **not** recalculated from scratch on each visit — it is a living state that updates based on elapsed days, production, consumption, and trade activity.
+
+#### PortEntry Data Model
 
 ```javascript
 PortEntry = {
-  goodId: String,
-  quantity: Number,    // units available (0 = not stocked)
-  buyPrice: Number,    // credits per unit (0 = not available to buy)
-  sellPrice: Number,   // credits per unit (0 = port will not buy)
+  goodId:          String,   // references trade good definition
+  stock:           Number,   // current units on hand (may be 0)
+  stockCap:        Number,   // maximum storable units (generated from system size + tech)
+  productionRate:  Number,   // units produced per day (0 if not a producer)
+  consumptionRate: Number,   // units consumed per day (0 if not a consumer)
+  lastUpdatedDay:  Number,   // game day when stock was last resolved
+  buyPrice:        Number,   // current price to buy from port (credits/unit; 0 = not selling)
+  sellPrice:       Number,   // current price port will pay player (credits/unit; 0 = not buying)
+  legalityState:   Enum,     // LEGAL | LOCAL_ILLEGAL | CONTRABAND
 }
 ```
 
-Prices are calculated on arrival:
+#### Stock Initialisation (new game only)
+
+When a port is first generated, starting stock is set to:
 
 ```
-basePrice   = good.basePrice
-techMod     = good.techPriceIncrease * (techLevel - good.minTechProduce)
-resourceMod = resourceModifier(system.resources, good)
-conditionMod= conditionModifier(system.condition, good)
-random      = PRNG.range(-good.variance, good.variance)
-finalPrice  = basePrice + techMod + resourceMod + conditionMod + random
+initialStock = round(stockCap * random(0.40, 0.80))
 ```
+
+This gives markets a realistic starting fill level — not empty, not at max. The PRNG uses the system seed so the same game always starts with the same initial conditions.
+
+#### Daily Stock Update (on port arrival)
+
+When the player arrives at a port, the engine resolves all time that has passed since `lastUpdatedDay`:
+
+```
+elapsedDays    = currentDay - entry.lastUpdatedDay
+
+produced       = productionRate * elapsedDays
+consumed       = consumptionRate * elapsedDays
+netChange      = produced - consumed
+
+entry.stock    = clamp(entry.stock + netChange, 0, entry.stockCap)
+entry.lastUpdatedDay = currentDay
+```
+
+This is applied to every good at every port the player visits. Ports the player never visits simply accumulate production/consumption silently — they are always up to date on arrival.
+
+#### Stock Capacity by System Size
+
+| System Size | Base Stock Cap (per good) |
+|---|---|
+| Tiny | 30 |
+| Small | 60 |
+| Medium | 120 |
+| Large | 200 |
+| Huge | 350 |
+
+Tech level adds `+10 × techLevel` to cap for goods that system can produce. Resource bonuses add a further `+20` to cap for goods the resource favours.
+
+#### Saving Inventory State
+
+`PortEntry` is saved in `GameState.universeState.systemStates[i].portInventory` only for **visited** systems. Unvisited systems have no saved inventory — their initial state is always regenerated from seed on first visit.
 
 ### 7.3 Fuel
 
@@ -554,7 +593,7 @@ finalPrice  = basePrice + techMod + resourceMod + conditionMod + random
 
 ### 8.1 Trade Good Definitions
 
-All 12 standard goods; contraband noted:
+All 12 standard goods. `minTechProd` = minimum tech level to produce; `minTechUse` = minimum tech level to consume.
 
 | ID | Name | Min Tech Prod | Min Tech Use | Base Price | Variance | Legal |
 |---|---|---|---|---|---|---|
@@ -563,47 +602,234 @@ All 12 standard goods; contraband noted:
 | `rations` | Rations | 1 | 0 | 100 | 5 | Yes |
 | `ore` | Ore | 2 | 2 | 350 | 20 | Yes |
 | `holoware` | Holoware | 3 | 1 | 250 | 10 | Yes |
-| `munitions` | Munitions | 3 | 1 | 1250 | 75 | **No** |
+| `munitions` | Munitions | 3 | 1 | 1,250 | 75 | **No** |
 | `medpacks` | Medpacks | 4 | 1 | 650 | 20 | Yes |
 | `machinery` | Machinery | 4 | 3 | 900 | 30 | Yes |
-| `stims` | Stims | 5 | 0 | 3500 | 150 | **No** |
-| `xenocultures` | Xenocultures | 5 | 3 | 1800 | 80 | Yes |
-| `neuralware` | Neuralware | 6 | 3 | 2400 | 90 | Yes |
-| `synthminds` | Synthminds | 6 | 4 | 5000 | 100 | Yes |
+| `stims` | Stims | 5 | 0 | 3,500 | 150 | **No** |
+| `xenocultures` | Xenocultures | 5 | 3 | 1,800 | 80 | Yes |
+| `neuralware` | Neuralware | 6 | 3 | 2,400 | 90 | Yes |
+| `synthminds` | Synthminds | 6 | 4 | 5,000 | 100 | Yes |
 
 **Xenocultures** — Engineered biological samples and alien cultivars; produced at Post-Industrial worlds with unusual biomes, consumed by research-oriented Industrial and Hi-Tech systems. Condition PLAGUE increases demand significantly.
 
-**Neuralware** — Cybernetic neural interface components and cognitive augmentation hardware; produced only at Post-Industrial and Hi-Tech worlds, consumed across Industrial and above. Techsavvy resource reduces price.
+**Neuralware** — Cybernetic neural interface components; produced only at Post-Industrial and Hi-Tech worlds, consumed across Industrial and above. Techsavvy resource reduces price.
 
-### 8.2 Cargo Mechanics
+---
+
+### 8.2 Production & Consumption Rates
+
+Each trade good has a **base production rate** and **base consumption rate** (units/day). These are modified by tech level, system size, and resources. A system produces a good only if its tech level meets `minTechProd`; it consumes a good only if its tech level meets `minTechUse`.
+
+#### Base Rates (units/day at Medium system, no modifiers)
+
+| ID | Base Prod/day | Base Cons/day | Primary Producers | Primary Consumers |
+|---|---|---|---|---|
+| `water` | 8 | 6 | Agricultural, low-tech | All systems |
+| `pelts` | 4 | 2 | Agricultural / Rich Fauna | Industrial+ |
+| `rations` | 10 | 8 | Agricultural (tech 1+) | All systems |
+| `ore` | 6 | 4 | Mineral Rich / tech 2+ | Industrial+ |
+| `holoware` | 5 | 4 | Renaissance+ | Medieval+ |
+| `munitions` | 3 | 2 | Renaissance+ | All (contraband) |
+| `medpacks` | 4 | 5 | Early Industrial+ | All systems |
+| `machinery` | 5 | 4 | Early Industrial+ | Industrial+ |
+| `stims` | 2 | 3 | Industrial+ (contraband) | All (contraband) |
+| `xenocultures` | 2 | 3 | Post-Industrial+ | Industrial+ |
+| `neuralware` | 1 | 2 | Post-Industrial+ | Industrial+ |
+| `synthminds` | 1 | 1 | Hi-Tech only | Post-Industrial+ |
+
+Production rate > consumption rate at source systems → surpluses available to buy.
+Consumption rate > production rate → natural shortage, must import → higher prices.
+
+#### Rate Modifiers
+
+| Factor | Modifier |
+|---|---|
+| System size (each step above Medium) | Prod ×1.3, Cons ×1.2 per step |
+| System size (each step below Medium) | Prod ×0.7, Cons ×0.8 per step |
+| Tech level above `minTechProd` (per level) | Prod +20% |
+| Resource bonus (e.g. Rich Fauna for pelts) | Prod ×1.5 |
+| Resource penalty (e.g. Lifeless for pelts) | Prod ×0.2 |
+| Condition: WAR | Munitions cons ×3, Medpacks cons ×2 |
+| Condition: PLAGUE | Medpacks cons ×4, Xenocultures cons ×2 |
+| Condition: DROUGHT | Water prod ×0.2, Rations cons ×1.5 |
+| Condition: CROP_FAILURE | Rations prod ×0.1 |
+| Condition: BOREDOM | Holoware cons ×2, Stims cons ×1.5 |
+| Condition: COLD | Rations cons ×1.3, Medpacks cons ×1.5 |
+
+---
+
+### 8.3 Dynamic Pricing
+
+Prices are **not** fixed — they respond to current stock level (scarcity), the underlying production economics of the system, and external conditions. Price is recalculated each time the player visits a port, after stock has been updated for elapsed days.
+
+#### Price Formula
+
+```
+// Step 1: Fundamental value
+basePrice    = good.basePrice
+techMod      = (system.techLevel - good.minTechProd) * good.basePrice * 0.05
+               // goods produced at higher tech have lower unit cost of production
+
+// Step 2: Scarcity modifier — the core of the living economy
+fillRatio    = entry.stock / entry.stockCap   // 0.0 (empty) to 1.0 (full)
+scarcityMod  = lerp(SCARCITY_MAX, SCARCITY_MIN, fillRatio)
+               // at 0% stock: price × SCARCITY_MAX (default 2.0)
+               // at 100% stock: price × SCARCITY_MIN (default 0.6)
+
+// Step 3: Condition and resource modifiers (additive, in credits)
+resourceMod  = resourceModifier(system.resources, good)
+conditionMod = conditionModifier(system.condition, good)
+
+// Step 4: Trader skill discount (buy only)
+traderMod    = 1 - (player.traderSkill * 0.01)  // up to -10% at skill 10
+
+// Step 5: Small daily noise (changes each visit, seeded by day + system)
+noise        = PRNG.range(-good.variance, good.variance)
+
+// Final prices
+rawPrice     = (basePrice + techMod + resourceMod + conditionMod + noise) * scarcityMod
+buyPrice     = round(rawPrice)                         // player buys at this price
+sellPrice    = round(rawPrice * SELL_MARGIN * traderMod) // port pays player this
+```
+
+#### Pricing Constants
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `SCARCITY_MAX` | 2.0 | Price multiplier when stock = 0 (desperate scarcity) |
+| `SCARCITY_MIN` | 0.6 | Price multiplier when stock = cap (overflowing surplus) |
+| `SELL_MARGIN` | 0.75 | Port buys from player at 75% of current buy price (baseline) |
+| `SELL_MARGIN_MIN` | 0.50 | Port buy margin floor (won't pay less than 50% even when oversupplied) |
+
+#### Buy vs. Sell Availability
+
+| Condition | Port sells to player? | Port buys from player? |
+|---|---|---|
+| System doesn't produce good (tech too low) | No | Yes (if it can use it) |
+| System produces good (tech met) | Yes | Yes |
+| Stock = 0 | No (nothing to sell) | Yes (desperately needs it) |
+| Stock = cap | Yes | No (warehouse full) |
+| Good is `LOCAL_ILLEGAL` at this system | No (black market only) | No (black market only) |
+| Good is `CONTRABAND` | No (black market only) | No (black market only) |
+
+When stock hits 0 a port can no longer sell the good — the player must source it elsewhere, which reinforces the trade loop. When stock hits cap, the port stops buying.
+
+---
+
+### 8.4 Trade Feedback — Market Screen Indicators
+
+The market screen exposes just enough of the inventory simulation to let the player make informed decisions without exposing raw numbers:
+
+| Indicator | Meaning |
+|---|---|
+| `████████░░` fill bar | Relative stock level (visual only, no number shown) |
+| `↑↑` trend arrow (red) | Stock is declining — production < consumption; prices rising |
+| `↓↓` trend arrow (green) | Stock is building — production > consumption; prices falling |
+| `⚠ SCARCE` badge | Stock below 20% of cap; buy price significantly elevated |
+| `✦ SURPLUS` badge | Stock above 85% of cap; sell price near floor |
+| `✕ OUT OF STOCK` | Stock = 0; port cannot sell |
+| `✕ NOT BUYING` | Stock = cap; port will not buy |
+
+The trend arrows are calculated from `productionRate - consumptionRate` at time of visit — they reflect the structural tendency, not a short-term blip.
+
+---
+
+### 8.5 Cargo Mechanics
 
 - Cargo is stored in the `player.cargo` array, each slot:
   ```javascript
   CargoSlot = { goodId: String, quantity: Number, avgCostPerUnit: Number }
   ```
-- `avgCostPerUnit` tracks buy price for profit calculation
-- Cargo bays are measured in "units" (1 good = 1 unit)
+- `avgCostPerUnit` tracks buy price for profit/loss display
+- Cargo bays are measured in units (1 good = 1 unit)
 - Equipment also consumes cargo space if removed from ship
 
-### 8.3 Price Influencers Summary
+---
 
-| Factor | Effect |
+### 8.6 Illegal Goods & the Black Market
+
+#### Universal Contraband
+
+Some goods are illegal everywhere, regardless of system:
+
+| Good | Reason |
 |---|---|
-| Tech level | Higher tech = some goods cheaper, some unavailable |
-| Government | Affects legal goods availability and police tolerance |
-| Resources | Reduces/increases specific good prices |
-| Condition | E.g., WAR increases munitions price |
-| Trader skill | Reduces buy price, increases sell price slightly |
-| Day/market fluctuation | Small random variance each visit |
+| `stims` | Universally banned narcotics |
+| `munitions` | Unregulated arms universally prohibited |
 
-### 8.4 Illegal Goods
+#### Context-Sensitive Illegality
 
-- **Stims** are universally contraband in all systems
-- **Munitions** are universally contraband in all systems
-- Carrying contraband increases police aggression proportionally to quantity carried
-- If police scanner detects contraband → `POLICE_ENCOUNTER` branch (surrender/bribe/fight)
-- Jettisoning cargo overboard is possible to avoid police confiscation
-- Contraband goods yield significantly higher profit to compensate for legal risk
+Other goods may be **locally illegal** depending on a system's government, tech level, or resources. The same cargo that is freely traded on one world may be contraband on another. Local illegality is generated deterministically from the system seed — it does not change during a playthrough.
+
+| Good | Illegal When | Reason |
+|---|---|---|
+| `pelts` | Tech level ≥ 6 | Animal rights laws; hi-tech worlds consider the trade barbaric |
+| `pelts` | Government: Corporate State | Banned in favour of synthetic alternatives |
+| `ore` | Government: Communist | State monopoly on mineral extraction; private trade forbidden |
+| `xenocultures` | Government: Dictatorship or Communist | Bio-agent import controls; fear of engineered organisms |
+| `xenocultures` | Condition: PLAGUE | Quarantine lockdown — no biological cargo allowed in or out |
+| `neuralware` | Government: Feudal or Dictatorship | Neural augmentation seen as subversive or threatening to authority |
+| `holoware` | Government: Feudal | Considered culturally corrupting; restricted by decree |
+| `synthminds` | Government: Feudal, Dictatorship, or Communist | Artificial intelligence restricted or outright banned |
+| `rations` | *(never illegal)* | Food is never criminalised |
+| `water` | *(never illegal)* | Water is never criminalised |
+| `medpacks` | *(never illegal)* | Medicine is never criminalised |
+| `machinery` | *(never illegal)* | Industrial goods are never criminalised |
+
+This list is illustrative; additional combinations may be defined in `data/illegality.js`.
+
+#### Legality States per System
+
+Each good at each port has one of three legality states:
+
+| State | ID | Description |
+|---|---|---|
+| Legal | `LEGAL` | Freely bought and sold; normal market screen |
+| Locally Illegal | `LOCAL_ILLEGAL` | Illegal to trade openly; black market only |
+| Universal Contraband | `CONTRABAND` | Illegal everywhere; black market only |
+
+`PortEntry` is extended with `legalityState: Enum`.
+
+#### Black Market
+
+When a good is `LOCAL_ILLEGAL` or `CONTRABAND` at a system, it does **not** appear on the standard market screen. Instead, it is available through the **Black Market**, accessible only at ports with tech level ≥ 2.
+
+Black market access conditions:
+- Player's police record must be ≤ `BLACK_MARKET_RECORD_THRESHOLD` (default `+10`) — upstanding citizens are not approached
+- OR player has the **Signal Jammer** gadget installed (unlocks black market access regardless of record)
+- Black market contact appears as a random event on port arrival when conditions are met; not a persistent building
+
+Black market pricing:
+
+```
+blackMarketBuyPrice  = normalBuyPrice  * BLACK_MARKET_BUY_PREMIUM    // default ×1.5
+blackMarketSellPrice = normalSellPrice * BLACK_MARKET_SELL_PREMIUM   // default ×1.8
+```
+
+The seller charges more (risk premium), but also pays substantially more — smuggling is profitable precisely because the black market sell price exceeds any legal market. Scarcity modifiers still apply on top of the black market premium.
+
+#### Carrying Locally Illegal Cargo
+
+| Situation | Consequence |
+|---|---|
+| Police scan while carrying `LOCAL_ILLEGAL` goods | Same as `CONTRABAND` — surrender / bribe / fight |
+| Police scan while carrying `CONTRABAND` | Same as before — high aggression, confiscation |
+| Legal goods that become illegal in next system | No warning at time of purchase; player must know the laws |
+| Arriving at system where cargo is `LEGAL` | No issue — sell openly on the market |
+
+Police scan sensitivity scales with quantity: 1–5 units triggers a minor stop; 6+ units triggers full confiscation proceedings.
+
+#### Market Screen — Illegality Display
+
+Goods that are locally illegal at the **current** system are hidden from the standard market screen. However, the player's cargo screen always shows what they are carrying, regardless of legality. A `⚠ ILLEGAL HERE` warning badge is shown on the cargo entry when docked at a system where that good is `LOCAL_ILLEGAL` or `CONTRABAND`, reminding the player to use the black market or move on.
+
+#### Constants
+
+```
+BLACK_MARKET_RECORD_THRESHOLD = 10     // max police record to be approached by black market contact
+BLACK_MARKET_BUY_PREMIUM      = 1.5    // multiplier on buy price at black market
+BLACK_MARKET_SELL_PREMIUM     = 1.8    // multiplier on sell price at black market
+```
 
 ---
 
@@ -1458,23 +1684,132 @@ Layout: Top bar → Content area → Bottom navigation
 
 ### 21.4 Star Map Screen
 
+```
+┌────────────────────────────────────────────────┐
+│  STAR MAP                          [Day 14]    │
+│  ·  ·    *Kelvari·   ·    ·   ·    ·           │
+│       ·      ◉←(you)   ·    Dracos·            │
+│  ·  Elysara·   ·    ·    ·    ·    ·           │
+│     ·    ·    ·   ·    ·    [○]wormhole        │
+│  ○──────────────────── fuel range              │
+└────────────────────────────────────────────────┘
+```
+
 - Canvas-drawn galaxy: dots for systems, lines for wormholes
 - Current system highlighted (pulsing dot)
-- Visited systems: white; unvisited: dim
-- Fuel range drawn as a circle around current system
-- Tap/click system → shows info panel (name, tech, govt, distance, fuel cost)
-- **Warp Here** button in info panel
-- Zoom in/out: pinch-zoom (touch) or mouse wheel
-- Pan: drag
+- Visited systems: bright; unvisited: dim
+- Fuel range drawn as a dashed circle around current system; out-of-range systems are greyed
+- Zoom: pinch-zoom (touch) or mouse wheel; Pan: drag
+- Wormhole pairs shown as animated portal icons with connecting line
+
+**System Info Panel** (shown when player taps/clicks any system):
+
+```
+┌────────────────────────────────────────┐
+│  DRACOS SYSTEM                         │
+│  Tech: Industrial (5)  Gov: Democracy  │
+│  Distance: 9 pc   Fuel cost: 9 units   │
+│  Arrival: Day 23                       │
+├────────────────────────────────────────┤
+│  CARGO OUTLOOK  (estimated sell value) │
+│  Rations      +25 cr/unit  ↑ profit   │
+│  Ore          +62 cr/unit  ↑ profit   │
+│  Pelts        ⚠ ILLEGAL HERE          │
+│  Neuralware   — (not visited)          │
+│  Stims        ⚠ CONTRABAND            │
+├────────────────────────────────────────┤
+│       [WARP HERE]   [CLOSE]            │
+└────────────────────────────────────────┘
+```
+
+#### Cargo Outlook Panel
+
+The Cargo Outlook section is shown only if the player has cargo in the hold. It displays one row per cargo good carried, estimating the profit or loss per unit at the target system.
+
+**Delta calculation:**
+
+```
+// For visited systems: use last known port price adjusted for elapsed days
+estimatedSellPrice = lastKnownSellPrice[targetSystem][goodId]
+                     adjusted by productionRate/consumptionRate × daysUntilArrival
+
+// For unvisited systems: show "— (not visited)" — no estimate available
+
+delta = estimatedSellPrice - cargoSlot.avgCostPerUnit
+```
+
+Display rules:
+
+| Condition | Display |
+|---|---|
+| `delta > 0` | `+{delta} cr/unit` in green with `↑ profit` |
+| `delta < 0` | `{delta} cr/unit` in red with `↓ loss` |
+| `delta == 0` | `±0 cr/unit` in grey |
+| Good is `LOCAL_ILLEGAL` at target | `⚠ ILLEGAL HERE` in amber; no price shown |
+| Good is `CONTRABAND` | `⚠ CONTRABAND` in red; no price shown |
+| Target system not yet visited | `— (not visited)` in dim grey |
+| Target system at stock cap (NOT BUYING) | `✕ NOT BUYING` in grey |
+
+The estimate is labelled **"estimated"** throughout — it uses last known data plus the production/consumption model, and is clearly not guaranteed. The Market Predictor gadget (Section 10.3) improves accuracy by refreshing price estimates on the fly.
+
+**No Cargo Outlook** is shown if the hold is empty, or if no cargo goods are currently loaded (colonists and quest items are excluded from the panel).
+
+#### Warp Confirmation Dialog
+
+Shown when player presses **Warp Here**:
+
+```
+┌──────────────────────────────────────┐
+│  WARP TO: Dracos System              │
+│  Distance:  9 pc   Fuel cost: 9      │
+│  Arrival:   Day 23                   │
+│                                      │
+│  ⚠ Carrying ILLEGAL cargo for        │
+│    this system: Pelts                │
+│                                      │
+│      [CONFIRM WARP]   [CANCEL]       │
+└──────────────────────────────────────┘
+```
+
+- If any cargo in the hold is `LOCAL_ILLEGAL` or `CONTRABAND` at the destination, a warning is shown listing the affected goods
+- The player is not blocked from warping — they are informed and must decide
+- Fuel is deducted only on confirmation
 
 ### 21.5 Market Screen
 
-- Table layout: Good name | Available | Buy Price | Sell Price | Qty in Cargo
-- Buy row: − / quantity input / + / **Buy** button
-- Sell row: − / quantity input / + / **Sell** button
-- Profit indicator: colour-coded (green = profit vs purchase price)
-- Credit balance updated live as quantities change
-- Cargo bay usage bar at bottom
+```
+┌─────────────────────────────────────────────────┐
+│  MARKETPLACE — Kelvari System  (Day 14)         │
+│  Cargo: 18 / 50 bays used                       │
+├──────────┬──────┬───────┬────────┬──────────────┤
+│ Good     │Stock │  Buy  │  Sell  │  In Hold     │
+├──────────┼──────┼───────┼────────┼──────────────┤
+│ Rations  │██░░░ │  112  │   78   │  20 units    │
+│ ↑↑SCARCE │      │       │        │  [SELL] [─+] │
+├──────────┼──────┼───────┼────────┼──────────────┤
+│ Water    │████░ │   28  │   19   │  —           │
+│          │      │[BUY]  │        │  [─+]        │
+├──────────┼──────┼───────┼────────┼──────────────┤
+│ Holoware │█████ │   —   │  142   │  —           │
+│ ✦SURPLUS │      │OUT OF │        │              │
+│          │      │STOCK  │        │              │
+├──────────┼──────┼───────┼────────┼──────────────┤
+│ Ore      │███░░ │  370  │  265   │  —           │
+│ ↓↓       │      │[BUY]  │        │  [─+]        │
+└──────────┴──────┴───────┴────────┴──────────────┘
+│  [CLOSE MARKET]                   Cr: 14,320    │
+└─────────────────────────────────────────────────┘
+```
+
+- **Stock bar** — visual fill level relative to port's stock cap; no raw number shown
+- **Trend arrow** — `↑↑` rising prices (structural shortage); `↓↓` falling prices (building surplus)
+- **SCARCE** badge (red) — stock below 20% of cap; elevated buy price
+- **SURPLUS** badge (green) — stock above 85% of cap; depressed sell price
+- **OUT OF STOCK** — port has nothing to sell; player may still sell to them
+- **NOT BUYING** — port at cap; will not purchase from player
+- Buy/sell quantity: `−` / text input / `+` with live credit balance update
+- Profit indicator per row: colour-coded vs. `avgCostPerUnit` in hold
+- Illegal goods never appear on this screen; sold via separate black market interaction
 
 ### 21.6 Ship Yard Screen
 
@@ -2066,6 +2401,28 @@ EQUIP_SELL_RATE          = 0.50
 INSURANCE_RATE           = 0.0025       // per day, of ship base price
 LOAN_RATE_DEFAULT        = 0.10         // annual, applied daily
 MOON_PRICE_DEFAULT       = 500_000
+
+// Port Inventory & Pricing
+SCARCITY_MAX             = 2.0          // price multiplier at 0% stock (desperate shortage)
+SCARCITY_MIN             = 0.6          // price multiplier at 100% stock (overflowing surplus)
+SELL_MARGIN              = 0.75         // port pays player 75% of current buy price (baseline)
+SELL_MARGIN_MIN          = 0.50         // port buy margin floor (never below 50%)
+STOCK_SCARCE_THRESHOLD   = 0.20         // fill ratio below which SCARCE badge shown
+STOCK_SURPLUS_THRESHOLD  = 0.85         // fill ratio above which SURPLUS badge shown
+STOCK_INIT_MIN           = 0.40         // minimum starting fill fraction on new game
+STOCK_INIT_MAX           = 0.80         // maximum starting fill fraction on new game
+STOCK_CAP_TINY           = 30           // base stock cap for Tiny systems (per good)
+STOCK_CAP_SMALL          = 60
+STOCK_CAP_MEDIUM         = 120
+STOCK_CAP_LARGE          = 200
+STOCK_CAP_HUGE           = 350
+STOCK_CAP_TECH_BONUS     = 10           // added to cap per tech level above minTechProd
+STOCK_CAP_RESOURCE_BONUS = 20           // added to cap when resource favours the good
+
+// Black Market
+BLACK_MARKET_RECORD_THRESHOLD = 10     // max police record score to be approached by black market contact
+BLACK_MARKET_BUY_PREMIUM      = 1.5    // price multiplier for buying illegal goods on black market
+BLACK_MARKET_SELL_PREMIUM     = 1.8    // price multiplier for selling illegal goods on black market
 
 // Save System
 SAVE_FILE_VERSION        = "1.0"        // must match fileVersion in exported JSON
