@@ -780,12 +780,26 @@ The Escape Pod is a one-use emergency survival device, purchasable at any Equipm
 
 ### 11.1 Combat Overview
 
-Combat is turn-based and round-resolved. Both sides fire simultaneously each round. The player may:
+Combat is turn-based and round-resolved. Both sides fire simultaneously each round. The player chooses one action per round, or sets a **standing order** that repeats automatically until cancelled or combat ends.
 
-- **Attack** — Fire all weapons at target
-- **Flee** — Attempt to escape (pilot skill vs enemy pilot)
-- **Surrender** — Give up cargo (pirates), pay fine (police), or face destruction
-- **Yield** — Specific context (e.g., police stop: allow search)
+#### Single-Round Actions
+
+| Action | Description |
+|---|---|
+| **Fire** | Fire all weapons at the enemy this round |
+| **Evade** | Attempt to flee; all thrust goes to escape (no weapons fire) |
+| **Surrender** | Give up cargo (pirates), pay fine (police), or face destruction |
+| **Yield** | Specific context only (e.g., police stop: allow search without fighting) |
+
+#### Standing Orders (Auto-repeat every round)
+
+| Action | Description |
+|---|---|
+| **Guns Blazing** | Repeat **Fire** every round automatically until combat ends or player cancels |
+| **Full Retreat** | Repeat **Evade** every round automatically until escape succeeds or player cancels |
+| **Broadside** | Fire weapons AND attempt to flee simultaneously each round; escape chance is reduced (see Section 11.3); cancels automatically on successful escape |
+
+Standing orders display a highlighted active-mode indicator on the combat screen. The player can cancel a standing order at any time by pressing any single-round action button, which also immediately executes that action for the current round.
 
 ### 11.2 Round Resolution
 
@@ -805,41 +819,108 @@ applyDamage(target, damage):
   target.hullHP   -= remaining
 ```
 
-### 11.3 Flee Mechanics
+### 11.3 Flee & Evasion Mechanics
+
+#### Base Flee Chance Formula
 
 ```
-fleeChance = 40 + (player.pilot - enemy.pilot) * 10
-             + (voidVeil ? 30 : 0)
-             + (emergencyThrusters ? 100 : 0)   // overrides all other factors; once per journey
-             + (enemy.type == POLICE ? -10 : 0)
-success = random(0,100) < clamp(fleeChance, 5, 95)
+baseFleeChance = 40 + (player.pilot - enemy.pilot) * 10
+               + (voidVeil ? 30 : 0)
+               + (enemy.type == POLICE ? -10 : 0)
+```
+
+Emergency Thrusters override all other factors when triggered (see Section 10.3).
+
+#### Per-Action Flee Chance Modifiers
+
+| Action | Flee Chance | Weapons Fire | Notes |
+|---|---|---|---|
+| **Evade** | `baseFleeChance` (unmodified) | None | Full thrust to escape |
+| **Full Retreat** | `baseFleeChance` (unmodified) | None | Same as Evade but repeats; enemy fires each failed round |
+| **Broadside** | `baseFleeChance × BROADSIDE_FLEE_PENALTY` | Full attack | Split focus; weapons and thrusters active simultaneously |
+
+`BROADSIDE_FLEE_PENALTY = 0.60` — flee chance reduced to 60% of base (e.g. a 50% base chance becomes 30%).
+
+#### Resolution
+
+```
+// Evade / Full Retreat
+fleeChance = clamp(baseFleeChance, 5, 95)
+success    = random(0, 100) < fleeChance
 if success:
-  fuelCost = FLEE_FUEL_COST (default 1)
+  fuelCost = FLEE_FUEL_COST   // default 1
   leaveEncounter()
 else:
   enemy fires once more (flee penalty round)
+  if Full Retreat: repeat next round automatically
+
+// Broadside
+fleeChance = clamp(baseFleeChance * BROADSIDE_FLEE_PENALTY, 5, 75)  // hard cap 75
+             + (emergencyThrusters ? 100 : 0)  // still overrides if available
+playerFires()                // weapons resolve at full damage regardless of flee outcome
+success    = random(0, 100) < fleeChance
+if success:
+  fuelCost = FLEE_FUEL_COST
+  leaveEncounter()           // Broadside standing order cancelled on success
+else:
+  enemy fires once more (flee penalty round)
+  // Broadside standing order: repeat next round automatically
 ```
 
-### 11.4 Damage Display
+#### Emergency Thrusters Interaction
+
+- When Emergency Thrusters are triggered during **Evade** or **Full Retreat**: guaranteed escape, pod consumed
+- When triggered during **Broadside**: weapons fire resolves first, then guaranteed escape; pod consumed
+- Emergency Thrusters are consumed regardless of which action triggered them
+
+### 11.4 Standing Order State Machine
+
+```javascript
+CombatState = {
+  standingOrder: Enum,   // NONE | GUNS_BLAZING | FULL_RETREAT | BROADSIDE
+  emergencyThrustersUsed: Boolean,
+}
+```
+
+Each round:
+```
+if standingOrder == NONE:
+  wait for player input (show action buttons)
+else:
+  execute standingOrder action automatically after SHORT_DELAY ms
+  update combat log: "[Standing Order: Guns Blazing]" etc.
+  check cancellation conditions:
+    - GUNS_BLAZING:   cancel if enemy destroyed, player destroyed, or player manually cancels
+    - FULL_RETREAT:   cancel if escape succeeds, player destroyed, or player manually cancels
+    - BROADSIDE:      cancel if escape succeeds, player destroyed, or player manually cancels
+```
+
+`SHORT_DELAY = 800` ms — brief pause between auto-rounds so the player can read the log and cancel.
+
+When a standing order is active, a **[CANCEL]** button is prominently displayed alongside the round log. Pressing any of the four single-round action buttons instantly cancels the standing order and executes that action instead.
+
+### 11.5 Damage Display
 
 - Player hull and shields shown as animated progress bars
 - Enemy hull shown as a bar (no exact number displayed, just visual)
+- Active standing order shown as a coloured badge: `● GUNS BLAZING`, `● FULL RETREAT`, `● BROADSIDE`
 - Hit/miss flashes on the combatant sprite
-- Combat log panel shows last 5 rounds of text events
+- Combat log panel shows last 6 rounds of text events, including auto-round markers
+- Round counter
 
-### 11.5 Post-Combat
+### 11.6 Post-Combat
 
 | Outcome | Result |
 |---|---|
 | Player wins vs Pirate | Loot cargo (partial), possible bounty reward |
 | Player wins vs Police | Police record worsens significantly |
 | Player wins vs Trader | Possible loot, record worsens slightly |
-| Player flees | No loot, no record change |
+| Player flees (any method) | No loot, no record change |
 | Player surrenders (pirate) | Cargo stolen (up to demand amount) |
 | Player surrenders (police) | Fine paid, contraband confiscated |
 | Player destroyed | Game over (or escape pod if equipped) |
 
-### 11.6 Escape Pod
+### 11.7 Escape Pod
 
 Full specification in Section 10.5. Combat-relevant summary:
 
@@ -1448,11 +1529,48 @@ See Section 14.11 for full layout specification. Accessible from the Solar Syste
 
 - Player ship (bottom), enemy ship (top), animated
 - Hull/shield bars for both sides
-- Weapon animation: laser beams drawn from attacker to target
+- Weapon animation: laser beams drawn from attacker to target on Fire/Broadside rounds
 - Hit/miss text animation
-- Combat log: last 5 lines scrolling
-- Buttons: **Auto-Combat**, **Attack**, **Flee**
+- Combat log: last 6 lines scrolling, auto-round entries marked with `●`
 - Round counter
+
+**Action Buttons (two rows):**
+
+```
+┌─────────────────────────────────────────┐
+│  Round 4          ● BROADSIDE ACTIVE    │
+│  ┌───────────────────────────────────┐  │
+│  │ Enemy Hull ████████░░░░░░░░░ 52%  │  │
+│  │ Your Hull  ██████████████░░ 88%   │  │
+│  │ Shields    ████████████░░░░ 75%   │  │
+│  └───────────────────────────────────┘  │
+│  > Round 4 [Broadside]: HIT 42 dmg      │
+│  > Enemy fired: MISS                    │
+│  > Round 3 [Broadside]: HIT 38 dmg      │
+│  > Enemy fired: HIT 12 dmg              │
+│  > Round 2 [Broadside]: MISS            │
+│  > Round 1 [Fire]: HIT 45 dmg           │
+├─────────────────────────────────────────┤
+│  Single Round:                          │
+│  [  FIRE  ]  [  EVADE  ]  [SURRENDER]  │
+│                                         │
+│  Standing Orders:                       │
+│  [GUNS BLAZING] [FULL RETREAT]          │
+│  [   BROADSIDE  ]  [  CANCEL  ]        │
+└─────────────────────────────────────────┘
+```
+
+- **FIRE** — single round attack
+- **EVADE** — single round flee attempt
+- **SURRENDER** / **YIELD** — context-dependent; shown when applicable
+- **GUNS BLAZING** — sets standing order; button highlights when active
+- **FULL RETREAT** — sets standing order; button highlights when active
+- **BROADSIDE** — sets standing order; button highlights when active
+- **CANCEL** — only visible when a standing order is active; cancels it immediately
+- Standing order badge shown in top-right of combat panel with colour coding:
+  - `● GUNS BLAZING` — red
+  - `● FULL RETREAT` — cyan
+  - `● BROADSIDE` — amber
 
 ### 21.14 Settings Screen
 
@@ -1966,9 +2084,15 @@ SIGNAL_JAMMER_BYPASS_CHANCE  = 0.20     // chance to skip police cargo scan
 ENGINE_TUNER_RANGE_BONUS     = 2        // extra parsecs of jump range
 REINFORCED_STRUTS_HULL_BONUS = 0.05     // fraction increase to max hull HP
 LIFE_SUPPORT_VENTS_DISCOUNT  = 0.15     // fraction reduction to daily mercenary wage
-SKILL_FACTOR             = 5            // per skill point difference
-SHIELD_FACTOR            = 0.75         // fraction of damage absorbed by shields
-FLEE_FUEL_COST           = 1
+
+// Combat
+BASE_HIT_CHANCE              = 50       // percent
+SKILL_FACTOR                 = 5        // per skill point difference
+SHIELD_FACTOR                = 0.75     // fraction of damage absorbed by shields
+FLEE_FUEL_COST               = 1
+BROADSIDE_FLEE_PENALTY       = 0.60     // flee chance multiplier when firing during Broadside
+BROADSIDE_FLEE_CAP           = 75       // hard cap on flee chance during Broadside (percent)
+COMBAT_AUTO_ROUND_DELAY      = 800      // ms pause between standing order auto-rounds
 
 // Travel
 WARP_SPEED               = 1            // parsecs per day
