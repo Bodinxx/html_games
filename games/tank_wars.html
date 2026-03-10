@@ -1,0 +1,2022 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Tank Wars is a strategic combat game where you control powerful tanks to destroy opponents across fully destructible, physics-based terrain. Command an arsenal of over 30 unique weapons—from standard shells to orbital strikes—while accounting for shifting wind speeds and limited fuel.
+TAGS: Strategy, Artillery, Simulation, Tactical, Old School
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tank Wars</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --ui-bg: rgba(0, 0, 0, 0.7);
+            --text-color: #e94560;
+            --p1-color: #4cc9f0;
+            --p2-color: #f72585;
+            --terrain-color: #2a9d8f;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Courier New', Courier, monospace;
+            color: white;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            text-shadow: 1px 1px 0 #000;
+            pointer-events: auto; /* allow clicking help btn */
+        }
+
+        .player-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .health-bar-container {
+            width: 150px;
+            height: 10px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .health-bar {
+            height: 100%;
+            width: 100%;
+            transition: width 0.3s;
+        }
+
+        .wind-indicator {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .wind-arrow {
+            display: inline-block;
+            font-size: 24px;
+        }
+
+        .icon-btn {
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            user-select: none;
+        }
+        
+        .icon-btn:hover { background: #444; }
+
+        #controls {
+            pointer-events: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+        }
+
+        .secondary-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .primary-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* Wide screen layout adjustment */
+        @media (min-width: 900px) {
+            #controls {
+                flex-direction: row;
+                gap: 40px;
+            }
+            .secondary-controls {
+                flex-direction: row;
+            }
+            .weapon-selector {
+                margin-bottom: 0;
+            }
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .weapon-selector {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            min-width: 240px;
+            cursor: pointer;
+            border: 1px solid #555;
+            position: relative;
+            user-select: none;
+        }
+
+        .weapon-selector:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #weapon-list {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            width: 100%;
+            max-height: 300px;
+            background: rgba(10, 10, 20, 0.98);
+            border: 1px solid #555;
+            border-radius: 5px;
+            overflow-y: auto;
+            z-index: 50;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        #weapon-list.show {
+            display: flex;
+        }
+
+        .weapon-item {
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            transition: background 0.2s;
+        }
+
+        .weapon-item:hover {
+            background: #333;
+        }
+        
+        .weapon-item.selected {
+            background: #e94560;
+            color: white;
+        }
+
+        .w-icon { font-size: 1.2rem; min-width: 25px; text-align: center; }
+        .w-name { flex-grow: 1; font-weight: bold; font-size: 0.9rem; }
+        .w-count { font-size: 0.8rem; color: #aaa; }
+
+        #weapon-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #ffd700;
+            font-weight: bold;
+            font-size: 0.9rem;
+            flex-grow: 1;
+        }
+        
+        .move-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 5px 10px;
+            border-radius: 10px;
+        }
+
+        .fuel-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.8rem;
+            gap: 2px;
+            color: #aaa;
+        }
+
+        .fuel-bar-container {
+            width: 60px;
+            height: 6px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 3px;
+        }
+
+        .fuel-bar {
+            width: 100%;
+            height: 100%;
+            background: #ffd700;
+            transition: width 0.1s;
+        }
+
+        button {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 10px 15px; 
+            border-radius: 5px;
+            font-family: inherit;
+            cursor: pointer;
+            font-weight: bold;
+            user-select: none;
+            min-width: 40px; 
+        }
+
+        button:active {
+            background: #555;
+        }
+
+        .btn-fire {
+            background: #e94560;
+            border-color: #d63447;
+            font-size: 1.2rem;
+            padding: 15px 40px;
+        }
+        
+        .btn-fire:disabled {
+            background: #555;
+            border-color: #333;
+            color: #888;
+        }
+
+        .value-display {
+            min-width: 50px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        #test-back-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            pointer-events: auto;
+            background: #e94560;
+            color: white;
+            border: 1px solid #d63447;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 60;
+        }
+
+        /* Modal Styles */
+        #modal, #help-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            pointer-events: auto;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: #161625;
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid #444;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            text-align: center;
+        }
+
+        #modal h1 {
+            color: var(--text-color);
+            font-size: 3rem;
+            margin: 0 0 20px 0;
+            text-transform: uppercase;
+        }
+
+        .help-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .help-tab {
+            background: #222;
+            border: none;
+            padding: 8px 16px;
+        }
+
+        .help-tab.active {
+            background: var(--p1-color);
+            color: #000;
+        }
+
+        .help-section {
+            display: none;
+            text-align: left;
+        }
+        .help-section.active { display: block; }
+
+        .help-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 10px;
+        }
+
+        .help-item {
+            background: #222;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mode-select {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .mode-btn {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 15px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .mode-btn:hover {
+            background: #444;
+            border-color: var(--text-color);
+        }
+
+        .mode-btn.full {
+            grid-column: span 2;
+            background: #e94560;
+            border-color: #d63447;
+        }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 600px) {
+            .hud-top { font-size: 0.8rem; padding: 5px 10px; }
+            .health-bar-container { width: 80px; }
+            .btn-fire { padding: 10px 20px; font-size: 1rem; }
+            #controls { padding: 10px; gap: 5px; }
+            button { padding: 8px 10px; min-width: 30px; }
+            .control-row { gap: 10px; }
+            #weapon-display { font-size: 0.8rem; }
+            #modal h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="player-info" id="p1-info">
+                <span style="color: var(--p1-color)">PLAYER 1</span>
+                <div class="health-bar-container"><div class="health-bar" id="p1-health" style="background: var(--p1-color)"></div></div>
+            </div>
+
+            <div class="wind-indicator">
+                <div>WIND</div>
+                <div id="wind-val">0</div>
+                <div class="wind-arrow" id="wind-arrow">➤</div>
+            </div>
+            
+            <div style="display:flex; gap: 10px">
+                 <button class="icon-btn" id="sound-btn" onclick="soundManager.toggle()">🔊</button>
+                 <button class="icon-btn" onclick="game.openHelp()">?</button>
+                 <div class="player-info" id="p2-info" style="align-items: flex-end;">
+                    <span style="color: var(--p2-color)">PLAYER 2</span>
+                    <div class="health-bar-container"><div class="health-bar" id="p2-health" style="background: var(--p2-color)"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <button id="test-back-btn" class="hidden" onclick="game.showMenu()">EXIT TEST</button>
+
+        <div id="controls">
+            <!-- Left Cluster: Weapons and Movement -->
+            <div class="secondary-controls">
+                <div class="weapon-selector" id="weapon-btn">
+                    <div id="weapon-display"><span>💣</span> Standard (∞)</div>
+                    <span style="font-size: 0.8em">▼</span>
+                    <div id="weapon-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="move-controls">
+                    <button id="move-left" class="icon-btn">⬅️</button>
+                    <div class="fuel-display">
+                        <span>FUEL</span>
+                        <div class="fuel-bar-container"><div id="fuel-bar" class="fuel-bar"></div></div>
+                    </div>
+                    <button id="move-right" class="icon-btn">➡️</button>
+                </div>
+            </div>
+
+            <!-- Right Cluster: Firing Controls -->
+            <div class="primary-controls">
+                <div class="control-group">
+                    <span>ANG</span>
+                    <button id="ang-down-5">«</button>
+                    <button id="ang-down-1">‹</button>
+                    <div class="value-display" id="angle-display">45°</div>
+                    <button id="ang-up-1">›</button>
+                    <button id="ang-up-5">»</button>
+                </div>
+                
+                <button class="btn-fire" id="fire-btn">FIRE</button>
+                
+                <div class="control-group">
+                    <span>POW</span>
+                    <button id="pow-down-5">▼▼</button>
+                    <button id="pow-down-1">▼</button>
+                    <div class="value-display" id="power-display">50</div>
+                    <button id="pow-up-1">▲</button>
+                    <button id="pow-up-5">▲▲</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Menu Modal -->
+    <div id="modal">
+        <div class="modal-content">
+            <h1 id="modal-title">TANK WARS</h1>
+            <p id="modal-msg">Select Game Mode</p>
+            <div id="mode-buttons" class="mode-select">
+                <button class="mode-btn full" onclick="game.start('PVP')">2 PLAYERS (Local)</button>
+                <button class="mode-btn" onclick="game.start('CPU_EASY')">VS CPU (Easy)</button>
+                <button class="mode-btn" onclick="game.start('CPU_MED')">VS CPU (Med)</button>
+                <button class="mode-btn" onclick="game.start('CPU_HARD')">VS CPU (Hard)</button>
+                <button class="mode-btn" style="background:#8b4513; border-color:#5d4037;" onclick="game.start('TEST')">🛠️ WEAPONS TEST</button>
+            </div>
+            <button id="restart-btn" class="mode-btn full hidden" onclick="game.showMenu()">MAIN MENU</button>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="hidden">
+        <div class="modal-content" style="text-align: left; max-width: 700px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2 style="margin:0; color:var(--p1-color)">GAME GUIDE</h2>
+                <button onclick="document.getElementById('help-modal').classList.add('hidden'); soundManager.playClick()" style="padding:5px 10px;">X</button>
+            </div>
+            
+            <div class="help-tabs">
+                <button class="help-tab active" onclick="game.switchTab('play')">How to Play</button>
+                <button class="help-tab" onclick="game.switchTab('weapons')">Weapon Encyclopedia</button>
+            </div>
+
+            <div id="tab-play" class="help-section active">
+                <p><strong>Objective:</strong> Destroy the enemy tank before they destroy you!</p>
+                <ul style="line-height: 1.6;">
+                    <li><strong>Aiming:</strong> Adjust your turret <strong>Angle</strong> and shot <strong>Power</strong> using the controls.</li>
+                    <li><strong>Moving:</strong> Use <strong>A/D</strong> keys or On-Screen Arrows to drive. Movement is limited by <strong>Fuel</strong>.</li>
+                    <li><strong>Wind:</strong> Watch the wind indicator at the top. It pushes shells left or right.
+                        <br><em>Easy: Static Wind | Medium: Small Shifts | Hard: Chaos</em></li>
+                    <li><strong>Terrain:</strong> The ground is destructible. You can dig holes, create barriers, or <strong>bury</strong> your opponent.</li>
+                    <li><strong>Burying:</strong> If hit by a Dirtball, a tank may get stuck underground. You cannot move while buried! Shoot the ground above you to escape.</li>
+                    <li><strong>Controls:</strong> Use Screen Buttons or Keyboard (Arrow Keys + Space).</li>
+                </ul>
+            </div>
+
+            <div id="tab-weapons" class="help-section">
+                <div class="help-grid" id="weapon-help-grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const GRAVITY = 0.2;
+    const EXPLOSION_RADIUS = 40;
+    const TANK_WIDTH = 30;
+    const TANK_HEIGHT = 16;
+    const MOVE_SPEED = 1;
+    const CLIMB_LIMIT = 3; // Max pixels tank can climb per step
+    
+    // Sound Manager
+    const soundManager = {
+        ctx: null,
+        muted: false,
+        init: function() {
+            if(!this.ctx) {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if(this.ctx.state === 'suspended') {
+                this.ctx.resume();
+            }
+        },
+        toggle: function() {
+            this.muted = !this.muted;
+            const btn = document.getElementById('sound-btn');
+            btn.innerText = this.muted ? '🔇' : '🔊';
+            if(!this.muted) this.init();
+        },
+        playShoot: function(power = 1) {
+            if(this.muted || !this.ctx) return;
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            // "Pew" sound
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(300 + (power*2), t);
+            osc.frequency.exponentialRampToValueAtTime(50, t + 0.3);
+            
+            gain.gain.setValueAtTime(0.3, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+            
+            osc.start(t);
+            osc.stop(t + 0.3);
+        },
+        playExplosion: function(size = 1) {
+            if(this.muted || !this.ctx) return;
+            const t = this.ctx.currentTime;
+            const dur = 0.5 * size;
+            
+            // Noise buffer
+            const bufferSize = this.ctx.sampleRate * dur;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = this.ctx.createGain();
+            
+            // Lowpass filter for "thud"
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 1000;
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            gain.gain.setValueAtTime(0.5, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + dur);
+            
+            noise.start(t);
+        },
+        playClick: function() {
+            if(this.muted || !this.ctx) return;
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.frequency.setValueAtTime(800, t);
+            osc.frequency.exponentialRampToValueAtTime(1200, t + 0.05);
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+            
+            osc.start(t);
+            osc.stop(t + 0.05);
+        },
+        playTurn: function() {
+            if(this.muted || !this.ctx) return;
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, t);
+            osc.frequency.setValueAtTime(660, t + 0.1);
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.linearRampToValueAtTime(0, t + 0.3);
+            
+            osc.start(t);
+            osc.stop(t + 0.3);
+        }
+    };
+
+    // Weapon Definitions
+    const WEAPONS = {
+        'Standard':    { icon: '💣', desc: 'Basic infinite ammo shell.', dmg: 20, rad: 40, color: '#fff' },
+        'Big Shot':    { icon: '🔴', desc: 'Larger explosion radius.', dmg: 40, rad: 80, color: '#f00' },
+        'Sniper':      { icon: '🎯', desc: 'High velocity, low gravity, tiny radius.', dmg: 60, rad: 10, color: '#0ff', speed: 1.5, grav: 0.1 },
+        'Tracer':      { icon: '🔦', desc: 'Leaves a visible path.', dmg: 20, rad: 30, color: '#ff0', trace: true },
+        'Dirtball':    { icon: '💩', desc: 'Creates a pile of dirt. Can bury tanks.', dmg: 5,  rad: 40, color: '#8b4513', type: 'dirt' },
+        'Mud Pie':     { icon: '🥧', desc: 'Creates a MASSIVE pile of dirt.', dmg: 5,  rad: 80, color: '#5d4037', type: 'dirt' },
+        'Digger':      { icon: '⛏️', desc: 'Removes a large chunk of earth.', dmg: 10, rad: 60, color: '#444', type: 'dig' },
+        'Three-Way':   { icon: '🔱', desc: 'Splits into 3 shots.', dmg: 15, rad: 30, color: '#ff0', type: 'multi', count: 3, spread: 0.1 },
+        'Five-Way':    { icon: '🖐️', desc: 'Splits into 5 shots.', dmg: 10, rad: 20, color: '#ff0', type: 'multi', count: 5, spread: 0.2 },
+        'Shotgun':     { icon: '🔫', desc: 'Fires a spray of 8 weak pellets.', dmg: 8,  rad: 15, color: '#aaa', type: 'multi', count: 8, spread: 0.15, speedVar: 0.2 },
+        'Volley':      { icon: '🚀', desc: 'Fires 5 shots in rapid succession.', dmg: 15, rad: 30, color: '#0f0', type: 'volley', count: 5, delay: 10 },
+        'Cluster':     { icon: '🍇', desc: 'Splits into mini-bombs at peak.', dmg: 10, rad: 60, color: '#f0f', type: 'cluster', childCount: 6 },
+        'Rain':        { icon: '🌧️', desc: 'Drops projectiles from the sky.', dmg: 5,  rad: 20, color: '#00f', type: 'airburst', childCount: 15, downward: true },
+        'Nuke':        { icon: '☢️', desc: 'Massive damage and radiation.', dmg: 80, rad: 150, color: '#0f0', flash: true },
+        'Heavy':       { icon: '🏋️', desc: 'Heavy shell, drops fast.', dmg: 50, rad: 50, color: '#444', grav: 2.5 },
+        'Floater':     { icon: '🎈', desc: 'Floats through the air slowly.', dmg: 20, rad: 30, color: '#fff', grav: 0.05 },
+        'Bouncy':      { icon: '🏀', desc: 'Bounces 3 times before exploding.', dmg: 20, rad: 30, color: '#f0a', bounces: 3 },
+        'Skipper':     { icon: '🧼', desc: 'Skips along the ground.', dmg: 20, rad: 30, color: '#0af', bounces: 10, fric: 0.9 },
+        'Homing':      { icon: '🤖', desc: 'Steers towards the enemy.', dmg: 25, rad: 30, color: '#f00', type: 'homing', turn: 0.05 },
+        'Mega Homing': { icon: '👹', desc: 'Aggressively seeks enemy.', dmg: 40, rad: 40, color: '#900', type: 'homing', turn: 0.08 },
+        'Jackhammer':  { icon: '🔨', desc: 'Drills a vertical shaft.', dmg: 30, rad: 15, color: '#aaa', type: 'drill', depth: 100 },
+        'Firecracker': { icon: '🧨', desc: 'Chain reaction of explosions.', dmg: 5,  rad: 20, color: '#fa0', type: 'chain', count: 5 },
+        'Rainbow':     { icon: '🌈', desc: 'Beautiful but deadly.', dmg: 25, rad: 40, color: 'rainbow' },
+        'Hot Dog':     { icon: '🌭', desc: 'Wobbles through the air.', dmg: 20, rad: 30, color: '#d2691e', type: 'wobble' },
+        'Spider':      { icon: '🕷️', desc: 'Crawls along terrain.', dmg: 10, rad: 20, color: '#ccc', type: 'crawler', dur: 100 }, // Changed color from #000 to #ccc
+        'Fountain':    { icon: '⛲', desc: 'Erupts droplets on impact.', dmg: 10, rad: 20, color: '#0ff', type: 'fountain' },
+        'Backfire':    { icon: '🔙', desc: 'Shoots out the back.', dmg: 50, rad: 50, color: '#f00', type: 'back' },
+        'Roller':      { icon: '🎳', desc: 'Rolls down hills.', dmg: 30, rad: 20, color: '#888', type: 'roller' },
+        'Fireworks':   { icon: '🎆', desc: ' bursts into colorful missiles near ground.', dmg: 10, rad: 30, color: 'rainbow', type: 'proximity_burst', childCount: 10, dist: 150 },
+        'Ghost':       { icon: '👻', desc: 'Passes through terrain. Hits tanks only.', dmg: 30, rad: 20, color: '#fff', type: 'ghost' },
+        'Clover':      { icon: '🍀', desc: 'Splits into 4 streaking missiles aiming at enemy.', dmg: 15, rad: 30, color: '#0f0', type: 'clover', childCount: 4 },
+        'Wall':        { icon: '🧱', desc: 'Builds a vertical dirt wall.', dmg: 0, rad: 20, color: '#888', type: 'wall' },
+        'Hot Potato':  { icon: '🥔', desc: 'Bounces erratically and speeds up.', dmg: 40, rad: 50, color: '#d2691e', type: 'hot_potato', bounces: 6 },
+        'Strike':      { icon: '🛰️', desc: 'Calls a laser beam from the sky.', dmg: 60, rad: 40, color: '#0ff', type: 'strike' },
+        'Leveler':     { icon: '🚜', desc: 'Flattens the land.', dmg: 10, rad: 80, color: '#ff0', type: 'leveler' },
+        
+        // NEW WEAPONS
+        'Mega Dirt':   { icon: '⛰️', desc: 'Creates a HUGE pile of brown dirt.', dmg: 5, rad: 120, color: '#5d4037', type: 'dirt' },
+        'Laser':       { icon: '⚡', desc: 'Fires in a straight line (No Gravity).', dmg: 40, rad: 30, color: '#00ff00', speed: 2.0, grav: 0 },
+        'Bridge':      { icon: '🌉', desc: 'Builds a flat platform.', dmg: 0, rad: 40, color: '#8b4513', type: 'bridge' },
+        'Vampire':     { icon: '🧛', desc: 'Heals you for 50% of damage dealt.', dmg: 35, rad: 40, color: '#800000', type: 'vampire' },
+        'Flower':      { icon: '🌸', desc: 'Splits into 8 petals.', dmg: 10, rad: 20, color: '#ff69b4', type: 'flower', childCount: 8 },
+        'Tremor':      { icon: '〰️', desc: 'Roughs up the terrain.', dmg: 15, rad: 60, color: '#888', type: 'tremor' },
+
+        'Mystery':     { icon: '❓', desc: 'Who knows what it does?', dmg: 0, rad: 0, color: '#?', type: 'random' }
+    };
+
+    const SPECIAL_WEAPON_NAMES = Object.keys(WEAPONS).filter(n => n !== 'Standard');
+
+    // DOM Elements
+    const ui = {
+        p1Health: document.getElementById('p1-health'),
+        p2Health: document.getElementById('p2-health'),
+        angle: document.getElementById('angle-display'),
+        power: document.getElementById('power-display'),
+        windVal: document.getElementById('wind-val'),
+        windArrow: document.getElementById('wind-arrow'),
+        fireBtn: document.getElementById('fire-btn'),
+        modal: document.getElementById('modal'),
+        modalTitle: document.getElementById('modal-title'),
+        modalMsg: document.getElementById('modal-msg'),
+        modeButtons: document.getElementById('mode-buttons'),
+        restartBtn: document.getElementById('restart-btn'),
+        weaponDisplay: document.getElementById('weapon-display'),
+        weaponBtn: document.getElementById('weapon-btn'),
+        weaponList: document.getElementById('weapon-list'),
+        helpModal: document.getElementById('help-modal'),
+        weaponHelpGrid: document.getElementById('weapon-help-grid'),
+        fuelBar: document.getElementById('fuel-bar')
+    };
+
+    class Game {
+        constructor() {
+            this.width = window.innerWidth;
+            this.height = window.innerHeight;
+            this.terrain = [];
+            this.targetTerrain = []; // Animation target
+            this.originalTerrain = []; // Boundary for Green ground
+            this.targetOriginalTerrain = []; // Animation target for Green boundary
+            this.players = [];
+            this.currentPlayerIdx = 0;
+            this.bullets = [];
+            this.pendingShots = [];
+            this.particles = [];
+            this.wind = 0;
+            this.state = 'MENU';
+            this.gameMode = 'PVP';
+            
+            this.controls = { angle: 45, power: 60 };
+            this.moving = 0; // -1 left, 1 right, 0 stop
+
+            this.resize();
+            window.addEventListener('resize', () => this.resize());
+            this.setupControls();
+            
+            this.loop = this.loop.bind(this);
+            requestAnimationFrame(this.loop);
+        }
+
+        resize() {
+            this.width = window.innerWidth;
+            this.height = window.innerHeight;
+            canvas.width = this.width;
+            canvas.height = this.height;
+        }
+
+        setupControls() {
+            const adjust = (prop, amount) => {
+                if (this.state !== 'IDLE') return;
+                soundManager.playClick();
+                this.controls[prop] += amount;
+                if (prop === 'angle') {
+                    if (this.controls.angle < 0) this.controls.angle = 0;
+                    if (this.controls.angle > 180) this.controls.angle = 180;
+                }
+                if (prop === 'power') {
+                    if (this.controls.power < 0) this.controls.power = 0;
+                    if (this.controls.power > 100) this.controls.power = 100;
+                }
+                this.updateUI();
+            };
+
+            // Touch/Click - Angle
+            document.getElementById('ang-up-5').onclick = () => adjust('angle', 5);
+            document.getElementById('ang-up-1').onclick = () => adjust('angle', 1);
+            document.getElementById('ang-down-5').onclick = () => adjust('angle', -5);
+            document.getElementById('ang-down-1').onclick = () => adjust('angle', -1);
+            
+            // Touch/Click - Power
+            document.getElementById('pow-up-5').onclick = () => adjust('power', 5);
+            document.getElementById('pow-up-1').onclick = () => adjust('power', 1);
+            document.getElementById('pow-down-5').onclick = () => adjust('power', -5);
+            document.getElementById('pow-down-1').onclick = () => adjust('power', -1);
+            
+            // Touch/Click - Move
+            const startMove = (dir) => {
+                if (this.state !== 'IDLE') return;
+                this.moving = dir;
+            };
+            const stopMove = () => { this.moving = 0; };
+            
+            document.getElementById('move-left').onmousedown = () => startMove(-1);
+            document.getElementById('move-right').onmousedown = () => startMove(1);
+            document.getElementById('move-left').ontouchstart = (e) => { e.preventDefault(); startMove(-1); };
+            document.getElementById('move-right').ontouchstart = (e) => { e.preventDefault(); startMove(1); };
+            
+            window.addEventListener('mouseup', stopMove);
+            window.addEventListener('touchend', stopMove);
+
+            // Weapons Popover
+            ui.weaponBtn.onclick = (e) => {
+                if(this.state !== 'IDLE') return;
+                soundManager.playClick();
+                if(e.target.closest('.weapon-item')) return;
+                this.toggleWeaponList();
+            };
+
+            ui.fireBtn.onclick = () => this.fire();
+
+            // Keyboard
+            window.addEventListener('keydown', (e) => {
+                if (this.state !== 'IDLE') return;
+                const increment = e.shiftKey ? 1 : 5;
+                
+                switch(e.key) {
+                    case 'ArrowLeft': adjust('angle', this.getCurrentPlayer().facingRight ? increment : -increment); break;
+                    case 'ArrowRight': adjust('angle', this.getCurrentPlayer().facingRight ? -increment : increment); break;
+                    case 'ArrowUp': adjust('power', increment); break;
+                    case 'ArrowDown': adjust('power', -increment); break;
+                    case ' ': this.fire(); break;
+                    case 'a': case 'A': this.moving = -1; break;
+                    case 'd': case 'D': this.moving = 1; break;
+                }
+            });
+            
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D') this.moving = 0;
+            });
+
+            window.addEventListener('click', (e) => {
+                if (!ui.weaponBtn.contains(e.target)) ui.weaponList.classList.remove('show');
+            });
+        }
+
+        openHelp() {
+            soundManager.playClick();
+            // Populate Weapon Grid
+            ui.weaponHelpGrid.innerHTML = '';
+            
+            // Sort weapons alphabetically
+            const sortedWeapons = Object.entries(WEAPONS).sort((a, b) => a[0].localeCompare(b[0]));
+            
+            for (const [name, data] of sortedWeapons) {
+                const item = document.createElement('div');
+                item.className = 'help-item';
+                item.innerHTML = `<span style="font-size:1.5rem">${data.icon}</span> 
+                                  <div><div style="font-weight:bold; color:${data.color === 'rainbow' ? '#aaa' : data.color}">${name}</div>
+                                  <div style="color:#aaa">${data.desc}</div></div>`;
+                ui.weaponHelpGrid.appendChild(item);
+            }
+            this.switchTab('play');
+            ui.helpModal.classList.remove('hidden');
+        }
+
+        switchTab(tab) {
+            soundManager.playClick();
+            document.querySelectorAll('.help-tab').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.help-section').forEach(s => s.classList.remove('active'));
+            
+            if (tab === 'play') {
+                document.querySelector('.help-tab:nth-child(1)').classList.add('active');
+                document.getElementById('tab-play').classList.add('active');
+            } else {
+                document.querySelector('.help-tab:nth-child(2)').classList.add('active');
+                document.getElementById('tab-weapons').classList.add('active');
+            }
+        }
+
+        toggleWeaponList() {
+            const list = ui.weaponList;
+            if (list.classList.contains('show')) {
+                list.classList.remove('show');
+                return;
+            }
+            list.innerHTML = '';
+            const p = this.getCurrentPlayer();
+            
+            p.inventory.forEach((item, idx) => {
+                if (item.count <= 0 && item.name !== 'Standard') return; 
+
+                const div = document.createElement('div');
+                div.className = 'weapon-item';
+                if (idx === p.currentWeaponIdx) div.classList.add('selected');
+                
+                const wData = WEAPONS[item.name];
+                div.innerHTML = `<span class="w-icon">${wData.icon}</span>
+                                 <span class="w-name" style="color:${wData.color === 'rainbow' ? '#fff' : wData.color}">${item.name}</span>
+                                 <span class="w-count">${item.count === Infinity ? '∞' : 'x'+item.count}</span>`;
+                
+                div.onclick = () => {
+                    soundManager.playClick();
+                    p.currentWeaponIdx = idx;
+                    this.updateUI();
+                    list.classList.remove('show');
+                };
+                list.appendChild(div);
+            });
+            list.classList.add('show');
+        }
+
+        showMenu() {
+            ui.modalTitle.innerText = "TANK WARS";
+            ui.modalMsg.innerText = "Select Game Mode";
+            ui.modeButtons.classList.remove('hidden');
+            ui.restartBtn.classList.add('hidden');
+            document.getElementById('test-back-btn').classList.add('hidden'); // Hide test exit button
+            ui.modal.classList.remove('hidden');
+            this.state = 'MENU';
+        }
+
+        start(mode) {
+            soundManager.init(); // Init Audio Context on user gesture
+            soundManager.playClick();
+            
+            this.gameMode = mode;
+            ui.modal.classList.add('hidden');
+            this.generateTerrain();
+            
+            // Show/Hide exit test button
+            const backBtn = document.getElementById('test-back-btn');
+            if (mode === 'TEST') backBtn.classList.remove('hidden');
+            else backBtn.classList.add('hidden');
+            
+            let p2Name = mode === 'PVP' ? 'Player 2' : 'CPU (' + mode.split('_')[1] + ')';
+            if (mode === 'TEST') p2Name = "Dummy Target";
+
+            // Randomize start positions (150px to 300px from edge)
+            const p1Start = 150 + Math.floor(Math.random() * 150);
+            const p2Start = this.width - (150 + Math.floor(Math.random() * 150));
+
+            this.players = [
+                new Tank(this, p1Start, '#4cc9f0', true, 'Player 1'),
+                new Tank(this, p2Start, '#f72585', false, p2Name)
+            ];
+            
+            if (mode === 'TEST') {
+                this.players[0].assignAllWeapons();
+            }
+            
+            this.bullets = [];
+            this.pendingShots = [];
+            this.particles = [];
+            this.currentPlayerIdx = 0;
+            this.wind = (Math.random() * 0.6) - 0.3;
+            this.state = 'IDLE';
+            this.moving = 0;
+            
+            this.controls.angle = this.players[0].angle;
+            this.controls.power = this.players[0].power;
+            this.updateUI();
+            soundManager.playTurn();
+        }
+
+        generateTerrain() {
+            this.terrain = new Float32Array(this.width);
+            this.targetTerrain = new Float32Array(this.width); 
+            this.originalTerrain = new Float32Array(this.width); 
+            this.targetOriginalTerrain = new Float32Array(this.width); 
+            
+            let y = this.height * 0.7;
+            let amp1 = Math.random() * 50 + 50, freq1 = Math.random() * 0.005 + 0.002;
+            let amp2 = Math.random() * 30 + 20, freq2 = Math.random() * 0.02 + 0.01;
+            let amp3 = Math.random() * 10 + 5,  freq3 = 0.05;
+
+            for (let x = 0; x < this.width; x++) {
+                let noise = Math.sin(x * freq1) * amp1 + Math.sin(x * freq2) * amp2 + Math.sin(x * freq3) * amp3;
+                this.terrain[x] = y + noise;
+                if (this.terrain[x] > this.height - 20) this.terrain[x] = this.height - 20;
+                if (this.terrain[x] < this.height * 0.3) this.terrain[x] = this.height * 0.3;
+                
+                this.targetTerrain[x] = this.terrain[x]; 
+                this.originalTerrain[x] = this.terrain[x];
+                this.targetOriginalTerrain[x] = this.terrain[x];
+            }
+        }
+        
+        createWall(cx, cy) {
+            const width = 15;
+            const height = 100;
+            const startX = Math.floor(Math.max(0, cx - width));
+            const endX = Math.floor(Math.min(this.width, cx + width));
+            
+            for (let x = startX; x < endX; x++) {
+                // Raise ground (decrease Y)
+                let newH = this.targetTerrain[x] - height;
+                if (newH < 0) newH = 0;
+                this.targetTerrain[x] = newH;
+            }
+        }
+        
+        createBridge(cx, cy) {
+            const width = 40;
+            const startX = Math.floor(Math.max(0, cx - width));
+            const endX = Math.floor(Math.min(this.width, cx + width));
+            
+            for (let x = startX; x < endX; x++) {
+                // Set height to impact Y
+                if (this.targetTerrain[x] > cy) {
+                    this.targetTerrain[x] = cy;
+                }
+            }
+        }
+        
+        createTremor(cx, radius) {
+            const startX = Math.floor(Math.max(0, cx - radius));
+            const endX = Math.floor(Math.min(this.width, cx + radius));
+            
+            for (let x = startX; x < endX; x++) {
+                this.targetTerrain[x] += (Math.random() - 0.5) * 20;
+                // Sync original terrain if we dug down
+                if (this.targetTerrain[x] > this.targetOriginalTerrain[x]) {
+                    this.targetOriginalTerrain[x] = this.targetTerrain[x];
+                }
+            }
+        }
+
+        levelTerrain(cx, targetLevel, radius) {
+            const startX = Math.floor(Math.max(0, cx - radius));
+            const endX = Math.floor(Math.min(this.width, cx + radius));
+            
+            for (let x = startX; x < endX; x++) {
+                this.targetTerrain[x] = targetLevel;
+                // If we leveled DOWN (dug), assume green layer is gone
+                if (this.targetTerrain[x] > this.targetOriginalTerrain[x]) {
+                    this.targetOriginalTerrain[x] = this.targetTerrain[x];
+                }
+            }
+        }
+
+        changeWind() {
+            if (this.gameMode === 'CPU_EASY') return;
+            else if (this.gameMode === 'CPU_MED') {
+                this.wind += (Math.random() * 0.1) - 0.05;
+                if (this.wind > 0.3) this.wind = 0.3;
+                if (this.wind < -0.3) this.wind = -0.3;
+            } else {
+                this.wind = (Math.random() * 0.6) - 0.3;
+            }
+            this.updateUI();
+        }
+
+        getCurrentPlayer() { return this.players[this.currentPlayerIdx]; }
+
+        switchTurn() {
+            ui.weaponList.classList.remove('show');
+            this.moving = 0;
+            
+            const prevP = this.getCurrentPlayer();
+            prevP.angle = this.controls.angle;
+            prevP.power = this.controls.power;
+
+            const alive = this.players.filter(p => p.health > 0);
+            if (alive.length <= 1) {
+                this.endGame(alive[0]);
+                return;
+            }
+
+            this.currentPlayerIdx = (this.currentPlayerIdx + 1) % this.players.length;
+            this.changeWind();
+            soundManager.playTurn();
+            
+            const nextP = this.getCurrentPlayer();
+            nextP.fuel = nextP.maxFuel; // Reset Fuel
+            this.controls.angle = nextP.angle;
+            this.controls.power = nextP.power;
+            
+            if(nextP.inventory[nextP.currentWeaponIdx].count === 0 && nextP.inventory[nextP.currentWeaponIdx].name !== 'Standard') {
+                nextP.currentWeaponIdx = 0; 
+            }
+
+            if (this.currentPlayerIdx === 1 && this.gameMode !== 'PVP') {
+                if (this.gameMode === 'TEST') {
+                    // Instantly skip turn for dummy
+                    this.state = 'CPU_THINKING';
+                    this.updateUI();
+                    setTimeout(() => this.switchTurn(), 500); 
+                } else {
+                    this.state = 'CPU_THINKING';
+                    this.updateUI();
+                    setTimeout(() => this.cpuAction(), 1000);
+                }
+            } else {
+                this.state = 'IDLE';
+                this.updateUI();
+            }
+        }
+
+        cpuAction() {
+            const p1 = this.players[0];
+            const cpu = this.players[1];
+            
+            if (Math.random() < 0.3) {
+                const available = cpu.inventory.filter(w => w.count > 0 && w.name !== 'Standard');
+                if (available.length > 0) {
+                    const choice = available[Math.floor(Math.random() * available.length)];
+                    cpu.currentWeaponIdx = cpu.inventory.indexOf(choice);
+                }
+            } else {
+                cpu.currentWeaponIdx = 0; 
+            }
+
+            let bestAngle = 135, bestPower = 50;
+            
+            if (this.gameMode === 'CPU_EASY') {
+                bestAngle = 110 + Math.random() * 50;
+                bestPower = 30 + Math.random() * 60;
+            } else {
+                let solutions = [];
+                for (let a = 100; a <= 170; a += 3) {
+                    for (let p = 20; p <= 100; p += 3) {
+                        const landing = this.simulateShot(cpu, a, p);
+                        const dist = Math.abs(landing.x - p1.x);
+                        if (dist < 30) solutions.push({a, p, dist}); 
+                    }
+                }
+                if (solutions.length > 0) {
+                    solutions.sort((a, b) => a.dist - b.dist);
+                    const best = solutions[0];
+                    let err = this.gameMode === 'CPU_MED' ? 5 : 1;
+                    bestAngle = best.a + (Math.random() * err * 2 - err);
+                    bestPower = best.p + (Math.random() * err * 2 - err);
+                } else {
+                    bestAngle = 135;
+                    bestPower = Math.random() * 50 + 40;
+                }
+            }
+
+            this.controls.angle = Math.floor(bestAngle);
+            this.controls.power = Math.floor(bestPower);
+            this.state = 'IDLE'; 
+            this.updateUI();
+            this.fire();
+        }
+
+        simulateShot(tank, angle, power) {
+            let rad = (angle * Math.PI) / 180;
+            let speed = power * 0.25;
+            let vx = Math.cos(rad * -1) * speed; 
+            let vy = Math.sin(rad * -1) * speed;
+            let x = tank.x + Math.cos(rad * -1) * 20;
+            let y = (tank.y - 15) + Math.sin(rad * -1) * 20;
+            
+            for(let i=0; i<300; i++) {
+                x += vx; y += vy; vy += GRAVITY; vx += this.wind * 0.1;
+                if (x < 0 || x > this.width || y > this.height) return {x, y};
+                if (x >= 0 && x < this.width && y >= this.terrain[Math.floor(x)]) return {x, y};
+            }
+            return {x, y};
+        }
+
+        fire() {
+            if (this.state !== 'IDLE') return;
+            this.moving = 0;
+            ui.weaponList.classList.remove('show');
+            
+            const p = this.getCurrentPlayer();
+            const wItem = p.inventory[p.currentWeaponIdx];
+            if (wItem.count !== Infinity) wItem.count--;
+
+            let weaponName = wItem.name;
+            let stats = WEAPONS[weaponName];
+            
+            if (stats.type === 'random') {
+                const keys = Object.keys(WEAPONS).filter(k => k !== 'Mystery' && k !== 'Standard');
+                weaponName = keys[Math.floor(Math.random() * keys.length)];
+                stats = WEAPONS[weaponName];
+            }
+
+            this.state = 'FIRING';
+            this.updateUI(); 
+            soundManager.playShoot();
+
+            this.launchProjectile(p, this.controls.angle, this.controls.power, stats, weaponName);
+        }
+
+        launchProjectile(player, angle, power, stats, name) {
+            const gravMult = stats.grav || 1;
+            const speedMult = stats.speed || 1;
+            let rad = (angle * Math.PI) / 180;
+            if (stats.type === 'back') rad += Math.PI;
+
+            let speed = power * 0.25 * speedMult;
+            let vx = Math.cos(rad * -1) * speed; 
+            let vy = Math.sin(rad * -1) * speed;
+            const bx = player.x + Math.cos(rad * -1) * 20;
+            const by = (player.y - 15) + Math.sin(rad * -1) * 20;
+
+            if (stats.type === 'multi') {
+                for(let i=0; i<stats.count; i++) {
+                    let spread = (i - (stats.count-1)/2) * (stats.spread || 0.1);
+                    let svx = Math.cos(rad * -1 + spread) * speed * (1 + (Math.random()-0.5)*(stats.speedVar||0));
+                    let svy = Math.sin(rad * -1 + spread) * speed * (1 + (Math.random()-0.5)*(stats.speedVar||0));
+                    this.bullets.push(new Bullet(this, bx, by, svx, svy, stats, name));
+                }
+            } else if (stats.type === 'volley') {
+                for(let i=0; i<stats.count; i++) {
+                    this.pendingShots.push({ delay: i * (stats.delay || 10), bx, by, vx, vy, stats, name });
+                }
+            } else {
+                this.bullets.push(new Bullet(this, bx, by, vx, vy, stats, name));
+            }
+        }
+
+        damageTerrain(cx, cy, radius, type) {
+            const startX = Math.floor(Math.max(0, cx - radius));
+            const endX = Math.floor(Math.min(this.width, cx + radius));
+
+            for (let x = startX; x < endX; x++) {
+                const distX = x - cx;
+                const distYSq = radius*radius - distX*distX;
+                if (distYSq > 0) {
+                    const distY = Math.sqrt(distYSq);
+                    
+                    if (type === 'dirt' || type === 'bridge') {
+                        // Add dirt: raise height (lower Y value)
+                        let newH = cy - distY;
+                        // Bridge logic: Flat top
+                        if (type === 'bridge') newH = cy;
+                        
+                        if (newH < 0) newH = 0; 
+                        
+                        // Update target surface
+                        if (newH < this.targetTerrain[x]) {
+                            this.targetTerrain[x] = newH;
+                            // Do NOT move targetOriginalTerrain (Green boundary) up. 
+                            // The gap created becomes brown dirt.
+                        }
+                    } else {
+                        // Remove dirt with COLLAPSE physics
+                        const circleTop = cy - distY;
+                        const circleBottom = cy + distY;
+                        // Check against TARGET terrain state to stack explosions correctly
+                        const currentGround = this.targetTerrain[x];
+
+                        if (currentGround < circleTop) {
+                            // Underground explosion: Collapse
+                            const drop = circleBottom - circleTop;
+                            this.targetTerrain[x] += drop;
+                            this.targetOriginalTerrain[x] += drop; // Rock layer falls too
+                        } else if (currentGround < circleBottom) {
+                            // Surface explosion
+                            this.targetTerrain[x] = circleBottom;
+                            // If we dug below the rock layer, move rock layer down
+                            if (this.targetTerrain[x] > this.targetOriginalTerrain[x]) {
+                                this.targetOriginalTerrain[x] = this.targetTerrain[x];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        endGame(winner) {
+            this.state = 'GAMEOVER';
+            ui.modalTitle.innerText = winner ? `${winner.name} WINS!` : "DRAW!";
+            ui.modalMsg.innerText = "";
+            ui.modeButtons.classList.add('hidden');
+            ui.restartBtn.classList.remove('hidden');
+            document.getElementById('test-back-btn').classList.add('hidden'); // Hide Test exit
+            ui.modal.classList.remove('hidden');
+        }
+
+        updateUI() {
+            ui.angle.innerText = Math.floor(this.controls.angle) + "°";
+            ui.power.innerText = Math.floor(this.controls.power);
+            
+            const w = this.wind * 100;
+            ui.windVal.innerText = Math.abs(Math.floor(w));
+            ui.windArrow.style.transform = `rotate(${w > 0 ? 0 : 180}deg)`;
+            
+            ui.p1Health.style.width = this.players[0].health + "%";
+            ui.p2Health.style.width = this.players[1].health + "%";
+            
+            const p = this.getCurrentPlayer();
+            const item = p.inventory[p.currentWeaponIdx];
+            const wData = WEAPONS[item.name];
+            ui.weaponDisplay.innerHTML = `<span style="font-size:1.2rem">${wData.icon}</span> <span style="color:${wData.color === 'rainbow' ? '#fff' : wData.color}">${item.name} (${item.count === Infinity ? '∞' : item.count})</span>`;
+            
+            // Update Fuel
+            ui.fuelBar.style.width = (p.fuel / p.maxFuel * 100) + "%";
+
+            const isCpuTurn = (this.currentPlayerIdx === 1 && this.gameMode !== 'PVP');
+            ui.fireBtn.disabled = (this.state !== 'IDLE' || isCpuTurn);
+            
+            if (this.currentPlayerIdx === 0) {
+                document.getElementById('p1-info').style.opacity = 1;
+                document.getElementById('p2-info').style.opacity = 0.5;
+            } else {
+                document.getElementById('p1-info').style.opacity = 0.5;
+                document.getElementById('p2-info').style.opacity = 1;
+            }
+        }
+
+        loop() {
+            this.update();
+            ctx.clearRect(0, 0, this.width, this.height);
+            this.draw();
+            requestAnimationFrame(this.loop);
+        }
+
+        update() {
+            // Movement Logic
+            if (this.state === 'IDLE' && this.moving !== 0) {
+                const p = this.getCurrentPlayer();
+                p.move(this.moving);
+                this.updateUI();
+            }
+            
+            // Terrain Collapse Animation
+            for (let x = 0; x < this.width; x++) {
+                // Animate Terrain Surface
+                if (this.terrain[x] !== this.targetTerrain[x]) {
+                    const diff = this.targetTerrain[x] - this.terrain[x];
+                    const speed = 2; 
+                    if (Math.abs(diff) <= speed) this.terrain[x] = this.targetTerrain[x];
+                    else this.terrain[x] += Math.sign(diff) * speed;
+                }
+                
+                // Animate Green/Brown Boundary (Original Terrain)
+                if (this.originalTerrain[x] !== this.targetOriginalTerrain[x]) {
+                    const diff = this.targetOriginalTerrain[x] - this.originalTerrain[x];
+                    const speed = 2;
+                    if (Math.abs(diff) <= speed) this.originalTerrain[x] = this.targetOriginalTerrain[x];
+                    else this.originalTerrain[x] += Math.sign(diff) * speed;
+                }
+            }
+
+            for(let i = this.pendingShots.length - 1; i >= 0; i--) {
+                let s = this.pendingShots[i];
+                if (s.delay <= 0) {
+                    let r = (Math.random()-0.5) * 0.5;
+                    this.bullets.push(new Bullet(this, s.bx, s.by, s.vx+r, s.vy+r, s.stats, s.name));
+                    soundManager.playShoot(0.5); // quiet volley shots
+                    this.pendingShots.splice(i, 1);
+                } else { s.delay--; }
+            }
+
+            let activeBullets = false;
+            for (let i = this.bullets.length - 1; i >= 0; i--) {
+                const b = this.bullets[i];
+                b.update();
+                if (b.active) activeBullets = true;
+                if (!b.active && !b.exploding) this.bullets.splice(i, 1);
+            }
+
+            if (this.state === 'FIRING' && !activeBullets && this.pendingShots.length === 0) {
+                this.state = 'WAITING';
+                setTimeout(() => { if (this.state === 'WAITING') this.switchTurn(); }, 1000);
+            }
+
+            for (let i = this.particles.length - 1; i >= 0; i--) {
+                this.particles[i].update();
+                if (this.particles[i].life <= 0) this.particles.splice(i, 1);
+            }
+
+            this.players.forEach(p => p.update());
+        }
+
+        draw() {
+            // Sky
+            const grad = ctx.createLinearGradient(0, 0, 0, this.height);
+            grad.addColorStop(0, '#0b0b1a');
+            grad.addColorStop(1, '#1a1a2e');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, this.width, this.height);
+
+            // Draw Players FIRST so they can be buried
+            this.players.forEach(p => p.draw(ctx));
+
+            // Draw Terrain (Over players)
+            
+            // 1. Draw Green Terrain (From Boundary to Bottom)
+            ctx.fillStyle = '#2a9d8f';
+            ctx.beginPath();
+            ctx.moveTo(0, this.height);
+            for (let x = 0; x < this.width; x++) {
+                // Ensure we don't draw above the actual surface
+                const y = Math.max(this.terrain[x], this.originalTerrain[x]);
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(this.width, this.height);
+            ctx.fill();
+            
+            // 2. Draw Brown Dirt (From Surface to Boundary)
+            // Only where dirt exists (surface < boundary)
+            ctx.fillStyle = '#8b4513';
+            ctx.beginPath();
+            // Start from bottom left effectively
+            ctx.moveTo(0, this.height); 
+            // We want to fill the shape defined between terrain[x] and originalTerrain[x]
+            // But canvas fill requires a closed shape. 
+            // Let's iterate X. If terrain[x] < originalTerrain[x], we draw a line at terrain[x].
+            // If not, we draw at originalTerrain[x] (which == terrain[x]).
+            // Basically draw the top profile.
+            for (let x = 0; x < this.width; x++) {
+                ctx.lineTo(x, this.terrain[x]);
+            }
+            // Now loop backwards drawing the bottom profile (originalTerrain)
+            for (let x = this.width - 1; x >= 0; x--) {
+                ctx.lineTo(x, Math.max(this.terrain[x], this.originalTerrain[x]));
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            this.bullets.forEach(b => b.draw(ctx));
+            this.particles.forEach(p => p.draw(ctx));
+        }
+    }
+
+    class Tank {
+        constructor(game, x, color, facingRight, name) {
+            this.game = game;
+            this.x = x;
+            this.y = 0; 
+            this.color = color;
+            this.facingRight = facingRight;
+            this.name = name;
+            this.health = 100;
+            this.radius = 15;
+            this.width = TANK_WIDTH;
+            this.height = TANK_HEIGHT;
+            this.angle = facingRight ? 45 : 135;
+            this.power = 60;
+            this.fuel = 200;
+            this.maxFuel = 200;
+            this.inventory = [{name: 'Standard', count: Infinity}];
+            this.currentWeaponIdx = 0;
+            this.assignRandomWeapons();
+        }
+
+        assignRandomWeapons() {
+            for(let i=0; i<10; i++) {
+                const w = SPECIAL_WEAPON_NAMES[Math.floor(Math.random() * SPECIAL_WEAPON_NAMES.length)];
+                const existing = this.inventory.find(i => i.name === w);
+                if (existing) existing.count++;
+                else this.inventory.push({name: w, count: 1});
+            }
+        }
+        
+        assignAllWeapons() {
+            this.inventory = [{name: 'Standard', count: Infinity}];
+            // Sort weapons alphabetically for menu
+            const sorted = SPECIAL_WEAPON_NAMES.sort((a,b) => a.localeCompare(b));
+            sorted.forEach(name => {
+                this.inventory.push({name: name, count: Infinity});
+            });
+        }
+
+        isBuried(terrain) {
+            // Check if terrain height at tank x is significantly higher (lower Y) than tank Y
+            const groundY = terrain[Math.floor(this.x)];
+            return this.y > groundY + 5; // Tolerance
+        }
+
+        move(dir) {
+            if (this.fuel <= 0) return;
+            if (this.health <= 0) return;
+            // Buried check
+            if (this.isBuried(this.game.terrain)) return;
+
+            const nextX = Math.floor(this.x + dir * MOVE_SPEED);
+            
+            // Bounds check
+            if (nextX < 10 || nextX > this.game.width - 10) return;
+
+            const currentGroundY = this.game.terrain[Math.floor(this.x)];
+            const nextGroundY = this.game.terrain[nextX];
+
+            // Climb check (can only climb up small amounts)
+            // nextGroundY < currentGroundY means going UP (smaller Y)
+            if (currentGroundY - nextGroundY > CLIMB_LIMIT) {
+                // Too steep
+                return;
+            }
+
+            this.x = nextX;
+            this.y = nextGroundY;
+            this.fuel--;
+            
+            // Update facing if manually moving
+            if (dir > 0) this.facingRight = true;
+            if (dir < 0) this.facingRight = false;
+        }
+
+        update() {
+            let groundY = this.game.height;
+            if (this.x >= 0 && this.x < this.game.width) {
+                groundY = this.game.terrain[Math.floor(this.x)];
+            }
+            
+            // "Burying" logic:
+            // If tank is above ground (y < groundY), falling gravity applies.
+            if (this.y < groundY) {
+                this.y += 2;
+            } 
+            // If tank is below ground (y > groundY)...
+            else if (this.y > groundY) {
+                // If it's a small difference (slope), snap up.
+                // If it's a large difference (dirtball hit), stay put (buried).
+                if (this.y - groundY < 8) {
+                    this.y = groundY;
+                }
+                // Else: Do nothing, stay buried.
+            }
+            
+            if (this.y > this.game.height - 10) this.health = 0;
+        }
+
+        draw(ctx) {
+            if (this.health <= 0) return;
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            
+            // Calculate slope
+            let hL = this.game.terrain[Math.floor(Math.max(0, this.x - 10))] || this.y;
+            let hR = this.game.terrain[Math.floor(Math.min(this.game.width-1, this.x + 10))] || this.y;
+            let angle = Math.atan2(hR - hL, 20);
+            
+            // If buried, no rotation, just sit flat? Or keep angle?
+            // Keep angle for now.
+            ctx.rotate(angle);
+
+            ctx.fillStyle = this.color;
+            ctx.fillRect(-this.width/2, -this.height, this.width, this.height);
+            ctx.fillStyle = '#111';
+            ctx.fillRect(-this.width/2 + 2, -4, this.width - 4, 4);
+
+            ctx.beginPath();
+            ctx.arc(0, -this.height, 8, Math.PI, 0);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+
+            ctx.save();
+            ctx.translate(0, -this.height);
+            let barrelAngle = 0;
+            if (this.game.players[this.game.currentPlayerIdx] === this) {
+                barrelAngle = (this.game.controls.angle * Math.PI / 180) * -1; 
+                barrelAngle -= angle; 
+            } else {
+                barrelAngle = this.facingRight ? -Math.PI/4 : -Math.PI*0.75;
+                barrelAngle -= angle;
+            }
+            
+            ctx.rotate(barrelAngle);
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, -3, 20, 6);
+            ctx.restore();
+
+            // If buried, show '?' or help indicator?
+            if (this.isBuried(this.game.terrain)) {
+                 ctx.fillStyle = '#fff';
+                 ctx.font = 'bold 16px Arial';
+                 ctx.fillText("STUCK!", 0, -40);
+            } else {
+                 ctx.rotate(-angle);
+                 ctx.fillStyle = '#fff';
+                 ctx.font = '10px Arial';
+                 ctx.textAlign = 'center';
+                 ctx.fillText(this.name, 0, -30);
+            }
+
+            ctx.restore();
+        }
+
+        takeDamage(amount) {
+            // Invincibility check for Dummy in Test Mode
+            if (this.game.gameMode === 'TEST' && this.name !== 'Player 1') return;
+            
+            const wasAlive = this.health > 0;
+            this.health -= amount;
+            if (this.health < 0) this.health = 0;
+            this.game.updateUI();
+
+            if (wasAlive && this.health === 0) {
+                this.destroy();
+            }
+        }
+
+        destroy() {
+            soundManager.playExplosion(3); // Massive sound
+            
+            // Fire particles
+            for(let i=0; i<30; i++) {
+                this.game.particles.push(new Particle(
+                    this.x, this.y - 10,
+                    (Math.random() - 0.5) * 8,
+                    (Math.random() - 0.5) * 8 - 2,
+                    `hsl(${Math.random()*60}, 100%, 50%)`
+                ));
+            }
+            
+            // Tank Debris (chunks of tank color flying out)
+            for(let i=0; i<12; i++) {
+                const p = new Particle(
+                    this.x, this.y - 10,
+                    (Math.random() - 0.5) * 15,
+                    (Math.random() - 0.5) * 20 - 5,
+                    this.color,
+                    2.0 // Lasts longer
+                );
+                this.game.particles.push(p);
+            }
+            
+            // Shockwave & Blast
+            this.game.particles.push(new Shockwave(this.x, this.y - 10, '#fff'));
+            this.game.particles.push(new BlastRadius(this.x, this.y - 10, 80, '#ff4500'));
+        }
+    }
+
+    class Bullet {
+        constructor(game, x, y, vx, vy, stats, name) {
+            this.game = game;
+            this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+            this.stats = stats; this.name = name;
+            this.active = true; this.r = 3; this.age = 0; this.bounces = 0;
+            this.rolling = false; // Track rolling state
+            this.rollAge = 0;
+        }
+
+        update() {
+            if (!this.active) return;
+            this.age++;
+            let g = GRAVITY * (this.stats.grav || 1);
+            
+            // Special Rolling Physics
+            if (this.rolling) {
+                this.rollAge++;
+                
+                // Ensure bounds for terrain lookup
+                let lx = Math.floor(this.x);
+                if (lx < 2) lx = 2;
+                if (lx > this.game.width - 3) lx = this.game.width - 3;
+                
+                // Calculate Slope (Right neighbor - Left neighbor)
+                // Positive slope = Right is deeper (higher Y) -> Accelerate Right
+                const slope = this.game.terrain[lx + 2] - this.game.terrain[lx - 2];
+                
+                // Physics: Accelerate down slope, apply friction
+                this.vx += slope * 0.1; 
+                this.vx *= 0.96; // Friction
+                
+                this.x += this.vx;
+                
+                // Map Bounds Check
+                if (this.x < 0 || this.x > this.game.width) {
+                    this.explode(); 
+                    return;
+                }
+                
+                // Snap to ground
+                this.y = this.game.terrain[Math.floor(this.x)];
+                
+                // Stop Condition (Stuck in dip)
+                // Give it a moment (rollAge) to settle before checking speed
+                if (Math.abs(this.vx) < 0.2 && this.rollAge > 20) {
+                    this.explode();
+                    return;
+                }
+                
+            } else {
+                // Standard Aerial Physics
+                if (this.stats.type === 'homing' && this.vy > 0) {
+                    const enemy = this.game.players.find(p => p !== this.game.getCurrentPlayer());
+                    if (enemy && enemy.health > 0) {
+                        const dx = enemy.x - this.x, dy = (enemy.y - 10) - this.y;
+                        const angleToEnemy = Math.atan2(dy, dx), currentAngle = Math.atan2(this.vy, this.vx);
+                        let diff = angleToEnemy - currentAngle;
+                        while (diff <= -Math.PI) diff += Math.PI*2;
+                        while (diff > Math.PI) diff -= Math.PI*2;
+                        const turn = this.stats.turn || 0.05;
+                        const newAngle = currentAngle + Math.max(-turn, Math.min(turn, diff));
+                        const speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+                        this.vx = Math.cos(newAngle) * speed;
+                        this.vy = Math.sin(newAngle) * speed;
+                    }
+                }
+                
+                if (this.stats.type === 'wobble') this.vx += Math.sin(this.age * 0.5) * 0.5;
+
+                this.x += this.vx; this.y += this.vy; this.vy += g; this.vx += this.game.wind * 0.1;
+            }
+
+            // Mid-air effects (Cluster, Fireworks, etc)
+            if (!this.rolling) {
+                if (this.stats.type === 'cluster' && this.vy > 0 && this.age > 20 && Math.random() < 0.05) {
+                    this.split('standard', this.stats.childCount); return;
+                }
+                if (this.stats.type === 'clover' && this.vy > 0 && this.age > 10) {
+                    this.split('clover', 4); return;
+                }
+                if (this.stats.type === 'flower' && this.vy > 0 && this.age > 10) {
+                    this.split('flower', this.stats.childCount); return;
+                }
+                if (this.stats.type === 'airburst' && this.vy > 0 && this.age > 10 && this.y < this.game.height/2) {
+                    this.split('down', this.stats.childCount); return;
+                }
+                if (this.stats.type === 'proximity_burst' && this.vy > 0) {
+                    if (this.x >= 0 && this.x < this.game.width) {
+                        const groundY = this.game.terrain[Math.floor(this.x)];
+                        if (groundY - this.y < (this.stats.dist || 100)) {
+                            this.split('fireworks', this.stats.childCount); 
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // Bounds check
+            if (this.x < 0 || this.x > this.game.width || this.y > this.game.height) {
+                if (this.stats.type === 'ghost' && this.y > this.game.height) {
+                     this.explode(); // Ghost explodes at bottom world boundary
+                }
+                this.active = false; return;
+            }
+
+            const groundY = this.game.terrain[Math.floor(this.x)];
+            
+            // Ground Collision
+            // If strictly below ground AND not yet rolling
+            if (!this.rolling && this.y >= groundY) {
+                // Ghost logic: Ignore ground
+                if (this.stats.type === 'ghost') {
+                    // Do nothing, let it pass through
+                    return;
+                }
+
+                // Bounce Logic
+                if (this.stats.bounces && this.bounces < this.stats.bounces) {
+                    this.y = groundY - 1; 
+                    
+                    if (this.stats.type === 'hot_potato') {
+                        // Erratic bounce
+                        this.vy *= -0.9; // High restitution
+                        this.vx = (Math.random() - 0.5) * 25; // Random wild horizontal speed
+                        soundManager.playShoot(1.5); // Ping sound
+                    } else {
+                        // Normal bounce
+                        this.vy *= -0.6; 
+                        this.vx *= (this.stats.fric || 1);
+                    }
+                    
+                    this.bounces++; 
+                    return;
+                }
+                
+                // Roller Logic: Start Rolling
+                if (this.stats.type === 'roller') {
+                    this.rolling = true;
+                    this.y = groundY;
+                    this.vx *= 0.5; // Dampen forward momentum
+                    this.vy = 0;
+                    return;
+                }
+                
+                // Crawler Logic (Legacy)
+                if (this.stats.type === 'crawler' && this.age < (this.stats.dur || 100)) {
+                    this.y = groundY; this.vy = 0;
+                    let slope = this.game.terrain[Math.floor(this.x+2)] - this.game.terrain[Math.floor(this.x-2)];
+                    this.vx = (this.vx > 0 ? 1 : -1) * 2; 
+                    if (Math.abs(slope) > 5) this.vx *= 0.5; 
+                    return;
+                }
+                
+                // Standard Explosion
+                this.explode(); return;
+            }
+
+            // Tank Collision
+            for (let p of this.game.players) {
+                if (p.health <= 0) continue;
+                const dx = this.x - p.x, dy = this.y - (p.y - 10);
+                if (Math.sqrt(dx*dx + dy*dy) < p.radius + this.r) { this.explode(); return; }
+            }
+            
+            if (this.stats.trace || this.stats.color === 'rainbow') {
+                if (this.age % 3 === 0) this.game.particles.push(new Particle(this.x, this.y, 0, 0, this.stats.color === 'rainbow' ? `hsl(${this.age*10}, 100%, 50%)` : this.stats.color, 0.5));
+            }
+        }
+
+        split(mode, count) {
+            this.active = false;
+            soundManager.playShoot(0.5); // sound on split
+            
+            // Clover Target Logic
+            let cloverAngle = Math.PI/2;
+            if (mode === 'clover') {
+                const enemy = this.game.players.find(p => p !== this.game.getCurrentPlayer());
+                if (enemy) cloverAngle = Math.atan2((enemy.y - 15) - this.y, enemy.x - this.x);
+            }
+
+            for(let i=0; i<count; i++) {
+                let vx, vy;
+                
+                if (mode === 'fireworks') {
+                    // Starburst pattern
+                    const angle = (Math.PI * 2 * i) / count;
+                    const speed = 3 + Math.random() * 2;
+                    vx = Math.cos(angle) * speed;
+                    vy = Math.sin(angle) * speed;
+                } else if (mode === 'flower') {
+                    // 8-way flower pattern
+                    const angle = (Math.PI * 2 * i) / count;
+                    const speed = 5;
+                    vx = Math.cos(angle) * speed;
+                    vy = Math.sin(angle) * speed;
+                } else if (mode === 'clover') {
+                    // Streak towards target
+                    const speed = 12; // Fast streak
+                    const spread = 0.1; // Tight spread
+                    const angle = cloverAngle + (i - (count-1)/2) * spread;
+                    vx = Math.cos(angle) * speed;
+                    vy = Math.sin(angle) * speed;
+                } else {
+                    // Existing logic for cluster/airburst
+                    vx = (mode === 'standard') ? (Math.random() - 0.5) * 10 : (Math.random() - 0.5) * 5;
+                    vy = (mode === 'standard') ? (Math.random() - 0.5) * 10 - 5 : Math.random() * 5;
+                }
+                
+                let stats = {...this.stats, type: 'mini', dmg: this.stats.dmg/2, rad: this.stats.rad/2};
+                if (mode === 'clover') stats.trace = true; 
+
+                delete stats.childCount; 
+                this.game.bullets.push(new Bullet(this.game, this.x, this.y, vx, vy, stats, this.name + ' sub'));
+            }
+        }
+
+        draw(ctx) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+            ctx.fillStyle = this.stats.color === 'rainbow' ? `hsl(${Date.now()%360}, 100%, 50%)` : this.stats.color;
+            ctx.fill();
+        }
+
+        explode() {
+            this.active = false;
+            soundManager.playExplosion(this.stats.rad / 40); // scale sound by radius
+            
+            // Special Effects for new weapons
+            if (this.stats.type === 'strike') {
+                // Orbital Beam
+                this.game.particles.push(new Beam(this.x, this.y, this.stats.color));
+                // Delay damage slightly to match beam
+                // We'll just execute standard damage logic below which works fine as the "impact"
+            }
+            
+            if (this.stats.type === 'wall') {
+                this.game.createWall(this.x, this.y);
+                // No damage, just wall
+                this.game.particles.push(new Shockwave(this.x, this.y, this.stats.color));
+                return; 
+            }
+            
+            if (this.stats.type === 'bridge') {
+                this.game.createBridge(this.x, this.y);
+                this.game.damageTerrain(this.x, this.y, this.stats.rad, 'bridge'); // Add dirt
+                this.game.particles.push(new Shockwave(this.x, this.y, this.stats.color));
+                return;
+            }
+            
+            if (this.stats.type === 'tremor') {
+                this.game.createTremor(this.x, this.stats.rad);
+                this.game.particles.push(new Shockwave(this.x, this.y, this.stats.color));
+                // damage?
+                for (let p of this.game.players) {
+                    const dx = this.x - p.x;
+                    const dy = this.y - p.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < this.stats.rad + 20) p.takeDamage(this.stats.dmg);
+                }
+                return;
+            }
+            
+            if (this.stats.type === 'leveler') {
+                this.game.levelTerrain(this.x, this.y, this.stats.rad);
+                this.game.particles.push(new Shockwave(this.x, this.y, this.stats.color));
+                this.game.particles.push(new BlastRadius(this.x, this.y, this.stats.rad, this.stats.color));
+                // Apply damage too
+            }
+
+            if (this.stats.type === 'fountain') {
+                 for(let i=0; i<10; i++) this.game.bullets.push(new Bullet(this.game, this.x, this.y-5, (Math.random()-0.5)*5, -5-Math.random()*5, {dmg:5, rad:10, color:this.stats.color, type:'mini'}, 'drop'));
+            }
+            if (this.stats.type === 'chain' && this.stats.count > 0) {
+                 let nextStats = {...this.stats, count: this.stats.count-1};
+                 this.game.bullets.push(new Bullet(this.game, this.x + (this.vx>0?20:-20), this.y-5, this.vx*0.5, -2, nextStats, 'pop'));
+            }
+
+            // Normal damage processing (skipped for Wall)
+            if (this.stats.type !== 'wall') {
+                this.game.damageTerrain(this.x, this.y, this.stats.rad, this.stats.type);
+
+                for (let p of this.game.players) {
+                    const dx = this.x - p.x, dy = this.y - p.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < this.stats.rad + 20) {
+                        const dmg = Math.floor(this.stats.dmg * (1 - dist / (this.stats.rad + 20)));
+                        if (dmg > 0) p.takeDamage(dmg);
+                    }
+                }
+            }
+
+            let count = (this.stats.type === 'dirt' || this.stats.type === 'bridge') ? 5 : 20;
+            for (let i = 0; i < count; i++) {
+                this.game.particles.push(new Particle(this.x, this.y, (Math.random()-0.5)*10, (Math.random()-0.5)*10, this.stats.color === 'rainbow' ? `hsl(${Math.random()*360}, 100%, 50%)` : this.stats.color));
+            }
+            this.game.particles.push(new Shockwave(this.x, this.y, this.stats.color));
+            // Show the destructive radius
+            this.game.particles.push(new BlastRadius(this.x, this.y, this.stats.rad, this.stats.color));
+        }
+    }
+    
+    class Beam {
+        constructor(x, y, color) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            this.life = 1.0;
+            this.decay = 0.05;
+        }
+        update() { this.life -= this.decay; }
+        draw(ctx) {
+            if(this.life <= 0) return;
+            ctx.save();
+            ctx.globalAlpha = this.life;
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 10 * this.life;
+            ctx.beginPath();
+            ctx.moveTo(this.x, 0);
+            ctx.lineTo(this.x, this.y);
+            ctx.stroke();
+            
+            // Core
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 4 * this.life;
+            ctx.beginPath();
+            ctx.moveTo(this.x, 0);
+            ctx.lineTo(this.x, this.y);
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+    }
+
+    class BlastRadius {
+        constructor(x, y, radius, color) {
+            this.x = x; 
+            this.y = y;
+            this.r = radius;
+            this.color = color === 'rainbow' ? '#fff' : color;
+            this.life = 1.0;
+            this.decay = 0.08; // Fades out relatively quickly
+        }
+        update() { this.life -= this.decay; }
+        draw(ctx) { 
+            if(this.life <= 0) return; 
+            ctx.save();
+            ctx.globalAlpha = this.life * 0.3; // Semi-transparent fill
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.globalAlpha = this.life * 0.8; // Stronger outline
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    class Particle {
+        constructor(x, y, vx, vy, color, life=1.0) {
+            this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.color = color; this.life = life; this.decay = Math.random() * 0.03 + 0.01;
+        }
+        update() { this.x += this.vx; this.y += this.vy; this.vy += 0.1; this.life -= this.decay; }
+        draw(ctx) { ctx.globalAlpha = this.life; ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 4, 4); ctx.globalAlpha = 1.0; }
+    }
+    
+    class Shockwave {
+        constructor(x, y, color) { this.x = x; this.y = y; this.r = 1; this.color = color === 'rainbow' ? '#fff' : color; this.life = 1.0; this.decay = 0.05; }
+        update() { this.r += 5; this.life -= this.decay; }
+        draw(ctx) { if(this.life <= 0) return; ctx.globalAlpha = this.life; ctx.strokeStyle = this.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1.0; }
+    }
+
+    const game = new Game();
+
+</script>
+<a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

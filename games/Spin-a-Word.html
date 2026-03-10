@@ -1,0 +1,988 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Spin-A-Word is an engaging, cosmic-themed word puzzle where you spin a high-contrast neon wheel to earn cash and reveal hidden phrases. You must strategically buy vowels and outsmart clever AI bots to solve the mystery and claim your accumulated fortune.
+TAGS: Word, Puzzle, Simulation, Educational, Game Show, Old School
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spin-A-Word (Vs Bots)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* --- COPYRIGHT SAFETY STYLES --- */
+        
+        /* 1. Theme: Dark Slate/Cosmic instead of Green/Gold */
+        body {
+            background-color: #0f172a; /* Slate 900 */
+            color: #f1f5f9; /* Slate 100 */
+        }
+
+        /* 2. Tiles: Circles/Bubbles instead of Turning Boards */
+        .puzzle-tile {
+            width: 10vw;
+            max-width: 45px;
+            height: 45px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin: 4px;
+            border-radius: 50%; /* CIRCLES - Distinct from squares */
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy effect */
+            border: 2px solid #334155;
+        }
+
+        .puzzle-tile.spacer {
+            background-color: transparent;
+            border: none;
+            width: 20px;
+        }
+
+        /* Unrevealed: Dark Planet/Bubble style */
+        .puzzle-tile.unrevealed {
+            background-color: #1e293b; /* Slate 800 */
+            box-shadow: inset 0 0 10px #000000;
+        }
+
+        /* Revealed: Neon Cyan style - High Contrast */
+        .puzzle-tile.revealed {
+            background-color: #22d3ee; /* Cyan 400 */
+            color: #0f172a; /* Dark text */
+            transform: scale(1.1);
+            box-shadow: 0 0 15px #22d3ee;
+            border-color: #cffafe;
+        }
+        
+        /* Keyboard: Minimalist aesthetic */
+        .key-btn {
+            background-color: #334155; /* Slate 700 */
+            color: #e2e8f0;
+            border-radius: 8px;
+            transition: all 0.1s;
+            border: 1px solid #475569;
+        }
+
+        .key-btn:hover:not(:disabled) {
+            background-color: #8b5cf6; /* Violet */
+            border-color: #a78bfa;
+        }
+
+        .key-btn:disabled {
+            background-color: #0f172a;
+            color: #334155;
+            border-color: #1e293b;
+            cursor: not-allowed;
+        }
+        
+        /* Visual Wheel Styles */
+        #visualWheel {
+            border: 4px solid #f8fafc;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.5); /* Violet Glow */
+            position: relative;
+            transform: rotate(0deg);
+            transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .pointer {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, -60%);
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 25px solid #ec4899; /* Pink pointer pointing DOWN */
+            z-index: 10;
+        }
+
+        /* Active Player Highlight */
+        .player-card {
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            opacity: 0.6;
+        }
+        .player-card.active {
+            border-color: #22d3ee;
+            background-color: #1e293b;
+            opacity: 1;
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.3);
+            transform: scale(1.05);
+        }
+
+        /* Utility to hide scrollbars for cleaner UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        /* Toggle Switch for Sound */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #22d3ee;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #22d3ee;
+        }
+
+        /* Instructions List */
+        .instructions-list li {
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: start;
+        }
+        .instructions-list li::before {
+            content: "•";
+            color: #22d3ee;
+            font-weight: bold;
+            display: inline-block; 
+            width: 1em;
+            margin-left: -1em;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-2 flex flex-col items-center font-sans overflow-x-hidden">
+
+    <!-- GAME LAYOUT: Dashboard style -->
+    <div id="gameContainer" class="w-full max-w-4xl space-y-4 flex flex-col h-full">
+
+        <!-- 1. HEADER & SCOREBOARD -->
+        <header class="flex flex-col gap-4 bg-slate-800 p-4 rounded-2xl shadow-lg border border-slate-700 relative">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 tracking-wider">SPIN-A-WORD</h1>
+                </div>
+                
+                <!-- Header Controls: Sound & Help -->
+                <div class="flex items-center gap-4">
+                    <!-- Help Button -->
+                    <button id="instructionsBtn" class="text-slate-400 hover:text-white transition flex items-center justify-center w-8 h-8 rounded-full border border-slate-600 hover:bg-slate-700 hover:border-cyan-400 font-bold" title="How to Play">
+                        ?
+                    </button>
+
+                    <!-- Sound Toggle -->
+                    <div class="flex items-center gap-2 border-l border-slate-600 pl-4">
+                        <span class="text-xs text-slate-400 font-bold uppercase hidden md:inline">SFX</span>
+                        <div class="relative inline-block w-10 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="toggle" id="soundToggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-600 transition-all duration-300 right-5"/>
+                            <label for="soundToggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-600 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Multi-Player Scoreboard -->
+            <div id="scoreboard" class="flex justify-between gap-2 overflow-x-auto overflow-y-hidden no-scrollbar">
+                <!-- Generated by JS -->
+            </div>
+        </header>
+
+        <!-- Start Screen -->
+        <div id="startScreen" class="flex-grow flex flex-col items-center justify-center p-8 bg-slate-800 rounded-2xl border border-slate-700 text-center space-y-8 min-h-[400px]">
+            <h2 class="text-4xl font-bold text-white">Ready to Play?</h2>
+            <div class="text-slate-400 space-y-2">
+                <p>Opponents:</p>
+                <div class="flex gap-4 justify-center text-xl font-mono text-cyan-300">
+                    <span>🤖 BEEP-BOOP</span>
+                    <span>🤖 MEGA-BYTE</span>
+                </div>
+            </div>
+            <button id="startButton" class="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-bold py-4 px-10 rounded-full text-xl shadow-lg shadow-purple-900/50 transition transform hover:scale-105" onclick="startGame()">
+                START GAME
+            </button>
+        </div>
+
+        <!-- Main Game Content -->
+        <div id="mainGameContent" class="hidden flex flex-col gap-4">
+            
+            <!-- 2. DASHBOARD SECTION (WHEEL + CONTROLS) -->
+            <!-- Layout: Flex Row on MD screens, Stack on Mobile -->
+            <div class="flex flex-col md:flex-row items-center justify-around bg-slate-800/50 p-6 rounded-2xl border border-slate-700 backdrop-blur-sm gap-8 md:gap-12">
+                
+                <!-- LEFT SIDE: WHEEL & STATUS -->
+                <div class="flex flex-col items-center relative">
+                    <!-- Turn Indicator -->
+                    <div id="gameStatusMessage" class="mb-2 text-sm font-bold text-cyan-400 animate-pulse text-center tracking-widest uppercase">
+                        YOUR TURN
+                    </div>
+
+                    <div class="relative w-48 h-48 md:w-56 md:h-56">
+                        <div class="pointer"></div>
+                        <div id="visualWheel" class="w-full h-full rounded-full"></div>
+                    </div>
+
+                    <!-- Spin Result -->
+                    <div id="spinValueDisplay" class="mt-4 text-xl font-black text-white text-center h-8 flex items-center justify-center uppercase tracking-wide">
+                        SPIN TO START
+                    </div>
+                </div>
+
+                <!-- RIGHT SIDE: CONTROLS (Stacked Vertically) -->
+                <div id="controlsContainer" class="flex flex-col w-full md:w-64 gap-4 transition-all">
+                    <!-- Standard Game Controls -->
+                    <div id="activeGameControls" class="flex flex-col gap-4 w-full">
+                        <button id="spinButton" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-cyan-900/20 disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none transform hover:scale-[1.02] active:scale-[0.98]" onclick="spinWheel()">
+                            SPIN
+                        </button>
+                        <button id="buyVowelButton" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-purple-900/20 disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none transform hover:scale-[1.02] active:scale-[0.98]" onclick="buyVowel()">
+                            VOWEL ($250)
+                        </button>
+                        <button id="solveButton" class="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-pink-900/20 disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none transform hover:scale-[1.02] active:scale-[0.98]" onclick="showSolveModal()">
+                            SOLVE
+                        </button>
+                    </div>
+
+                    <!-- New Game Button (Hidden by default) -->
+                    <button id="newGameButton" class="hidden w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-6 rounded-xl shadow-lg shadow-emerald-900/50 text-xl animate-bounce" onclick="startGame()">
+                        START NEW GAME
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. KEYBOARD -->
+            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 shadow-md">
+                <div id="keyboard" class="flex flex-wrap justify-center gap-1.5">
+                    <!-- Keys generated via JS -->
+                </div>
+            </div>
+
+            <!-- 4. PUZZLE BOARD (AT THE BOTTOM) -->
+            <div class="mt-auto w-full">
+                <div class="text-center mb-2">
+                    <p class="text-xs md:text-sm text-slate-400 uppercase tracking-widest font-bold inline-block bg-slate-800 px-4 py-1 rounded-full border border-slate-700 shadow-sm">
+                        THEME: <span id="categoryDisplay" class="text-cyan-400 text-sm md:text-base ml-1">---</span>
+                    </p>
+                </div>
+                <div id="puzzleBoard" class="flex flex-wrap justify-center items-center min-h-[80px] p-4 bg-slate-900 rounded-2xl border-2 border-slate-700/50 border-dashed">
+                    <!-- Circular Tiles Render Here -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Custom Message/Modal Box -->
+    <div id="messageModal" class="fixed inset-0 bg-slate-900/90 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-600 max-w-sm w-full text-center space-y-4">
+            <h3 id="modalTitle" class="text-2xl font-bold text-white"></h3>
+            <p id="modalMessage" class="text-slate-300 text-lg"></p>
+            <div id="modalInputContainer" class="hidden">
+                <input type="text" id="solveInput" class="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white text-lg uppercase text-center focus:outline-none focus:border-cyan-400" maxlength="50" placeholder="TYPE ANSWER HERE">
+            </div>
+            <button id="modalPrimaryButton" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-6 rounded-lg w-full transition" onclick="handleModalAction()">
+                OK
+            </button>
+        </div>
+    </div>
+
+    <!-- Instructions Modal -->
+    <div id="instructionsModal" class="fixed inset-0 bg-slate-900/95 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+        <!-- Changed max-w-md to max-w-[600px] -->
+        <div class="bg-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl border border-slate-600 max-w-[600px] w-full relative">
+            <button onclick="document.getElementById('instructionsModal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            
+            <h3 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-6 border-b border-slate-700 pb-2">HOW TO PLAY</h3>
+            
+            <div class="text-slate-300 space-y-4 text-sm md:text-base h-80 overflow-y-auto no-scrollbar pr-2">
+                <section>
+                    <h4 class="font-bold text-white mb-2">The Objective</h4>
+                    <p class="text-sm">Guess the hidden phrase by spinning for money and revealing letters. Solve the puzzle to win your accumulated cash!</p>
+                </section>
+
+                <section>
+                    <h4 class="font-bold text-white mb-2">Turn Actions</h4>
+                    <ul class="instructions-list list-none pl-4 text-sm">
+                        <li><strong>SPIN:</strong> Determines the cash value for each consonant you guess correctly. Careful of "Bankrupt" or "Lose a Turn"!</li>
+                        <li><strong>VOWEL:</strong> Buy a vowel (A, E, I, O, U) for a flat rate of $250. You must have the funds to buy.</li>
+                        <li><strong>SOLVE:</strong> Think you know the phrase? Type it in exactly to win the game. Incorrect solves end your turn.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h4 class="font-bold text-white mb-2">The Opponents</h4>
+                    <p class="text-sm">You are playing against <strong>Beep-Boop</strong> and <strong>Mega-Byte</strong>. They are AI bots that will take their turns automatically. They can spin, guess, and even solve the puzzle if they get smart enough!</p>
+                </section>
+            </div>
+            
+            <div class="mt-6 pt-4 border-t border-slate-700">
+                <button onclick="document.getElementById('instructionsModal').classList.add('hidden')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition">
+                    CLOSE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- SOUND SYSTEM ---
+        const SoundManager = {
+            ctx: null,
+            enabled: false,
+
+            init: function() {
+                const Toggle = document.getElementById('soundToggle');
+                Toggle.addEventListener('change', (e) => {
+                    this.enabled = e.target.checked;
+                    if(this.enabled && !this.ctx) {
+                        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                });
+            },
+
+            playTone: function(freq, type, duration) {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.00001, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+
+            playClick: function() { this.playTone(800, 'square', 0.05); },
+            playDing: function() { this.playTone(1200, 'sine', 0.5); },
+            playBuzz: function() { this.playTone(150, 'sawtooth', 0.4); },
+            playWin: function() { 
+                if (!this.enabled) return;
+                [440, 554, 659, 880].forEach((freq, i) => {
+                    setTimeout(() => this.playTone(freq, 'square', 0.3), i * 100);
+                });
+            },
+            playBankrupt: function() {
+                if (!this.enabled) return;
+                this.playTone(100, 'sawtooth', 0.8);
+            }
+        };
+
+        // --- GAME DATA ---
+
+        const DEFAULT_PUZZLES = `
+CATEGORY,PHRASE
+SPACE,PLANETARY ORBIT
+TECHNOLOGY,ARTIFICIAL INTELLIGENCE
+SCIENCE,QUANTUM PHYSICS
+NATURE,NORTHERN LIGHTS
+LITERATURE,BRAVE NEW WORLD
+CINEMA,BLADE RUNNER
+HISTORY,THE SPACE RACE
+GEOGRAPHY,MOUNT EVEREST BASE CAMP
+MUSIC,SYNTHESIZER KEYBOARD
+FOOD,MOLECULAR GASTRONOMY
+`;
+
+        const WHEEL_SEGMENTS = [
+            { value: 500, color: '#ec4899' },   // Pink
+            { value: 600, color: '#8b5cf6' },   // Violet
+            { value: 700, color: '#06b6d4' },   // Cyan
+            { value: 800, color: '#3b82f6' },   // Blue
+            { value: 900, color: '#d946ef' },   // Fuchsia
+            { value: 500, color: '#6366f1' },   // Indigo
+            { value: 'BANKRUPT', color: '#0f172a', text: 'BANKRUPT' }, 
+            { value: 500, color: '#ec4899' },
+            { value: 600, color: '#8b5cf6' },
+            { value: 700, color: '#06b6d4' },
+            { value: 'LOSE A TURN', color: '#94a3b8', text: 'L.A.T.' }, 
+            { value: 800, color: '#3b82f6' },
+            { value: 900, color: '#d946ef' },
+            { value: 2500, color: '#facc15' },  // Yellow Pop
+            { value: 600, color: '#6366f1' },
+            { value: 700, color: '#06b6d4' }
+        ];
+
+        const SEGMENT_DEGREES = 360 / WHEEL_SEGMENTS.length;
+        const VOWELS = ['A', 'E', 'I', 'O', 'U'];
+        const CONSONANTS = "BCDFGHJKLMNPQRSTVWXYZ".split('');
+        const VOWEL_COST = 250;
+
+        let state = {
+            puzzles: [],
+            currentPuzzle: null,
+            puzzlePhrase: "",
+            puzzleCategory: "",
+            guessedLetters: new Set(),
+            spinValue: 0,
+            gameState: 'IDLE',
+            currentPlayerIndex: 0,
+            players: [
+                { name: "YOU", score: 0, isBot: false, color: "text-cyan-400" },
+                { name: "BEEP-BOOP", score: 0, isBot: true, color: "text-purple-400" },
+                { name: "MEGA-BYTE", score: 0, isBot: true, color: "text-pink-400" }
+            ]
+        };
+
+        const elements = {
+            startScreen: document.getElementById('startScreen'),
+            startButton: document.getElementById('startButton'),
+            mainGameContent: document.getElementById('mainGameContent'),
+            board: document.getElementById('puzzleBoard'),
+            category: document.getElementById('categoryDisplay'),
+            scoreboard: document.getElementById('scoreboard'),
+            visualWheel: document.getElementById('visualWheel'),
+            spinValueDisplay: document.getElementById('spinValueDisplay'),
+            keyboard: document.getElementById('keyboard'),
+            spinButton: document.getElementById('spinButton'),
+            buyVowelButton: document.getElementById('buyVowelButton'),
+            solveButton: document.getElementById('solveButton'),
+            statusMessage: document.getElementById('gameStatusMessage'),
+            modal: document.getElementById('messageModal'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalMessage: document.getElementById('modalMessage'),
+            modalInputContainer: document.getElementById('modalInputContainer'),
+            solveInput: document.getElementById('solveInput'),
+            modalPrimaryButton: document.getElementById('modalPrimaryButton'),
+            activeControls: document.getElementById('activeGameControls'),
+            newGameButton: document.getElementById('newGameButton'),
+            instructionsBtn: document.getElementById('instructionsBtn'),
+            instructionsModal: document.getElementById('instructionsModal')
+        };
+        
+        // --- INITIALIZATION ---
+
+        function setupVisualWheel() {
+            let gradientStops = [];
+            let currentDegree = 0;
+            WHEEL_SEGMENTS.forEach((segment) => {
+                const color = segment.color;
+                gradientStops.push(`${color} ${currentDegree}deg`);
+                currentDegree += SEGMENT_DEGREES;
+                gradientStops.push(`${color} ${currentDegree}deg`);
+            });
+            elements.visualWheel.style.background = `conic-gradient(from 0deg, ${gradientStops.join(', ')})`;
+        }
+
+        function renderScoreboard() {
+            elements.scoreboard.innerHTML = '';
+            state.players.forEach((player, index) => {
+                const isActive = index === state.currentPlayerIndex;
+                const card = document.createElement('div');
+                card.className = `player-card flex-1 p-2 rounded-lg bg-slate-700 text-center min-w-[80px] ${isActive ? 'active' : ''}`;
+                card.innerHTML = `
+                    <div class="text-[10px] uppercase font-bold text-slate-400">${player.name}</div>
+                    <div class="text-xl font-mono font-bold ${player.color}">$${player.score.toLocaleString()}</div>
+                `;
+                elements.scoreboard.appendChild(card);
+            });
+        }
+
+        // --- GAME LOGIC ---
+
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n').filter(line => line.trim() !== '');
+            const puzzles = [];
+            if (lines.length > 1) {
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split(',');
+                    if (parts.length >= 2) {
+                        puzzles.push({
+                            category: parts[0].trim(),
+                            phrase: parts.slice(1).join(',').trim().toUpperCase()
+                        });
+                    }
+                }
+            }
+            return puzzles;
+        }
+
+        async function fetchPuzzles() {
+            try {
+                const response = await fetch('puzzles.csv');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const text = await response.text();
+                return parseCSV(text);
+            } catch (error) {
+                console.log("Could not load external file, using default puzzles:", error);
+                return parseCSV(DEFAULT_PUZZLES);
+            }
+        }
+
+        function selectNewPuzzle() {
+            if (state.puzzles.length === 0) return;
+            const randomIndex = Math.floor(Math.random() * state.puzzles.length);
+            state.currentPuzzle = state.puzzles[randomIndex];
+            state.puzzlePhrase = state.currentPuzzle.phrase;
+            state.puzzleCategory = state.currentPuzzle.category;
+            state.guessedLetters.clear();
+            state.spinValue = 0;
+            state.gameState = 'SPINNING';
+            state.currentPlayerIndex = 0; // Human starts
+            
+            elements.category.textContent = state.puzzleCategory;
+            elements.visualWheel.style.transform = 'rotate(0deg)';
+            elements.spinValueDisplay.textContent = 'SPIN TO START';
+            elements.spinValueDisplay.style.color = '#ffffff';
+
+            // Reset Controls visibility
+            elements.activeControls.classList.remove('hidden');
+            elements.newGameButton.classList.add('hidden');
+
+            updateUI();
+        }
+
+        // --- PLAYER & BOT MANAGEMENT ---
+
+        function nextTurn() {
+            if (state.gameState === 'GAME_OVER') return;
+
+            // Move to next player
+            state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
+            state.gameState = 'SPINNING';
+            
+            const currentPlayer = state.players[state.currentPlayerIndex];
+            
+            // Update UI Message
+            if (currentPlayer.isBot) {
+                elements.statusMessage.textContent = `${currentPlayer.name} IS PLAYING...`;
+                elements.statusMessage.className = `mb-2 text-sm font-bold animate-pulse text-center tracking-widest uppercase ${currentPlayer.color}`;
+            } else {
+                elements.statusMessage.textContent = "YOUR TURN";
+                elements.statusMessage.className = "mb-2 text-sm font-bold text-cyan-400 animate-pulse text-center tracking-widest uppercase";
+            }
+
+            updateUI();
+
+            // Trigger Bot Logic if needed
+            if (currentPlayer.isBot) {
+                setTimeout(playBotTurn, 1000);
+            }
+        }
+
+        async function playBotTurn() {
+            if (state.gameState === 'GAME_OVER') return;
+            const bot = state.players[state.currentPlayerIndex];
+            if (!bot.isBot) return; // Safety check
+
+            // 1. Check for Solve Opportunity (Smartish AI)
+            const letters = state.puzzlePhrase.replace(/[^A-Z]/g, '').length;
+            const revealed = state.puzzlePhrase.split('').filter(c => state.guessedLetters.has(c)).length;
+            const percentRevealed = revealed / letters;
+            
+            // 20% chance to solve if >60% revealed, simulating a "eureka" moment
+            if (percentRevealed > 0.6 && Math.random() < 0.2) {
+                elements.spinValueDisplay.textContent = "SOLVING...";
+                setTimeout(() => {
+                    // Bot solves successfully
+                    state.score = bot.score; // Needed for solve function shared logic
+                    state.gameState = 'SOLVING'; // trick state for solve function
+                    elements.solveInput.value = state.puzzlePhrase; // Fill virtually
+                    attemptSolve(true); // pass true for bot
+                }, 1500);
+                return;
+            }
+
+            // 2. Spin Wheel
+            spinWheel(true); // true = automated spin
+        }
+
+        // --- CORE ACTIONS ---
+
+        function spinWheel(isBot = false) {
+            if (state.gameState !== 'SPINNING') return;
+            
+            // Disable buttons for everyone while spinning
+            elements.spinButton.disabled = true;
+            elements.solveButton.disabled = true;
+            elements.buyVowelButton.disabled = true;
+            
+            elements.spinValueDisplay.textContent = '...';
+            elements.spinValueDisplay.style.color = '#94a3b8';
+
+            // SFX
+            const clickInterval = setInterval(() => SoundManager.playClick(), 200);
+
+            // Calculate spin
+            const randomIndex = Math.floor(Math.random() * WHEEL_SEGMENTS.length);
+            const landedOn = WHEEL_SEGMENTS[randomIndex];
+            state.spinValue = landedOn.value;
+            
+            const centerAngle = randomIndex * SEGMENT_DEGREES + (SEGMENT_DEGREES / 2);
+            const rotationToTop = -centerAngle; 
+            const fullRotations = Math.floor(Math.random() * 3 + 3) * 360; 
+            const finalRotation = fullRotations + rotationToTop;
+
+            elements.visualWheel.style.transform = `rotate(${finalRotation}deg)`;
+
+            // Spin Animation Time
+            setTimeout(() => {
+                clearInterval(clickInterval); // Stop SFX
+
+                const visualFinalAngle = finalRotation % 360;
+                elements.visualWheel.style.transition = 'none';
+                elements.visualWheel.style.transform = `rotate(${visualFinalAngle}deg)`;
+                
+                setTimeout(() => {
+                    elements.visualWheel.style.transition = 'transform 4s cubic-bezier(0.25, 0.1, 0.25, 1)';
+                }, 50);
+
+                // Handle Result
+                if (landedOn.text) {
+                    elements.spinValueDisplay.textContent = landedOn.text;
+                } else {
+                    elements.spinValueDisplay.textContent = `$${landedOn.value}`;
+                }
+                elements.spinValueDisplay.style.color = landedOn.color;
+
+                if (landedOn.value === 'BANKRUPT') {
+                    SoundManager.playBankrupt();
+                    state.players[state.currentPlayerIndex].score = 0;
+                    if(isBot) {
+                        setTimeout(nextTurn, 1500);
+                    } else {
+                        showModal("BANKRUPT", "Score reset. Turn lost.", nextTurn);
+                    }
+                } else if (landedOn.value === 'LOSE A TURN') {
+                    SoundManager.playBankrupt();
+                    if(isBot) {
+                        setTimeout(nextTurn, 1500);
+                    } else {
+                        showModal("LOSE A TURN", "Turn skipped.", nextTurn);
+                    }
+                } else {
+                    state.gameState = 'GUESSING';
+                    updateUI(); 
+                    
+                    if (isBot) {
+                        setTimeout(() => botGuessLetter(landedOn.value), 1000);
+                    }
+                }
+            }, 3000); 
+        }
+
+        function botGuessLetter(potentialValue) {
+            const available = CONSONANTS.filter(c => !state.guessedLetters.has(c));
+            
+            if (available.length === 0) {
+                nextTurn(); 
+                return;
+            }
+
+            const pick = available[Math.floor(Math.random() * available.length)];
+            elements.spinValueDisplay.textContent = `GUESSING: ${pick}`;
+            setTimeout(() => {
+                guessLetter(pick, true);
+            }, 1000);
+        }
+
+        function guessLetter(letter, isBot = false) {
+            if (state.gameState !== 'GUESSING' && state.gameState !== 'BUYING_VOWEL') return;
+            if (state.guessedLetters.has(letter)) return;
+            
+            const isVowel = VOWELS.includes(letter);
+            if (state.gameState === 'GUESSING' && isVowel) return; 
+            if (state.gameState === 'BUYING_VOWEL' && !isVowel) return;
+
+            state.guessedLetters.add(letter);
+            
+            let count = 0;
+            for (const char of state.puzzlePhrase) {
+                if (char === letter) count++;
+            }
+            
+            const currentPlayer = state.players[state.currentPlayerIndex];
+
+            if (count > 0) {
+                SoundManager.playDing();
+                if (state.gameState !== 'BUYING_VOWEL') {
+                    const earnings = count * state.spinValue;
+                    currentPlayer.score += earnings;
+                }
+
+                if (isBot) {
+                    state.gameState = 'SPINNING';
+                    updateUI();
+                    setTimeout(playBotTurn, 1500);
+                } else {
+                    state.gameState = 'SPINNING';
+                    updateUI();
+                    showModal("CORRECT!", `Found ${count} "${letter}"(s)! Spin again.`);
+                }
+            } else {
+                SoundManager.playBuzz();
+                if (isBot) {
+                    elements.spinValueDisplay.textContent = `NO ${letter}!`;
+                    setTimeout(nextTurn, 1500);
+                } else {
+                    showModal("MISS", `No "${letter}" in the puzzle.`, nextTurn);
+                }
+            }
+
+            updateUI();
+            checkWinCondition();
+        }
+
+        function buyVowel() {
+            const player = state.players[state.currentPlayerIndex];
+            if (player.score < VOWEL_COST) return;
+            
+            player.score -= VOWEL_COST;
+            state.gameState = 'BUYING_VOWEL';
+            updateUI();
+        }
+
+        function showSolveModal() {
+            if(state.gameState === 'IDLE') return;
+            state.gameState = 'SOLVING';
+            updateUI();
+            elements.modalTitle.textContent = "GUESS THE PHRASE";
+            elements.modalMessage.textContent = "Enter the exact phrase.";
+            elements.modalInputContainer.classList.remove('hidden');
+            elements.modalPrimaryButton.textContent = "SUBMIT ANSWER";
+            elements.modalPrimaryButton.onclick = () => attemptSolve(false);
+            elements.modal.classList.remove('hidden');
+            elements.modal.classList.add('flex');
+            elements.solveInput.focus();
+        }
+        
+        function attemptSolve(isBot = false) {
+            const userSolution = elements.solveInput.value.trim().toUpperCase();
+            elements.solveInput.value = ''; 
+            hideModal();
+            
+            const currentPlayer = state.players[state.currentPlayerIndex];
+
+            if (userSolution === state.puzzlePhrase) {
+                SoundManager.playWin();
+                currentPlayer.score += 5000; 
+                showModal("GAME OVER", `${currentPlayer.name} WINS! Phrase: "${state.puzzlePhrase}"`, () => handleWinState(currentPlayer));
+            } else {
+                SoundManager.playBuzz();
+                if(isBot) {
+                    setTimeout(nextTurn, 1000);
+                } else {
+                    showModal("INCORRECT", `That is not the phrase. Turn Over.`, nextTurn);
+                }
+            }
+            updateUI();
+        }
+
+        // --- NEW GAME STATE LOGIC ---
+
+        function handleWinState(winner) {
+            // 1. Reveal entire puzzle
+            const allChars = state.puzzlePhrase.split('');
+            allChars.forEach(c => state.guessedLetters.add(c));
+            
+            // 2. Set State
+            state.gameState = 'GAME_OVER';
+            
+            // 3. Update Status
+            elements.statusMessage.textContent = `${winner.name} WINS!`;
+            elements.statusMessage.className = `mb-2 text-xl font-bold animate-bounce text-center tracking-widest uppercase ${winner.color}`;
+            elements.spinValueDisplay.textContent = "GAME OVER";
+
+            // 4. Swap Buttons
+            elements.activeControls.classList.add('hidden');
+            elements.newGameButton.classList.remove('hidden');
+
+            renderPuzzleBoard(); // Re-render to show full puzzle
+        }
+
+        // --- UI UPDATES ---
+
+        function updateUI() {
+            renderScoreboard();
+            renderPuzzleBoard();
+            updateKeyboard();
+            updateControlButtons();
+        }
+
+        function renderPuzzleBoard() {
+            elements.board.innerHTML = '';
+            const phrase = state.puzzlePhrase;
+            
+            const words = phrase.split(' ');
+
+            words.forEach((word) => {
+                if (!word) return; 
+
+                const wordContainer = document.createElement('div');
+                wordContainer.className = 'flex flex-nowrap justify-center mx-1 md:mx-3 my-1'; 
+                
+                for (const char of word) {
+                    if (char.match(/[A-Z]/)) {
+                        const tile = document.createElement('div');
+                        const isRevealed = state.guessedLetters.has(char);
+                        
+                        tile.className = `puzzle-tile ${isRevealed ? 'revealed' : 'unrevealed'}`;
+                        tile.textContent = isRevealed ? char : '';
+                        wordContainer.appendChild(tile);
+                    } else {
+                        const tile = document.createElement('div');
+                        tile.className = 'puzzle-tile bg-transparent border-none text-white shadow-none'; 
+                        tile.style.backgroundColor = 'transparent';
+                        tile.style.border = 'none';
+                        tile.style.boxShadow = 'none';
+                        tile.textContent = char;
+                        wordContainer.appendChild(tile);
+                    }
+                }
+                elements.board.appendChild(wordContainer);
+            });
+        }
+
+        function updateKeyboard() {
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const currentPlayer = state.players[state.currentPlayerIndex];
+            const isMyTurn = !currentPlayer.isBot;
+            const isGameOver = state.gameState === 'GAME_OVER';
+
+            alphabet.split('').forEach(letter => {
+                const button = document.getElementById(`key-${letter}`);
+                if (button) {
+                    if (isGameOver) {
+                        button.disabled = true;
+                        button.style.opacity = '0.5';
+                        return;
+                    }
+
+                    const isGuessed = state.guessedLetters.has(letter);
+                    const isVowel = VOWELS.includes(letter);
+                    
+                    let isDisabled = true;
+                    
+                    if (isMyTurn && !isGuessed) {
+                         if (state.gameState === 'GUESSING') {
+                            isDisabled = isVowel; 
+                        } else if (state.gameState === 'BUYING_VOWEL') {
+                            isDisabled = !isVowel;
+                        }
+                    }
+
+                    button.disabled = isDisabled;
+                    button.style.opacity = isGuessed ? '0.3' : '1';
+                }
+            });
+        }
+
+        function updateControlButtons() {
+            const currentPlayer = state.players[state.currentPlayerIndex];
+            const isMyTurn = !currentPlayer.isBot;
+            
+            // If Game Over, logic is handled by hiding container, but safety first:
+            if (state.gameState === 'GAME_OVER') return;
+
+            elements.spinButton.disabled = !isMyTurn || state.gameState !== 'SPINNING';
+            
+            const canInteract = isMyTurn && (state.gameState === 'SPINNING' || state.gameState === 'GUESSING' || state.gameState === 'BUYING_VOWEL');
+            elements.solveButton.disabled = !canInteract;
+
+            const canBuyVowel = isMyTurn && state.gameState === 'SPINNING' && currentPlayer.score >= VOWEL_COST;
+            elements.buyVowelButton.disabled = !canBuyVowel;
+        }
+
+        function checkWinCondition() {
+            const display = state.puzzlePhrase.split('').map(char => {
+                if (char.match(/[A-Z]/)) {
+                    return state.guessedLetters.has(char) ? char : '_';
+                }
+                return char;
+            }).join('');
+
+            if (!display.includes('_')) {
+                const currentPlayer = state.players[state.currentPlayerIndex];
+                SoundManager.playWin();
+                currentPlayer.score += 2000;
+                showModal("PUZZLE COMPLETE", `${currentPlayer.name} solved it! Phrase: "${state.puzzlePhrase}"`, () => handleWinState(currentPlayer));
+            }
+        }
+
+        // --- UTILS ---
+
+        function startGame() {
+            elements.startButton.textContent = "LOADING...";
+            state.players.forEach(p => p.score = 0);
+            fetchPuzzles().then(puzzles => {
+                state.puzzles = puzzles;
+                elements.startScreen.classList.add('hidden');
+                elements.mainGameContent.classList.remove('hidden');
+                selectNewPuzzle();
+                elements.startButton.textContent = "START NEW GAME";
+            });
+        }
+
+        function showModal(title, message, callback = null) {
+            elements.modalTitle.textContent = title;
+            elements.modalMessage.textContent = message;
+            elements.modalInputContainer.classList.add('hidden');
+            elements.modalPrimaryButton.textContent = "OK";
+            elements.modalPrimaryButton.onclick = () => {
+                hideModal();
+                if (callback) callback();
+            };
+            elements.modal.classList.remove('hidden');
+            elements.modal.classList.add('flex');
+        }
+
+        function hideModal() {
+            elements.modal.classList.add('hidden');
+            elements.modal.classList.remove('flex');
+        }
+
+        function handleModalAction() {
+             if (elements.modalPrimaryButton.textContent === "SUBMIT ANSWER") {
+                attemptSolve(false);
+            }
+        }
+
+        // --- SETUP ---
+        window.onload = () => {
+            SoundManager.init();
+            
+            // Setup Instructions Button
+            elements.instructionsBtn.onclick = () => {
+                elements.instructionsModal.classList.remove('hidden');
+                elements.instructionsModal.classList.add('flex');
+            };
+
+            // Keyboard Setup: 13 Keys per row
+            elements.keyboard.className = 'flex flex-col gap-2 items-center'; // Ensure vertical stacking of rows
+            elements.keyboard.innerHTML = '';
+
+            const row1 = document.createElement('div');
+            row1.className = 'flex justify-center gap-1.5';
+            
+            const row2 = document.createElement('div');
+            row2.className = 'flex justify-center gap-1.5';
+
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            
+            alphabet.split('').forEach((letter, index) => {
+                const button = document.createElement('button');
+                button.id = `key-${letter}`;
+                button.textContent = letter;
+                button.className = 'key-btn text-lg font-mono w-8 h-10 md:w-10 md:h-12 shadow-sm';
+                button.onclick = () => guessLetter(letter);
+                
+                // Split: First 13 go to row 1, rest to row 2
+                if (index < 13) {
+                    row1.appendChild(button);
+                } else {
+                    row2.appendChild(button);
+                }
+            });
+
+            elements.keyboard.appendChild(row1);
+            elements.keyboard.appendChild(row2);
+
+            setupVisualWheel();
+            updateUI(); 
+        };
+    </script>
+    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

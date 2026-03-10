@@ -1,0 +1,660 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Deep Digger is a functional arcade-style subterranean action game featuring tile-based digging mechanics and a retro pixel-art aesthetic. The engine manages a complex game loop including player movement, enemy AI that tracks the player through tunnels, harpoon physics for inflating foes, and environmental hazards like falling rocks.
+TAGS: Arcade, Retro, Action, Strategy, Old School
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Deep Digger</title>
+    <style>
+        body {
+            background-color: #111;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Arcade Cabinet Style Container */
+        #game-container {
+            position: relative;
+            border: 4px solid #444;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            background-color: #000;
+        }
+
+        /* The Score/Lives Header */
+        #hud {
+            background-color: #000;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 20px;
+            font-weight: bold;
+            border-bottom: 2px solid #fff;
+            width: 448px; /* Matches canvas width */
+            box-sizing: border-box;
+        }
+
+        .hud-label {
+            color: #ff3333; /* Red label */
+            margin-right: 5px;
+        }
+
+        canvas {
+            display: block;
+            background-color: #000;
+            image-rendering: pixelated;
+        }
+        
+        #instructions {
+            margin-top: 15px;
+            color: #888;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- SCORE AND LIVES UI -->
+        <div id="hud">
+            <div><span class="hud-label">SCORE</span><span id="scoreEl">00</span></div>
+            <div><span class="hud-label">LIVES</span><span id="livesEl">3</span></div>
+        </div>
+
+        <canvas id="gameCanvas" width="448" height="512"></canvas>
+    </div>
+
+    <div id="instructions">
+        Arrows: Move/Dig &nbsp;|&nbsp; Space: Pump/Shoot &nbsp;|&nbsp; Enter: Restart
+    </div>
+
+<script>
+/**
+ * DIG DUG CLONE
+ * Logic includes: Digging, Enemies (Pookas), Harpoon/Pump, Falling Rocks, Score, Lives.
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('scoreEl');
+const livesEl = document.getElementById('livesEl');
+
+// Game Constants
+const TILE_SIZE = 32;
+const COLS = 14;
+const ROWS = 16; // Top 2 rows are sky
+const SPEED = 2;
+const ENEMY_SPEED = 1;
+
+// Game State
+let score = 0;
+let lives = 3;
+let gameOver = false;
+let gameWon = false;
+let grid = []; // 0 = tunnel, 1 = soil
+let entities = [];
+let rocks = [];
+let player;
+
+// Inputs
+const keys = {};
+
+// --- CLASSES ---
+
+class Entity {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.width = TILE_SIZE - 4;
+        this.height = TILE_SIZE - 4;
+        this.color = color;
+        this.dir = { x: 0, y: 0 };
+        this.isDead = false;
+    }
+
+    getCenter() {
+        return {
+            x: this.x + TILE_SIZE / 2,
+            y: this.y + TILE_SIZE / 2
+        };
+    }
+}
+
+class Player extends Entity {
+    constructor(x, y) {
+        super(x, y, '#ffffff');
+        this.facing = { x: 1, y: 0 };
+        this.harpoon = null;
+        this.pumping = false;
+        this.pumpCooldown = 0;
+    }
+
+    update() {
+        if (this.isDead) return;
+
+        // Movement logic
+        let dx = 0;
+        let dy = 0;
+
+        // Only move if not pumping
+        if (!this.pumping) {
+            if (keys['ArrowLeft']) dx = -SPEED;
+            else if (keys['ArrowRight']) dx = SPEED;
+            else if (keys['ArrowUp']) dy = -SPEED;
+            else if (keys['ArrowDown']) dy = SPEED;
+        }
+
+        // Update facing direction
+        if (dx !== 0) { this.facing = { x: Math.sign(dx), y: 0 }; dy = 0; }
+        else if (dy !== 0) { this.facing = { x: 0, y: Math.sign(dy) }; dx = 0; }
+
+        // Snap to grid logic (prevents getting stuck on corners)
+        if (dx !== 0) {
+            const remY = this.y % TILE_SIZE;
+            if (remY !== 0) {
+                if (remY < TILE_SIZE/2) this.y -= Math.min(remY, SPEED);
+                else this.y += Math.min(TILE_SIZE - remY, SPEED);
+                dx = 0;
+            }
+        } else if (dy !== 0) {
+            const remX = this.x % TILE_SIZE;
+            if (remX !== 0) {
+                if (remX < TILE_SIZE/2) this.x -= Math.min(remX, SPEED);
+                else this.x += Math.min(TILE_SIZE - remX, SPEED);
+                dy = 0;
+            }
+        }
+
+        // Boundary checks
+        if (this.x + dx >= 0 && this.x + dx <= canvas.width - TILE_SIZE) this.x += dx;
+        if (this.y + dy >= 2 * TILE_SIZE && this.y + dy <= canvas.height - TILE_SIZE) this.y += dy;
+
+        // Digging Logic
+        const center = this.getCenter();
+        const col = Math.floor(center.x / TILE_SIZE);
+        const row = Math.floor(center.y / TILE_SIZE);
+        
+        if (row >= 0 && col >= 0 && row < ROWS && col < COLS) {
+            if (grid[row][col] === 1) {
+                grid[row][col] = 0;
+                addScore(10); // Points for digging
+            }
+        }
+
+        // Harpoon / Attack Logic
+        if (keys[' '] && !this.harpoon && !this.pumping && this.pumpCooldown <= 0) {
+            this.harpoon = new Harpoon(this.x + TILE_SIZE/2, this.y + TILE_SIZE/2, this.facing);
+            this.pumpCooldown = 10;
+        }
+        if (this.pumpCooldown > 0) this.pumpCooldown--;
+
+        if (this.harpoon) {
+            this.harpoon.update();
+            if (!this.harpoon.active) {
+                this.harpoon = null;
+                this.pumping = false;
+            }
+        }
+
+        // Check collision with Enemies
+        entities.forEach(e => {
+            if (!e.isDead && checkCollision(this, e)) {
+                // Safe if enemy is mostly inflated (stunned)
+                if(e.bloat < 1) {
+                    killPlayer();
+                }
+            }
+        });
+    }
+
+    draw() {
+        if (this.isDead) return;
+        // Simple Sprite
+        ctx.fillStyle = 'white'; 
+        ctx.fillRect(this.x + 4, this.y + 4, 24, 24);
+        ctx.fillStyle = '#0000AA'; 
+        ctx.fillRect(this.x + 8, this.y + 16, 16, 12);
+        ctx.fillStyle = '#FF0000'; 
+        ctx.fillRect(this.x + 10, this.y + 8, 12, 4);
+
+        if (this.harpoon) this.harpoon.draw();
+    }
+}
+
+class Harpoon {
+    constructor(startX, startY, dir) {
+        this.x = startX;
+        this.y = startY;
+        this.dir = dir;
+        this.length = 0;
+        this.maxLength = TILE_SIZE * 3;
+        this.speed = 8;
+        this.active = true;
+        this.hitEnemy = null;
+        this.retracting = false;
+    }
+
+    update() {
+        if (this.hitEnemy) {
+            if (keys[' '] && player.pumpCooldown <= 0) {
+                this.hitEnemy.inflate();
+                player.pumpCooldown = 12; 
+            }
+            if (this.hitEnemy.isDead || this.hitEnemy.deflating) {
+                this.active = false; 
+            }
+            return;
+        }
+
+        if (!this.retracting) {
+            this.length += this.speed;
+            const tipX = this.x + (this.dir.x * this.length);
+            const tipY = this.y + (this.dir.y * this.length);
+
+            entities.forEach(e => {
+                if (!e.isDead && 
+                    tipX > e.x && tipX < e.x + TILE_SIZE &&
+                    tipY > e.y && tipY < e.y + TILE_SIZE) {
+                    this.hitEnemy = e;
+                    e.stunned = true;
+                    player.pumping = true;
+                }
+            });
+
+            if (this.length >= this.maxLength) {
+                this.retracting = true;
+            } else {
+                 const gridCol = Math.floor(tipX / TILE_SIZE);
+                 const gridRow = Math.floor(tipY / TILE_SIZE);
+                 if(gridRow >=0 && gridRow < ROWS && gridCol >=0 && gridCol < COLS) {
+                     if(grid[gridRow][gridCol] === 1) this.retracting = true;
+                 }
+            }
+        } else {
+            this.length -= this.speed;
+            if (this.length <= 0) this.active = false;
+        }
+    }
+
+    draw() {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x + (this.dir.x * this.length), this.y + (this.dir.y * this.length));
+        ctx.stroke();
+        
+        if (!this.hitEnemy) {
+            const tipX = this.x + (this.dir.x * this.length);
+            const tipY = this.y + (this.dir.y * this.length);
+            ctx.fillStyle = 'red';
+            ctx.fillRect(tipX - 2, tipY - 2, 4, 4);
+        }
+    }
+}
+
+class Enemy extends Entity {
+    constructor(x, y) {
+        super(x, y, '#FF5500');
+        this.bloat = 0; 
+        this.stunned = false;
+        this.stunTimer = 0;
+        this.deflating = false;
+        this.moveTimer = 0;
+        this.currentDir = {x:0, y:0};
+        this.speed = ENEMY_SPEED;
+    }
+
+    update() {
+        if (this.isDead) return;
+
+        if (this.stunned) {
+            this.stunTimer++;
+            if (this.stunTimer > 100 && !player.pumping) {
+                this.bloat -= 0.1;
+                if (this.bloat <= 0) {
+                    this.bloat = 0;
+                    this.stunned = false;
+                    this.stunTimer = 0;
+                    this.deflating = true;
+                }
+            }
+            return;
+        } else {
+            this.deflating = false;
+        }
+
+        // AI: Move through tunnels (0)
+        if (this.x % TILE_SIZE === 0 && this.y % TILE_SIZE === 0) {
+            const col = Math.floor(this.x / TILE_SIZE);
+            const row = Math.floor(this.y / TILE_SIZE);
+            const validMoves = [];
+            const dirs = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
+
+            dirs.forEach(d => {
+                const r = row + d.y;
+                const c = col + d.x;
+                if(r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                    if(grid[r][c] === 0) validMoves.push(d);
+                }
+            });
+
+            // Decision making
+            const canKeepGoing = validMoves.some(m => m.x === this.currentDir.x && m.y === this.currentDir.y);
+            if (!canKeepGoing || Math.random() < 0.1) {
+                if (validMoves.length > 0) {
+                    // Simple tracking: try to pick direction towards player
+                    const sortedMoves = validMoves.sort((a,b) => {
+                        const distA = Math.abs((col + a.x)*TILE_SIZE - player.x) + Math.abs((row + a.y)*TILE_SIZE - player.y);
+                        const distB = Math.abs((col + b.x)*TILE_SIZE - player.x) + Math.abs((row + b.y)*TILE_SIZE - player.y);
+                        return distA - distB;
+                    });
+                    // 80% chance to track, 20% random
+                    if(Math.random() < 0.8) this.currentDir = sortedMoves[0];
+                    else this.currentDir = validMoves[Math.floor(Math.random() * validMoves.length)];
+                } else {
+                    this.currentDir = {x:0, y:0};
+                }
+            }
+        }
+
+        this.x += this.currentDir.x * this.speed;
+        this.y += this.currentDir.y * this.speed;
+    }
+
+    inflate() {
+        this.bloat += 1;
+        this.stunTimer = 0;
+        addScore(10); // Points for pumping
+        if (this.bloat >= 4) {
+            this.pop();
+        }
+    }
+
+    pop() {
+        this.isDead = true;
+        addScore(500); // Points for kill
+        player.pumping = false;
+        checkWin();
+    }
+
+    draw() {
+        if (this.isDead) return;
+        const size = TILE_SIZE - 4 + (this.bloat * 4);
+        const offset = (this.bloat * 2);
+        
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(this.x + TILE_SIZE/2, this.y + TILE_SIZE/2, size/2, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Goggles
+        ctx.fillStyle = '#FFFF00';
+        ctx.fillRect(this.x + 8 - offset, this.y + 10 - offset, 6 + offset/2, 4 + offset/2);
+        ctx.fillRect(this.x + 18 - offset/2, this.y + 10 - offset, 6 + offset/2, 4 + offset/2);
+    }
+}
+
+class Rock {
+    constructor(c, r) {
+        this.x = c * TILE_SIZE;
+        this.y = r * TILE_SIZE;
+        this.isFalling = false;
+        this.isWobbling = false;
+        this.timer = 0;
+        this.active = true;
+    }
+
+    update() {
+        if (!this.active) return;
+
+        const col = Math.floor(this.x / TILE_SIZE);
+        const row = Math.floor((this.y + TILE_SIZE + 2) / TILE_SIZE);
+
+        let hasSupport = false;
+        if (row < ROWS) {
+            if (grid[row][col] === 1) hasSupport = true;
+        } else {
+            hasSupport = true;
+        }
+
+        if (!hasSupport && !this.isFalling && !this.isWobbling) {
+            this.isWobbling = true;
+            this.timer = 60; 
+        }
+
+        if (this.isWobbling) {
+            this.timer--;
+            if (this.timer <= 0) {
+                this.isWobbling = false;
+                this.isFalling = true;
+            }
+        }
+
+        if (this.isFalling) {
+            this.y += 4; 
+
+            if (checkCollision(this, player)) {
+                killPlayer();
+            }
+
+            entities.forEach(e => {
+                if (!e.isDead && checkCollision(this, e)) {
+                    e.isDead = true;
+                    addScore(1000); // Points for rock kill
+                    checkWin();
+                }
+            });
+
+            const checkRow = Math.floor((this.y + TILE_SIZE) / TILE_SIZE);
+            if (checkRow < ROWS && grid[checkRow][col] === 1 && (this.y % TILE_SIZE) < 5) {
+                this.active = false; 
+                this.isFalling = false;
+            } else if (checkRow >= ROWS) {
+                this.active = false;
+            }
+        }
+    }
+
+    draw() {
+        if (!this.active) return;
+        let xOff = 0;
+        if (this.isWobbling) xOff = (Math.random() * 4) - 2;
+
+        ctx.fillStyle = '#AA5500';
+        ctx.fillRect(this.x + 2 + xOff, this.y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+        ctx.fillStyle = '#FFAA55';
+        ctx.fillRect(this.x + 6 + xOff, this.y + 6, 8, 8);
+    }
+}
+
+// --- GAME LOGIC ---
+
+function initGame() {
+    score = 0;
+    lives = 3;
+    updateHUD();
+    loadLevel();
+    gameLoop();
+}
+
+function loadLevel() {
+    gameOver = false;
+    gameWon = false;
+    grid = [];
+    entities = [];
+    rocks = [];
+
+    // Generate Map
+    for (let r = 0; r < ROWS; r++) {
+        let row = [];
+        for (let c = 0; c < COLS; c++) {
+            if (r < 2) row.push(0); // Sky
+            else row.push(1); // Dirt
+        }
+        grid.push(row);
+    }
+
+    player = new Player(7 * TILE_SIZE, 8 * TILE_SIZE);
+    // Clear spawn area
+    grid[8][7] = 0; grid[8][6] = 0; grid[8][8] = 0; grid[7][7] = 0;
+
+    spawnEnemy(2, 4);
+    spawnEnemy(11, 4);
+    spawnEnemy(2, 12);
+    spawnEnemy(11, 12);
+
+    spawnRock(3, 3);
+    spawnRock(9, 3);
+    spawnRock(5, 10);
+}
+
+function spawnEnemy(c, r) {
+    grid[r][c] = 0;
+    if(c+1 < COLS) grid[r][c+1] = 0;
+    entities.push(new Enemy(c * TILE_SIZE, r * TILE_SIZE));
+}
+
+function spawnRock(c, r) {
+    rocks.push(new Rock(c, r));
+    grid[r][c] = 0;
+}
+
+function checkCollision(rect1, rect2) {
+    return (rect1.x < rect2.x + rect2.width &&
+            rect1.x + rect1.width > rect2.x &&
+            rect1.y < rect2.y + rect2.height &&
+            rect1.y + rect1.height > rect2.y);
+}
+
+function killPlayer() {
+    if (player.isDead) return;
+    player.isDead = true;
+    lives--;
+    updateHUD();
+    
+    setTimeout(() => {
+        if (lives > 0) {
+            // Simple Respawn: Reload level logic
+            loadLevel();
+        } else {
+            gameOver = true;
+        }
+    }, 1500);
+}
+
+function checkWin() {
+    const aliveEnemies = entities.filter(e => !e.isDead);
+    if (aliveEnemies.length === 0) {
+        gameWon = true;
+        setTimeout(() => {
+            loadLevel(); // Infinite Mode
+        }, 2000);
+    }
+}
+
+function addScore(points) {
+    score += points;
+    updateHUD();
+}
+
+function updateHUD() {
+    scoreEl.innerText = score.toString().padStart(6, '0'); // 000000 format
+    livesEl.innerText = lives;
+}
+
+// --- MAIN LOOP ---
+
+function update() {
+    if (gameOver || gameWon) return;
+
+    player.update();
+    entities.forEach(e => e.update());
+    rocks.forEach(r => r.update());
+}
+
+function draw() {
+    // Clear Background
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Sky
+    ctx.fillStyle = '#87CEEB';
+    ctx.fillRect(0, 0, canvas.width, TILE_SIZE * 2);
+
+    // Draw Soil Layers
+    for (let r = 2; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (grid[r][c] === 1) {
+                if (r < 5) ctx.fillStyle = '#D2691E'; 
+                else if (r < 9) ctx.fillStyle = '#CD853F'; 
+                else if (r < 13) ctx.fillStyle = '#DAA520'; 
+                else ctx.fillStyle = '#8B4513'; 
+                
+                ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(c * TILE_SIZE + 10, r * TILE_SIZE + 10, 4, 4);
+            }
+        }
+    }
+
+    entities.forEach(e => e.draw());
+    rocks.forEach(r => r.draw());
+    player.draw();
+
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'red';
+        ctx.font = 'bold 50px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2);
+        ctx.fillStyle = 'white';
+        ctx.font = '20px Courier New';
+        ctx.fillText("Press Enter to Restart", canvas.width/2, canvas.height/2 + 50);
+    } else if (gameWon) {
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 40px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText("ROUND CLEAR", canvas.width/2, canvas.height/2);
+    }
+}
+
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+// --- EVENT LISTENERS ---
+
+window.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (e.key === 'Enter' && gameOver) {
+        initGame();
+    }
+});
+
+window.addEventListener('keyup', e => {
+    keys[e.key] = false;
+});
+
+// Start
+initGame();
+
+</script>
+
+<a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

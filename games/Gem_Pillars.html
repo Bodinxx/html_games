@@ -1,0 +1,894 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Gem Pillars is a vibrant, neon-infused puzzle game where you must strategically arrange falling vertical columns of three sparkling gems. By shifting and rotating the color sequence, you can align three or more identical gems horizontally, vertically, or diagonally to clear them from the board. Clearing gems causes those above to tumble down, triggering explosive, high-scoring chain reactions that become increasingly challenging as the game speeds up.
+TAGS: Puzzle, Matching, Strategy, Arcade, Old School
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gem Pillars</title>
+    <style>
+        :root {
+            --bg-color: #0f0f1a;
+            --ui-bg: #1a1a2e;
+            --text-color: #e0e0e0;
+            --accent-color: #ff00ff;
+            --border-color: #444;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            height: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        /* Toolbar for Help/Sound */
+        #toolbar {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            margin-bottom: 5px;
+            padding: 0 5px;
+            box-sizing: border-box;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s;
+            padding: 0;
+        }
+
+        .icon-btn:hover {
+            color: var(--accent-color);
+        }
+
+        .icon-btn.active {
+            color: var(--accent-color);
+        }
+
+        #header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: var(--ui-bg);
+            border-bottom: 2px solid var(--accent-color);
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        #main-area {
+            display: flex;
+            flex-grow: 1;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+            width: 100%;
+            position: relative;
+        }
+
+        canvas {
+            background-color: #000;
+            border: 2px solid var(--border-color);
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            display: block;
+        }
+
+        #side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 80px;
+        }
+
+        #next-piece-container {
+            background: #000;
+            border: 1px solid var(--border-color);
+            width: 60px;
+            height: 180px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #next-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        #controls {
+            display: none;
+            width: 100%;
+            padding: 10px 0;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: auto;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 15px;
+            border-radius: 50%;
+            font-size: 24px;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .btn:active {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .d-pad {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-pad {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Overlays */
+        #overlay, #help-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            color: var(--accent-color);
+            font-size: 3rem;
+            margin: 0 0 20px 0;
+            text-shadow: 0 0 10px var(--accent-color);
+            text-align: center;
+        }
+
+        button.menu-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(255, 0, 255, 0.4);
+            transition: transform 0.1s;
+        }
+
+        button.menu-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Help Modal Styles */
+        .modal-content {
+            background: var(--ui-bg);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            max-width: 85%;
+            text-align: left;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.2);
+        }
+
+        .modal-content h2 {
+            color: var(--accent-color);
+            margin-top: 0;
+            text-align: center;
+        }
+
+        .modal-content ul {
+            padding-left: 20px;
+            line-height: 1.5;
+            color: #ccc;
+        }
+
+        .close-btn {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto 0;
+        }
+
+        @media (max-width: 600px) {
+            #controls {
+                display: flex;
+            }
+            #side-panel {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="toolbar">
+        <button id="btn-sound" class="icon-btn" title="Toggle Sound">🔊</button>
+        <button id="btn-help" class="icon-btn" title="Help">❓</button>
+    </div>
+
+    <div id="header">
+        <div class="stat-box">
+            <div class="stat-label">Score</div>
+            <div class="stat-value" id="score">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Level</div>
+            <div class="stat-value" id="level">1</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Lines</div>
+            <div class="stat-value" id="lines">0</div>
+        </div>
+    </div>
+
+    <div id="main-area">
+        <canvas id="game-canvas"></canvas>
+        
+        <div id="side-panel">
+            <div class="stat-label" style="text-align:center;">Next</div>
+            <div id="next-piece-container">
+                <canvas id="next-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="controls">
+        <div class="d-pad">
+            <div class="btn" id="btn-left">←</div>
+            <div class="btn" id="btn-down">↓</div>
+            <div class="btn" id="btn-right">→</div>
+        </div>
+        <div class="action-pad">
+            <div class="btn" id="btn-rotate">↻</div>
+        </div>
+    </div>
+
+    <!-- Overlay -->
+    <div id="overlay">
+        <h1 id="overlay-title">GEM PILLARS</h1>
+        <div id="final-score" style="font-size: 1.5rem; margin-bottom: 20px; display: none;">Score: 0</div>
+        <button class="menu-btn" id="start-btn">Start Game</button>
+        <p style="margin-top: 20px; color: #888; font-size: 0.9rem;">Arrows to Move • Up to Rotate</p>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="hidden">
+        <div class="modal-content">
+            <h2>How to Play</h2>
+            <ul>
+                <li>Control the falling pillar of 3 gems.</li>
+                <li><strong>Match 3</strong> or more gems of the same color to clear them.</li>
+                <li>Matches can be horizontal, vertical, or diagonal.</li>
+                <li>Clear gems to cause chain reactions!</li>
+            </ul>
+            <hr style="border-color: #444;">
+            <p style="text-align: center; font-weight: bold; margin-bottom: 5px;">Controls</p>
+            <ul style="list-style: none; padding: 0; text-align: center;">
+                <li>⬅️ ➡️ Move Left/Right</li>
+                <li>⬇️ Drop Faster</li>
+                <li>⬆️ or Space to Rotate Colors</li>
+            </ul>
+            <button class="close-btn" id="close-help">Got it!</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * GEM PILLARS
+ * A Columns clone.
+ */
+
+// --- Audio System (Web Audio API) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let soundEnabled = true;
+
+const Sound = {
+    playTone: (freq, type, duration, vol = 0.1) => {
+        if (!soundEnabled || audioCtx.state === 'suspended') return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    },
+    // New distinct "thud" for locking
+    lock: () => Sound.playTone(100, 'sawtooth', 0.1, 0.15),
+    match: () => {
+        // Arpeggio for success/clearing
+        if (!soundEnabled) return;
+        const now = audioCtx.currentTime;
+        [440, 554, 659, 880].forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.05, now + i * 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + i * 0.05);
+            osc.stop(now + i * 0.05 + 0.3);
+        });
+    },
+    gameOver: () => {
+        if (!soundEnabled) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 1);
+    }
+};
+
+// --- Configuration ---
+const COLS = 6;
+const ROWS = 13;
+let BLOCK_SIZE = 30; // Calculated dynamically
+const COLORS = [
+    null,
+    '#FF0055', // Red/Ruby
+    '#00FF55', // Green/Emerald
+    '#00AAFF', // Blue/Sapphire
+    '#FFFF00', // Yellow/Topaz
+    '#AA00FF', // Purple/Amethyst
+    '#00FFFF'  // Cyan/Diamond
+];
+const GEM_TYPES = 6;
+
+// --- State ---
+let canvas, ctx;
+let nextCanvas, nextCtx;
+let grid = []; 
+let score = 0;
+let level = 1;
+let linesCleared = 0;
+let gameOver = false;
+let isPaused = false;
+let gameLoopId;
+let lastTime = 0;
+let dropCounter = 0;
+let dropInterval = 1000;
+let matchHighlight = null; 
+
+let piece = {
+    x: 0,
+    y: 0,
+    gems: [0, 0, 0] 
+};
+
+let nextPieceGems = [0, 0, 0];
+
+const STATE_MENU = 0;
+const STATE_PLAYING = 1;
+const STATE_GAMEOVER = 2;
+const STATE_ANIMATING = 3; 
+let gameState = STATE_MENU;
+
+// --- Initialization ---
+window.onload = () => {
+    canvas = document.getElementById('game-canvas');
+    ctx = canvas.getContext('2d');
+    nextCanvas = document.getElementById('next-canvas');
+    nextCtx = nextCanvas.getContext('2d');
+    grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    document.addEventListener('keydown', handleInput);
+    
+    // Touch Controls
+    bindTouch('btn-left', () => move(-1));
+    bindTouch('btn-right', () => move(1));
+    bindTouch('btn-down', () => drop());
+    bindTouch('btn-rotate', rotatePiece);
+
+    // Toolbar Buttons
+    document.getElementById('start-btn').addEventListener('click', () => {
+        // Resume audio context on user gesture
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        startGame();
+    });
+
+    document.getElementById('btn-sound').addEventListener('click', toggleSound);
+    document.getElementById('btn-help').addEventListener('click', toggleHelp);
+    document.getElementById('close-help').addEventListener('click', toggleHelp);
+
+    draw();
+};
+
+function toggleSound() {
+    soundEnabled = !soundEnabled;
+    const btn = document.getElementById('btn-sound');
+    btn.innerText = soundEnabled ? '🔊' : '🔇';
+    btn.classList.toggle('active', soundEnabled);
+}
+
+function toggleHelp() {
+    const modal = document.getElementById('help-modal');
+    modal.classList.toggle('hidden');
+    // Pause game if playing and opening help
+    if (!modal.classList.contains('hidden') && gameState === STATE_PLAYING) {
+        isPaused = true;
+    } else if (modal.classList.contains('hidden') && gameState === STATE_PLAYING) {
+        isPaused = false;
+        lastTime = performance.now(); // Reset time to prevent huge jump
+    }
+}
+
+function bindTouch(id, action) {
+    const btn = document.getElementById(id);
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); action(); }, {passive: false});
+    btn.addEventListener('mousedown', (e) => { e.preventDefault(); action(); });
+}
+
+function resize() {
+    const container = document.getElementById('main-area');
+    const maxHeight = container.clientHeight;
+    const maxWidth = container.clientWidth;
+    BLOCK_SIZE = Math.floor(Math.min(maxHeight / ROWS, (maxWidth - 80) / COLS)); 
+    if (BLOCK_SIZE < 20) BLOCK_SIZE = 20;
+    canvas.width = BLOCK_SIZE * COLS;
+    canvas.height = BLOCK_SIZE * ROWS;
+    nextCanvas.width = BLOCK_SIZE;
+    nextCanvas.height = BLOCK_SIZE * 3;
+    if (gameState !== STATE_MENU) draw();
+}
+
+function startGame() {
+    document.getElementById('overlay').classList.add('hidden');
+    document.getElementById('final-score').style.display = 'none';
+    resetGame();
+    gameState = STATE_PLAYING;
+    lastTime = 0;
+    gameLoopId = requestAnimationFrame(update);
+}
+
+function resetGame() {
+    grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    score = 0;
+    level = 1;
+    linesCleared = 0;
+    dropInterval = 1000;
+    matchHighlight = null;
+    isPaused = false;
+    updateUI();
+    generateNextPiece();
+    spawnPiece();
+}
+
+function generateNextPiece() {
+    nextPieceGems = [
+        Math.floor(Math.random() * GEM_TYPES) + 1,
+        Math.floor(Math.random() * GEM_TYPES) + 1,
+        Math.floor(Math.random() * GEM_TYPES) + 1
+    ];
+}
+
+function spawnPiece() {
+    piece.x = Math.floor(COLS / 2) - 1; 
+    piece.y = -3; 
+    piece.gems = [...nextPieceGems];
+    generateNextPiece();
+}
+
+// --- Game Loop ---
+function update(time) {
+    if (gameState !== STATE_PLAYING && gameState !== STATE_ANIMATING) return;
+    if (isPaused) {
+        gameLoopId = requestAnimationFrame(update);
+        return;
+    }
+
+    const deltaTime = time - lastTime;
+    lastTime = time;
+
+    if (gameState === STATE_PLAYING) {
+        dropCounter += deltaTime;
+        if (dropCounter > dropInterval) {
+            drop(true); // Auto drop
+        }
+    }
+
+    draw();
+    gameLoopId = requestAnimationFrame(update);
+}
+
+// --- Logic ---
+
+function move(dir) {
+    if (gameState !== STATE_PLAYING || isPaused) return;
+    if (!collides(piece.x + dir, piece.y, piece.gems)) {
+        piece.x += dir;
+        draw();
+    }
+}
+
+function rotatePiece() {
+    if (gameState !== STATE_PLAYING || isPaused) return;
+    const newGems = [piece.gems[2], piece.gems[0], piece.gems[1]];
+    piece.gems = newGems;
+    draw();
+}
+
+function drop(isAuto = false) {
+    if (gameState !== STATE_PLAYING || isPaused) return;
+    dropCounter = 0;
+
+    if (!collides(piece.x, piece.y + 1, piece.gems)) {
+        piece.y++;
+    } else {
+        Sound.lock();
+        lockPiece();
+    }
+    draw();
+}
+
+function collides(offsetX, offsetY, gems) {
+    for (let i = 0; i < 3; i++) {
+        let gx = offsetX;
+        let gy = offsetY + i;
+        if (gx < 0 || gx >= COLS) return true;
+        if (gy >= ROWS) return true;
+        if (gy >= 0 && grid[gy][gx] !== 0) return true;
+    }
+    return false;
+}
+
+function lockPiece() {
+    for (let i = 0; i < 3; i++) {
+        let gy = piece.y + i;
+        if (gy < 0) {
+            triggerGameOver();
+            return;
+        }
+        grid[gy][piece.x] = piece.gems[i];
+    }
+    processMatches();
+}
+
+async function processMatches() {
+    gameState = STATE_ANIMATING;
+    let matchedSet = new Set(); 
+
+    // Horizontal
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS - 2; x++) {
+            let c = grid[y][x];
+            if (c === 0) continue;
+            let matchLen = 1;
+            while (x + matchLen < COLS && grid[y][x + matchLen] === c) {
+                matchLen++;
+            }
+            if (matchLen >= 3) {
+                for (let k = 0; k < matchLen; k++) matchedSet.add(`${x+k},${y}`);
+            }
+            x += matchLen - 1; 
+        }
+    }
+
+    // Vertical
+    for (let x = 0; x < COLS; x++) {
+        for (let y = 0; y < ROWS - 2; y++) {
+            let c = grid[y][x];
+            if (c === 0) continue;
+            let matchLen = 1;
+            while (y + matchLen < ROWS && grid[y + matchLen][x] === c) {
+                matchLen++;
+            }
+            if (matchLen >= 3) {
+                for (let k = 0; k < matchLen; k++) matchedSet.add(`${x},${y+k}`);
+            }
+            y += matchLen - 1;
+        }
+    }
+
+    // Diagonal (Down-Right)
+    for (let y = 0; y < ROWS - 2; y++) {
+        for (let x = 0; x < COLS - 2; x++) {
+            let c = grid[y][x];
+            if (c === 0) continue;
+            let matchLen = 1;
+            while (y + matchLen < ROWS && x + matchLen < COLS && grid[y + matchLen][x + matchLen] === c) {
+                matchLen++;
+            }
+            if (matchLen >= 3) {
+                for (let k = 0; k < matchLen; k++) matchedSet.add(`${x+k},${y+k}`);
+            }
+        }
+    }
+
+    // Diagonal (Down-Left)
+    for (let y = 0; y < ROWS - 2; y++) {
+        for (let x = 2; x < COLS; x++) {
+            let c = grid[y][x];
+            if (c === 0) continue;
+            let matchLen = 1;
+            while (y + matchLen < ROWS && x - matchLen >= 0 && grid[y + matchLen][x - matchLen] === c) {
+                matchLen++;
+            }
+            if (matchLen >= 3) {
+                for (let k = 0; k < matchLen; k++) matchedSet.add(`${x-k},${y+k}`);
+            }
+        }
+    }
+
+    if (matchedSet.size > 0) {
+        Sound.match();
+        
+        // Flash Effect
+        for (let i = 0; i < 4; i++) {
+            matchHighlight = (i % 2 === 0) ? matchedSet : null;
+            await new Promise(r => setTimeout(r, 120));
+        }
+        matchHighlight = null; 
+
+        matchedSet.forEach(key => {
+            const [mx, my] = key.split(',').map(Number);
+            grid[my][mx] = 0;
+        });
+
+        const points = matchedSet.size * 10 * level;
+        score += points;
+        linesCleared += Math.floor(matchedSet.size / 3);
+        level = Math.floor(linesCleared / 10) + 1;
+        dropInterval = Math.max(100, 1000 - (level * 50));
+        updateUI();
+
+        applyGravity();
+        draw();
+        
+        await new Promise(r => setTimeout(r, 200));
+        processMatches(); 
+    } else {
+        gameState = STATE_PLAYING;
+        spawnPiece();
+        if (collides(piece.x, piece.y, piece.gems) && piece.y >= 0) {
+            triggerGameOver();
+        }
+    }
+}
+
+function applyGravity() {
+    for (let x = 0; x < COLS; x++) {
+        let writeY = ROWS - 1;
+        for (let y = ROWS - 1; y >= 0; y--) {
+            if (grid[y][x] !== 0) {
+                let val = grid[y][x];
+                grid[y][x] = 0;
+                grid[writeY][x] = val;
+                writeY--;
+            }
+        }
+    }
+}
+
+function triggerGameOver() {
+    gameState = STATE_GAMEOVER;
+    Sound.gameOver();
+    document.getElementById('overlay-title').innerText = "GAME OVER";
+    document.getElementById('start-btn').innerText = "Try Again";
+    document.getElementById('final-score').style.display = 'block';
+    document.getElementById('final-score').innerText = "Score: " + score;
+    document.getElementById('overlay').classList.remove('hidden');
+}
+
+function updateUI() {
+    document.getElementById('score').innerText = score;
+    document.getElementById('level').innerText = level;
+    document.getElementById('lines').innerText = linesCleared;
+}
+
+function handleInput(e) {
+    if (gameState !== STATE_PLAYING || isPaused) return;
+
+    switch(e.key) {
+        case 'ArrowLeft': move(-1); break;
+        case 'ArrowRight': move(1); break;
+        case 'ArrowDown': drop(); break;
+        case 'ArrowUp': rotatePiece(); break;
+        case ' ': rotatePiece(); break;
+    }
+}
+
+// --- Rendering ---
+
+function draw() {
+    if (!grid || !grid.length) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            if (grid[y][x] !== 0) {
+                let isHighlighted = matchHighlight && matchHighlight.has(`${x},${y}`);
+                drawGem(ctx, x, y, grid[y][x], isHighlighted);
+            }
+        }
+    }
+
+    if (gameState === STATE_PLAYING) {
+        for (let i = 0; i < 3; i++) {
+            if (piece.y + i >= 0) {
+                drawGem(ctx, piece.x, piece.y + i, piece.gems[i]);
+            }
+        }
+    }
+
+    nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+    if (gameState === STATE_PLAYING || gameState === STATE_ANIMATING) {
+        for (let i = 0; i < 3; i++) {
+            drawGem(nextCtx, 0, i, nextPieceGems[i]);
+        }
+    }
+}
+
+function drawGem(context, x, y, type, highlight = false) {
+    const px = x * BLOCK_SIZE;
+    const py = y * BLOCK_SIZE;
+    const size = BLOCK_SIZE;
+    const pad = 2;
+    
+    if (highlight) {
+        context.fillStyle = '#ffffff';
+        context.fillRect(px, py, size, size);
+        return;
+    }
+
+    const color = COLORS[type];
+
+    context.fillStyle = color;
+    context.fillRect(px + pad, py + pad, size - pad*2, size - pad*2);
+
+    context.lineWidth = 2;
+    
+    context.beginPath();
+    context.moveTo(px + pad, py + size - pad);
+    context.lineTo(px + pad, py + pad);
+    context.lineTo(px + size - pad, py + pad);
+    context.strokeStyle = 'rgba(255,255,255,0.5)';
+    context.stroke();
+
+    context.beginPath();
+    context.moveTo(px + size - pad, py + pad);
+    context.lineTo(px + size - pad, py + size - pad);
+    context.lineTo(px + pad, py + size - pad);
+    context.strokeStyle = 'rgba(0,0,0,0.3)';
+    context.stroke();
+
+    context.fillStyle = 'rgba(255,255,255,0.2)';
+    context.beginPath();
+    context.arc(px + size/2, py + size/2, size/6, 0, Math.PI * 2);
+    context.fill();
+
+    context.fillStyle = 'rgba(0,0,0,0.2)';
+    const cx = px + size/2;
+    const cy = py + size/2;
+    const r = size/4;
+
+    context.beginPath();
+    switch(type) {
+        case 1: 
+            context.rect(cx - r/2, cy - r/2, r, r);
+            break;
+        case 2: 
+            context.arc(cx, cy, r/1.5, 0, Math.PI * 2);
+            break;
+        case 3: 
+            context.moveTo(cx, cy - r);
+            context.lineTo(cx + r, cy + r);
+            context.lineTo(cx - r, cy + r);
+            break;
+        case 4: 
+            context.moveTo(cx, cy - r);
+            context.lineTo(cx + r, cy);
+            context.lineTo(cx, cy + r);
+            context.lineTo(cx - r, cy);
+            break;
+        case 5: 
+            context.moveTo(cx - r/1.5, cy - r/1.5);
+            context.lineTo(cx + r/1.5, cy + r/1.5);
+            context.moveTo(cx + r/1.5, cy - r/1.5);
+            context.lineTo(cx - r/1.5, cy + r/1.5);
+            context.strokeStyle = 'rgba(0,0,0,0.2)';
+            context.stroke();
+            break;
+        case 6: 
+            context.rect(cx - r, cy - r/3, r*2, r/1.5);
+            break;
+    }
+    if (type !== 5) context.fill();
+}
+
+</script>
+<a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

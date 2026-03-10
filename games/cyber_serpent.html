@@ -1,0 +1,1222 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: A neon-styled, browser-based arcade shooter inspired by "Centipede", featuring progressive difficulty and procedural level layouts. It includes classic mechanics like splitting serpents, regenerating obstacles, unique enemy behaviors like the Virus Drone and Corruptor, and user-friendly features like sound toggles and in-game help.
+TAGS: Old School, Cyberpunk, Arcade, Shooter, Retro, Survival
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyber Serpent</title>
+    <style>
+        :root {
+            --bg-color: #050510;
+            --grid-color: rgba(0, 255, 255, 0.1);
+            --text-color: #0ff;
+            --accent-color: #f0f;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace;
+            touch-action: none; /* Prevent pull-to-refresh on mobile */
+            /* Center the game container */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #game-container {
+            position: relative;
+            /* Force square aspect ratio based on viewport min dimension */
+            width: 100vmin;
+            height: 100vmin;
+            max-width: 600px;
+            max-height: 600px;
+            
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            border: 2px solid var(--text-color);
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
+            background-color: rgba(0, 0, 0, 0.5); /* Slight tint behind grid */
+        }
+
+        canvas {
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            /* Background handled by container now */
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 0 0 5px var(--text-color);
+            width: 100%;
+        }
+        
+        .hud-left {
+            display: flex;
+            gap: 20px;
+        }
+
+        .hud-controls {
+            pointer-events: auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--text-color);
+            color: var(--text-color);
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: var(--text-color);
+            color: var(--bg-color);
+        }
+        
+        .level-indicator {
+            color: var(--accent-color);
+        }
+
+        #start-screen, #game-over-screen, #help-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border: 2px solid var(--accent-color);
+            box-shadow: 0 0 30px var(--accent-color);
+            pointer-events: auto;
+            z-index: 10;
+            max-width: 80%;
+            max-height: 80%;
+            overflow-y: auto;
+            width: 80%; /* Ensure width in square container */
+        }
+
+        #help-modal {
+            border-color: var(--text-color);
+            box-shadow: 0 0 30px var(--text-color);
+            text-align: left;
+        }
+
+        h1 {
+            color: var(--accent-color);
+            margin-top: 0;
+            font-size: 32px; /* Slightly smaller for square layout */
+            text-transform: uppercase;
+            text-shadow: 2px 2px 0px #fff;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        
+        h2 {
+            color: var(--text-color);
+            border-bottom: 1px solid var(--text-color);
+            padding-bottom: 5px;
+            margin-top: 0;
+        }
+
+        button.main-btn {
+            background: transparent;
+            color: var(--text-color);
+            border: 2px solid var(--text-color);
+            padding: 15px 30px;
+            font-size: 18px;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        button.main-btn:hover {
+            background: var(--text-color);
+            color: var(--bg-color);
+            box-shadow: 0 0 15px var(--text-color);
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .controls-hint {
+            margin-top: 20px;
+            font-size: 12px;
+            opacity: 0.8;
+            line-height: 1.5;
+            text-align: center;
+        }
+        
+        .enemy-info {
+            display: grid;
+            grid-template-columns: 30px 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            align-items: center;
+        }
+        
+        .enemy-swatch {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Mobile controls overlay */
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            opacity: 0.5;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 24px; }
+            .hud-top { font-size: 14px; }
+            .hud-left { gap: 10px; }
+            #help-modal { padding: 20px; width: 90%; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="hud-left">
+                <div id="score-display">SCORE: 00000</div>
+                <div class="level-indicator" id="level-display">LVL: 1</div>
+            </div>
+            <div class="hud-controls">
+                <div id="highscore-display" style="margin-right: 10px;">HI: 00000</div>
+                <button id="sound-btn" class="icon-btn" title="Toggle Sound">🔊</button>
+                <button id="help-btn" class="icon-btn" title="Help / Data Bank">?</button>
+            </div>
+        </div>
+        <div id="mobile-controls" class="hidden">
+            Touch & Drag to Move • Tap to Shoot
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1>Cyber Serpent</h1>
+        <p>Defend the mainframe from the glitch swarm.</p>
+        <button id="start-btn" class="main-btn">Initialize System</button>
+        <div class="controls-hint">
+            [WASD / Arrows] Move<br>
+            [SPACE / Click] Shoot<br>
+            [Touch] Drag to Move & Auto-fire
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+        <h1>System Failure</h1>
+        <p>Final Score: <span id="final-score">0</span></p>
+        <p>Level Reached: <span id="final-level">1</span></p>
+        <button id="restart-btn" class="main-btn">Reboot System</button>
+    </div>
+    
+    <div id="help-modal" class="hidden">
+        <button id="close-help" class="close-btn">&times;</button>
+        <h2>Data Bank</h2>
+        
+        <p><strong>Controls:</strong><br>
+        Move: WASD or Arrows / Touch Drag<br>
+        Shoot: Space / Click / Auto-fire on Touch</p>
+        
+        <p><strong>Enemies:</strong></p>
+        
+        <div class="enemy-info">
+            <div class="enemy-swatch" style="background: #0f0; border-radius: 50%;"></div>
+            <div><strong>Serpent:</strong> Splits when hit. Headshots destroy, bodyshots split.</div>
+        </div>
+        
+        <div class="enemy-info">
+            <div class="enemy-swatch" style="background: rgba(0, 255, 255, 0.5); border: 1px solid #0ff;"></div>
+            <div><strong>Glitch Block:</strong> Obstacles. Requires 4 hits to clear.</div>
+        </div>
+        
+        <div class="enemy-info">
+            <div class="enemy-swatch" style="background: #f00;"></div>
+            <div><strong>Virus Drone:</strong> Erratic movement. Eats blocks. High danger.</div>
+        </div>
+        
+        <div class="enemy-info">
+            <div class="enemy-swatch" style="background: #a0f;"></div>
+            <div><strong>Corruptor:</strong> Poisons blocks. Hitting a poisoned block causes the serpent to dive.</div>
+        </div>
+        
+        <div class="enemy-info">
+            <div class="enemy-swatch" style="background: #a0f; opacity: 0.5;"></div>
+            <div><strong>Poisoned Block:</strong> Avoid! Causes serpent frenzy.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * CYBER SERPENT
+ * A retro arcade shooter clone.
+ */
+
+// --- Configuration ---
+const CONFIG = {
+    gridSize: 20, // Size of each cell in pixels
+    fps: 60,
+    colors: {
+        player: '#f0f',       // Magenta
+        bullet: '#fff',       // White
+        serpentHead: '#0f0',  // Green
+        serpentBody: '#0a0',  // Darker Green
+        obstacle: '#0ff',     // Cyan
+        poison: '#a0f',       // Purple
+        drone: '#f00',        // Red (Spider equivalent)
+        corruptor: '#a0f',    // Purple (Scorpion equivalent)
+        text: '#0ff'
+    },
+    speeds: {
+        player: 5,
+        bullet: 15,
+        serpentBase: 10, // Frames per move (starts slow)
+        droneBase: 2,
+        corruptorBase: 3
+    }
+};
+
+// --- Game State ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score-display');
+const levelEl = document.getElementById('level-display');
+const highScoreEl = document.getElementById('highscore-display');
+const finalScoreEl = document.getElementById('final-score');
+const finalLevelEl = document.getElementById('final-level');
+
+const startScreen = document.getElementById('start-screen');
+const gameOverScreen = document.getElementById('game-over-screen');
+const helpModal = document.getElementById('help-modal');
+
+const startBtn = document.getElementById('start-btn');
+const restartBtn = document.getElementById('restart-btn');
+const soundBtn = document.getElementById('sound-btn');
+const helpBtn = document.getElementById('help-btn');
+const closeHelpBtn = document.getElementById('close-help');
+
+let state = {
+    isRunning: false,
+    isPaused: false,
+    isMuted: false,
+    score: 0,
+    highScore: localStorage.getItem('cyberSerpentHighScore') || 0,
+    frames: 0,
+    gridWidth: 0,
+    gridHeight: 0,
+    level: 1,
+    lives: 3,
+    entities: {
+        player: null,
+        bullets: [],
+        serpent: [], // Array of segments
+        obstacles: [], // Grid based
+        drone: null,
+        corruptor: null
+    },
+    input: {
+        left: false,
+        right: false,
+        up: false,
+        down: false,
+        shoot: false,
+        mouseX: 0,
+        mouseY: 0,
+        isTouch: false
+    }
+};
+
+// Update high score display immediately
+highScoreEl.innerText = `HI: ${state.highScore.toString().padStart(5, '0')}`;
+
+// --- Audio (Simple Synth) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function toggleSound() {
+    state.isMuted = !state.isMuted;
+    soundBtn.innerText = state.isMuted ? '🔇' : '🔊';
+    // If unmuting, resume context if suspended
+    if (!state.isMuted && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function playSound(type) {
+    if (state.isMuted) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+    
+    if (type === 'shoot') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    } else if (type === 'hit') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.linearRampToValueAtTime(50, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    } else if (type === 'die') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(10, now + 0.5);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+        osc.start(now);
+        osc.stop(now + 0.5);
+    }
+}
+
+// --- Classes ---
+
+class Player {
+    constructor() {
+        this.width = CONFIG.gridSize;
+        this.height = CONFIG.gridSize;
+        this.x = canvas.width / 2 - this.width / 2;
+        this.y = canvas.height - this.height * 2;
+        this.speed = CONFIG.speeds.player;
+        this.canShoot = true;
+        this.shootTimer = 0;
+    }
+
+    update() {
+        // Movement
+        if (state.input.left) this.x -= this.speed;
+        if (state.input.right) this.x += this.speed;
+        if (state.input.up) this.y -= this.speed;
+        if (state.input.down) this.y += this.speed;
+
+        // Boundaries
+        // Player restricted to bottom 20% area mostly, but let's give 25%
+        const playAreaTop = canvas.height * 0.75;
+        
+        if (this.x < 0) this.x = 0;
+        if (this.x > canvas.width - this.width) this.x = canvas.width - this.width;
+        if (this.y < playAreaTop) this.y = playAreaTop;
+        if (this.y > canvas.height - this.height) this.y = canvas.height - this.height;
+
+        // Shooting
+        if (this.shootTimer > 0) this.shootTimer--;
+        if ((state.input.shoot || state.input.isTouch) && this.shootTimer === 0) {
+            state.entities.bullets.push(new Bullet(this.x + this.width / 2, this.y));
+            playSound('shoot');
+            this.shootTimer = 10; // Fire rate
+        }
+    }
+
+    draw() {
+        ctx.fillStyle = CONFIG.colors.player;
+        ctx.beginPath();
+        // Draw a cool spaceship triangle
+        ctx.moveTo(this.x + this.width / 2, this.y);
+        ctx.lineTo(this.x + this.width, this.y + this.height);
+        ctx.lineTo(this.x + this.width / 2, this.y + this.height * 0.8);
+        ctx.lineTo(this.x, this.y + this.height);
+        ctx.closePath();
+        ctx.fill();
+    }
+}
+
+class Bullet {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = 4;
+        this.height = 10;
+        this.speed = CONFIG.speeds.bullet;
+        this.active = true;
+    }
+
+    update() {
+        this.y -= this.speed;
+        if (this.y < 0) this.active = false;
+    }
+
+    draw() {
+        ctx.fillStyle = CONFIG.colors.bullet;
+        ctx.fillRect(this.x - this.width / 2, this.y, this.width, this.height);
+    }
+}
+
+class Obstacle {
+    constructor(gridX, gridY) {
+        this.gridX = gridX;
+        this.gridY = gridY;
+        this.x = gridX * CONFIG.gridSize;
+        this.y = gridY * CONFIG.gridSize;
+        this.health = 4;
+        this.isPoisoned = false;
+    }
+
+    draw() {
+        const size = CONFIG.gridSize;
+        // Color shifts based on health
+        if (this.isPoisoned) {
+            ctx.fillStyle = CONFIG.colors.poison;
+        } else {
+            // Opacity/Darkness based on health
+            ctx.fillStyle = `rgba(0, 255, 255, ${this.health * 0.25})`; 
+        }
+        
+        // Draw a "tech block"
+        ctx.fillRect(this.x + 2, this.y + 2, size - 4, size - 4);
+        
+        // Inner detail
+        ctx.fillStyle = '#fff';
+        const innerSize = (size - 4) * (this.health / 4) * 0.5;
+        ctx.fillRect(this.x + size/2 - innerSize/2, this.y + size/2 - innerSize/2, innerSize, innerSize);
+    }
+}
+
+class SerpentSegment {
+    constructor(gridX, gridY, isHead = false) {
+        this.gridX = gridX;
+        this.gridY = gridY;
+        this.x = gridX * CONFIG.gridSize;
+        this.y = gridY * CONFIG.gridSize;
+        // Direction: 1 = right, -1 = left
+        this.dirX = 1; 
+        this.dirY = 0; // 1 = down, -1 = up (usually only down)
+        this.isHead = isHead;
+        this.active = true;
+        
+        // Smooth rendering positions
+        this.renderX = this.x;
+        this.renderY = this.y;
+        
+        // Difficulty: Serpent moves faster at higher levels (lower delay)
+        // Cap speed at level 8 (2 frames delay)
+        this.moveDelay = Math.max(2, CONFIG.speeds.serpentBase - (state.level * 0.8)); 
+        this.moveTimer = 0;
+        
+        // State for turning down
+        this.verticalMoveRemaining = 0;
+    }
+
+    update(obstacles) {
+        // Linear interpolation for smooth visuals
+        this.renderX += (this.x - this.renderX) * 0.3;
+        this.renderY += (this.y - this.renderY) * 0.3;
+
+        this.moveTimer++;
+        if (this.moveTimer < this.moveDelay) return;
+        this.moveTimer = 0;
+
+        // If we have vertical moves pending (switching rows)
+        if (this.verticalMoveRemaining > 0) {
+            this.gridY += 1;
+            this.y = this.gridY * CONFIG.gridSize;
+            this.verticalMoveRemaining--;
+            
+            // If finished dropping, flip X direction
+            if (this.verticalMoveRemaining === 0) {
+                 if (this.gridY >= state.gridHeight - 1) {
+                     // reached bottom, loop to top or bounce
+                     // Simplified: Ensure they don't get stuck
+                 } else {
+                     // Only flip direction if we didn't just plunge (poison)
+                     // Standard behavior: flip after dropping
+                     // If diving from poison, we might need to reset direction behavior?
+                     // Logic: If we are at bottom, we stop diving.
+                     if (this.gridY >= state.gridHeight - 2) {
+                        this.verticalMoveRemaining = 0; // Stop diving
+                     }
+                 }
+            }
+            return;
+        }
+
+        // Calculate next position
+        let nextGridX = this.gridX + this.dirX;
+        let nextGridY = this.gridY;
+
+        // Check boundaries
+        let hitWall = (nextGridX < 0 || nextGridX >= state.gridWidth);
+        
+        // Check Obstacles
+        let hitObstacle = false;
+        let obstacle = obstacles.find(o => o.gridX === nextGridX && o.gridY === nextGridY);
+        let isPoisonHit = false;
+
+        if (obstacle) {
+            hitObstacle = true;
+            if (obstacle.isPoisoned) {
+                isPoisonHit = true;
+            }
+        }
+
+        if (hitWall || hitObstacle) {
+            if (isPoisonHit) {
+                // POISON LOGIC: Plunge to bottom
+                this.verticalMoveRemaining = (state.gridHeight - 1) - this.gridY;
+                // Don't flip X yet, just go down. 
+            } else {
+                // Normal Logic: Drop one row and flip
+                this.dirX *= -1; 
+                this.verticalMoveRemaining = 1; 
+                
+                // Boundary check for bottom of screen
+                if (this.gridY >= state.gridHeight - 2) {
+                    // Loop to top if stuck at bottom
+                    if (this.gridY >= state.gridHeight - 1) {
+                        this.gridY = 0;
+                        this.y = 0;
+                        this.verticalMoveRemaining = 0;
+                    }
+                }
+            }
+        } else {
+            // Move horizontally
+            this.gridX = nextGridX;
+            this.x = this.gridX * CONFIG.gridSize;
+        }
+    }
+
+    draw() {
+        ctx.fillStyle = this.isHead ? CONFIG.colors.serpentHead : CONFIG.colors.serpentBody;
+        const size = CONFIG.gridSize;
+        
+        // Draw rounded segment
+        ctx.beginPath();
+        ctx.arc(this.renderX + size/2, this.renderY + size/2, size/2 - 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Eyes for head
+        if (this.isHead) {
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(this.renderX + size/2 + (this.dirX * 4), this.renderY + size/2 - 3, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+}
+
+class Drone {
+    constructor() {
+        this.width = CONFIG.gridSize * 1.5;
+        this.height = CONFIG.gridSize;
+        this.x = 0; // Random side spawn
+        this.y = Math.random() * (canvas.height * 0.7) + (canvas.height * 0.2);
+        
+        // Difficulty: Speed increases with level
+        const speed = CONFIG.speeds.droneBase + (state.level * 0.5);
+        this.vx = speed;
+        this.vy = speed;
+        this.timer = 0;
+        
+        // 50/50 chance to spawn left or right
+        if (Math.random() > 0.5) {
+            this.x = canvas.width;
+            this.vx = -speed;
+        }
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        
+        this.timer++;
+        // Change Y direction randomly
+        if (this.timer % 30 === 0 && Math.random() > 0.3) {
+            this.vy = (Math.random() < 0.5 ? -Math.abs(this.vy) : Math.abs(this.vy));
+        }
+
+        // Bounce Y bounds
+        if (this.y < canvas.height * 0.5 || this.y > canvas.height - this.height) {
+            this.vy *= -1;
+        }
+
+        // Remove if off screen
+        if ((this.vx > 0 && this.x > canvas.width) || (this.vx < 0 && this.x + this.width < 0)) {
+            return false; // Inactive
+        }
+        return true;
+    }
+
+    draw() {
+        ctx.fillStyle = CONFIG.colors.drone;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y + this.height/2);
+        ctx.lineTo(this.x + this.width/2, this.y);
+        ctx.lineTo(this.x + this.width, this.y + this.height/2);
+        ctx.lineTo(this.x + this.width/2, this.y + this.height);
+        ctx.closePath();
+        ctx.fill();
+    }
+}
+
+class Corruptor {
+    constructor() {
+        this.width = CONFIG.gridSize;
+        this.height = CONFIG.gridSize / 2; // Flat looking
+        // Spawn in top 60% of screen
+        // Align to grid row
+        const gridY = Math.floor(Math.random() * (state.gridHeight * 0.6)) + 1;
+        this.y = gridY * CONFIG.gridSize + (CONFIG.gridSize - this.height)/2;
+        
+        // Difficulty: Speed increases slightly with level
+        const speed = CONFIG.speeds.corruptorBase + (state.level * 0.2);
+        
+        if (Math.random() > 0.5) {
+            this.x = -this.width;
+            this.vx = speed;
+        } else {
+            this.x = canvas.width;
+            this.vx = -speed;
+        }
+    }
+
+    update() {
+        this.x += this.vx;
+        
+        // Poison Logic
+        // Check if center of corruptor is overlapping center of an obstacle
+        const centerX = this.x + this.width/2;
+        const centerY = this.y + this.height/2;
+        
+        // Simple optimization: only check if we are near a grid center
+        // But iterating obstacles is fine for this count
+        state.entities.obstacles.forEach(o => {
+            if (!o.isPoisoned && 
+                centerX > o.x && centerX < o.x + CONFIG.gridSize &&
+                centerY > o.y && centerY < o.y + CONFIG.gridSize) {
+                o.isPoisoned = true;
+            }
+        });
+
+        // Remove if off screen
+        if ((this.vx > 0 && this.x > canvas.width) || (this.vx < 0 && this.x + this.width < 0)) {
+            return false; // Inactive
+        }
+        return true;
+    }
+
+    draw() {
+        ctx.fillStyle = CONFIG.colors.corruptor;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        // Add tails or legs visual
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(this.x + (this.width/2)-2, this.y-2, 4, 4);
+    }
+}
+
+
+// --- Game Logic ---
+
+function initGame() {
+    // Canvas resolution matches container's displayed size
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    
+    // Ensure grid alignment
+    state.gridWidth = Math.floor(canvas.width / CONFIG.gridSize);
+    state.gridHeight = Math.floor(canvas.height / CONFIG.gridSize);
+
+    state.score = 0;
+    state.level = 1;
+    state.lives = 3;
+    state.entities.bullets = [];
+    state.entities.obstacles = [];
+    state.entities.serpent = [];
+    state.entities.drone = null;
+    state.entities.corruptor = null;
+    state.isPaused = false;
+    
+    updateScore();
+    updateLevel();
+    
+    // Create Player
+    state.entities.player = new Player();
+
+    // Generate Level
+    generateLevel();
+    
+    state.isRunning = true;
+    requestAnimationFrame(gameLoop);
+}
+
+function generateLevel() {
+    // Clear bullets
+    state.entities.bullets = [];
+    
+    // Level scaling Obstacles
+    // Keep obstacles from previous level? No, reset for cleanliness in this clone
+    state.entities.obstacles = []; 
+    
+    const obsCount = Math.min(60, 30 + (state.level * 5)); // Cap obstacles
+    for (let i = 0; i < obsCount; i++) {
+        let gx = Math.floor(Math.random() * state.gridWidth);
+        let gy = Math.floor(Math.random() * (state.gridHeight - 5)) + 1; 
+        
+        if (gy > state.gridHeight - 5) continue; 
+        
+        if (!state.entities.obstacles.find(o => o.gridX === gx && o.gridY === gy)) {
+            state.entities.obstacles.push(new Obstacle(gx, gy));
+        }
+    }
+
+    // Generate Serpent
+    // Length increases with level
+    let len = Math.min(20, 10 + state.level); 
+    createSerpent(len, Math.floor(state.gridWidth / 2));
+    
+    // Level 3+: Spawn a second smaller serpent
+    if (state.level >= 3) {
+        let len2 = 5 + Math.floor(state.level / 2);
+        createSerpent(len2, Math.floor(state.gridWidth / 4)); // Offset start
+    }
+}
+
+function createSerpent(length, startX) {
+    let startY = 0; // Always start top
+    // Ensure separate serpents don't overlap perfectly logic is handled by 'obstacles' usually
+    // but here we just append to the array.
+    
+    // Determine if this batch needs a head
+    // Yes, the first one in the loop is a head.
+    
+    for (let i = 0; i < length; i++) {
+        // Create offscreen initially or at top
+        state.entities.serpent.push(new SerpentSegment(startX + i, startY, i === 0)); 
+    }
+}
+
+function updateScore() {
+    scoreEl.innerText = `SCORE: ${state.score.toString().padStart(5, '0')}`;
+}
+
+function updateLevel() {
+    levelEl.innerText = `LVL: ${state.level}`;
+}
+
+function gameOver() {
+    state.isRunning = false;
+    finalScoreEl.innerText = state.score;
+    finalLevelEl.innerText = state.level;
+    if (state.score > state.highScore) {
+        state.highScore = state.score;
+        localStorage.setItem('cyberSerpentHighScore', state.highScore);
+        highScoreEl.innerText = `HI: ${state.highScore.toString().padStart(5, '0')}`;
+    }
+    
+    document.getElementById('ui-layer').classList.remove('hidden');
+    gameOverScreen.classList.remove('hidden');
+    document.getElementById('mobile-controls').classList.add('hidden');
+    playSound('die');
+}
+
+function gameLoop() {
+    if (!state.isRunning) return;
+    
+    // Pause Logic: Keep asking for frames but don't update/draw
+    if (state.isPaused) {
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+
+    // Clear
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // --- Update & Draw ---
+
+    // 1. Obstacles
+    state.entities.obstacles.forEach(o => o.draw());
+
+    // 2. Player
+    if (state.entities.player) {
+        state.entities.player.update();
+        state.entities.player.draw();
+    }
+
+    // 3. Bullets
+    for (let i = state.entities.bullets.length - 1; i >= 0; i--) {
+        let b = state.entities.bullets[i];
+        b.update();
+        b.draw();
+        
+        if (!b.active) {
+            state.entities.bullets.splice(i, 1);
+            continue;
+        }
+
+        let bulletHit = false;
+
+        // Bullet vs Obstacle
+        for (let j = state.entities.obstacles.length - 1; j >= 0; j--) {
+            let o = state.entities.obstacles[j];
+            if (checkRectCollision(b, {x: o.x, y: o.y, width: CONFIG.gridSize, height: CONFIG.gridSize})) {
+                o.health--;
+                playSound('hit');
+                b.active = false;
+                bulletHit = true;
+                if (o.health <= 0) {
+                    state.entities.obstacles.splice(j, 1);
+                    state.score += 10;
+                    updateScore();
+                }
+                break;
+            }
+        }
+        if (bulletHit) continue;
+
+        // Bullet vs Serpent
+        for (let k = state.entities.serpent.length - 1; k >= 0; k--) {
+            let seg = state.entities.serpent[k];
+            if (checkRectCollision(b, {x: seg.x, y: seg.y, width: CONFIG.gridSize, height: CONFIG.gridSize})) {
+                playSound('hit');
+                b.active = false;
+                
+                // 1. Add score
+                state.score += 100;
+                updateScore();
+
+                // 2. Turn segment into obstacle
+                state.entities.obstacles.push(new Obstacle(seg.gridX, seg.gridY));
+
+                // 3. Remove segment
+                state.entities.serpent.splice(k, 1);
+
+                // 4. Split logic: The segment BEHIND the hit one (k+1) becomes a new head
+                if (k < state.entities.serpent.length) {
+                    // Check if the next segment was part of same snake (simple check: distance)
+                    // But simpler: just make it a head. It will figure it out.
+                    state.entities.serpent[k].isHead = true;
+                }
+                break;
+            }
+        }
+        if (bulletHit) continue;
+        
+        // Bullet vs Drone
+        if (state.entities.drone) {
+            let d = state.entities.drone;
+            if (checkRectCollision(b, d)) {
+                state.entities.drone = null;
+                b.active = false;
+                state.score += 500;
+                playSound('hit');
+                updateScore();
+            }
+        }
+        
+        // Bullet vs Corruptor
+        if (state.entities.corruptor) {
+             let c = state.entities.corruptor;
+             if (checkRectCollision(b, c)) {
+                 state.entities.corruptor = null;
+                 b.active = false;
+                 state.score += 1000;
+                 playSound('hit');
+                 updateScore();
+             }
+        }
+    }
+
+    // 4. Serpent
+    // If serpent is empty, start new level
+    if (state.entities.serpent.length === 0) {
+        state.level++;
+        updateLevel();
+        generateLevel();
+    }
+
+    state.entities.serpent.forEach(seg => {
+        seg.update(state.entities.obstacles);
+        seg.draw();
+        
+        // Collision with Player
+        if (state.entities.player && checkRectCollision(seg, state.entities.player)) {
+            handlePlayerDeath();
+        }
+    });
+
+    // 5. Drone (Spider) Logic
+    // Spawn rate increases with level
+    let droneSpawnChance = 0.002 + (state.level * 0.001);
+    if (!state.entities.drone && Math.random() < droneSpawnChance) { 
+        state.entities.drone = new Drone();
+    }
+    
+    if (state.entities.drone) {
+        let active = state.entities.drone.update();
+        if (active) {
+            state.entities.drone.draw();
+            
+            let droneHitPlayer = false;
+            // Check player collision first
+            if (state.entities.player && checkRectCollision(state.entities.drone, state.entities.player)) {
+                handlePlayerDeath();
+                droneHitPlayer = true;
+            }
+            
+            // Drone eats obstacles
+            if (!droneHitPlayer && state.entities.drone) {
+                for (let i = state.entities.obstacles.length - 1; i >= 0; i--) {
+                    let o = state.entities.obstacles[i];
+                    if (checkRectCollision(state.entities.drone, {x: o.x, y: o.y, width: CONFIG.gridSize, height: CONFIG.gridSize})) {
+                        if(Math.random() < 0.1) state.entities.obstacles.splice(i, 1);
+                    }
+                }
+            }
+        } else {
+            state.entities.drone = null;
+        }
+    }
+    
+    // 6. Corruptor (Scorpion) Logic
+    // Starts appearing level 2+
+    if (state.level >= 2) {
+        let corruptorSpawnChance = 0.001 + (state.level * 0.0005);
+        if (!state.entities.corruptor && Math.random() < corruptorSpawnChance) {
+            state.entities.corruptor = new Corruptor();
+        }
+    }
+    
+    if (state.entities.corruptor) {
+        let active = state.entities.corruptor.update();
+        if (active) {
+            state.entities.corruptor.draw();
+            // Check player collision (Corruptor also kills player if touched)
+            if (state.entities.player && checkRectCollision(state.entities.corruptor, state.entities.player)) {
+                 handlePlayerDeath();
+            }
+        } else {
+            state.entities.corruptor = null;
+        }
+    }
+
+    state.frames++;
+    requestAnimationFrame(gameLoop);
+}
+
+function handlePlayerDeath() {
+    state.lives--;
+    playSound('die');
+    
+    if (state.lives <= 0) {
+        gameOver();
+    } else {
+        // Reset player
+        state.entities.player = new Player();
+        state.entities.drone = null;
+        state.entities.corruptor = null;
+        
+        // Heal poison on obstacles to give player a break? 
+        // Or leave it? Classic leaves it. We will leave it.
+        
+        // Reset serpent to top?
+        // In classic, they stay, but heal? 
+        // For this clone, let's reset them to top to give player breathing room
+        state.entities.serpent = [];
+        // Regenerate just the serpent for current level
+        createSerpent(Math.min(20, 10 + state.level), Math.floor(state.gridWidth / 2));
+        
+        state.isRunning = false;
+        setTimeout(() => {
+            state.isRunning = true;
+            requestAnimationFrame(gameLoop);
+        }, 1000);
+    }
+}
+
+function checkRectCollision(rect1, rect2) {
+    if (!rect1 || !rect2) return false;
+    return (rect1.x < rect2.x + rect2.width &&
+            rect1.x + rect1.width > rect2.x &&
+            rect1.y < rect2.y + rect2.height &&
+            rect1.y + rect1.height > rect2.y);
+}
+
+
+// --- Inputs ---
+
+window.addEventListener('resize', () => {
+    // Only update resolution on resize, keep logic consistent
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    state.gridWidth = Math.floor(canvas.width / CONFIG.gridSize);
+    state.gridHeight = Math.floor(canvas.height / CONFIG.gridSize);
+});
+
+window.addEventListener('keydown', (e) => {
+    switch(e.key) {
+        case 'ArrowLeft': case 'a': state.input.left = true; break;
+        case 'ArrowRight': case 'd': state.input.right = true; break;
+        case 'ArrowUp': case 'w': state.input.up = true; break;
+        case 'ArrowDown': case 's': state.input.down = true; break;
+        case ' ': state.input.shoot = true; break;
+        case 'Escape': 
+            if (state.isRunning && !startScreen.classList.contains('hidden')) return; // Ignore if on start
+            if (state.isRunning) {
+                // Optional: Toggle pause menu or similar
+            }
+            break;
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    switch(e.key) {
+        case 'ArrowLeft': case 'a': state.input.left = false; break;
+        case 'ArrowRight': case 'd': state.input.right = false; break;
+        case 'ArrowUp': case 'w': state.input.up = false; break;
+        case 'ArrowDown': case 's': state.input.down = false; break;
+        case ' ': state.input.shoot = false; break;
+    }
+});
+
+// Touch Logic
+canvas.addEventListener('touchstart', (e) => {
+    if (state.isPaused) return; // Prevent input if paused
+    e.preventDefault();
+    state.input.isTouch = true;
+    updateTouch(e.touches[0]);
+}, {passive: false});
+
+canvas.addEventListener('touchmove', (e) => {
+    if (state.isPaused) return;
+    e.preventDefault();
+    updateTouch(e.touches[0]);
+}, {passive: false});
+
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    state.input.isTouch = false;
+    state.input.left = false;
+    state.input.right = false;
+    state.input.up = false;
+    state.input.down = false;
+});
+
+function updateTouch(touch) {
+    if (!state.entities.player) return;
+    
+    // Get canvas position to handle offset when centered
+    const rect = canvas.getBoundingClientRect();
+    const tx = touch.clientX - rect.left;
+    const ty = touch.clientY - rect.top;
+    
+    const p = state.entities.player;
+    const deadzone = 10;
+    
+    state.input.left = false;
+    state.input.right = false;
+    state.input.up = false;
+    state.input.down = false;
+
+    if (tx < p.x - deadzone) state.input.left = true;
+    if (tx > p.x + p.width + deadzone) state.input.right = true;
+    if (ty < p.y - deadzone) state.input.up = true;
+    if (ty > p.y + p.height + deadzone) state.input.down = true;
+}
+
+// UI Buttons
+startBtn.addEventListener('click', () => {
+    startScreen.classList.add('hidden');
+    document.getElementById('mobile-controls').classList.remove('hidden');
+    initGame();
+});
+
+restartBtn.addEventListener('click', () => {
+    gameOverScreen.classList.add('hidden');
+    initGame();
+});
+
+soundBtn.addEventListener('click', toggleSound);
+
+helpBtn.addEventListener('click', () => {
+    helpModal.classList.remove('hidden');
+    if (state.isRunning) {
+        state.isPaused = true;
+    }
+});
+
+closeHelpBtn.addEventListener('click', () => {
+    helpModal.classList.add('hidden');
+    if (state.isRunning) {
+        state.isPaused = false;
+    }
+});
+
+</script>
+
+<a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

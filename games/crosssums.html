@@ -1,0 +1,957 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Cross Sums is an addictive math puzzle game where you must remove numbers from a grid to make each row and column match a specific target sum. It features procedural level generation across multiple difficulties, a life system to punish incorrect deletions, and helpful tools like auto-locking solved rows.
+TAGS: Logic, Math, Puzzle, Strategy, Educational
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cross Sums</title>
+    <style>
+        :root {
+            --bg-color: #0d0d0d;
+            --panel-bg: #1a1a1d;
+            --cell-bg: #2a2a2d;
+            --cell-removed: #121214;
+            --text-color: #ffffff;
+            --accent-green: #66bb6a;
+            --accent-red: #ef5350;
+            --accent-pink: #ff4081;
+            --accent-blue: #42a5f5;
+            --accent-yellow: #ffd740;
+            --accent-gold: #ffb300;
+            --disabled-gray: #444;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            user-select: none;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* --- Header --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 90%;
+            max-width: 400px;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .timer-badge {
+            background: #1a1a1a;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            color: var(--accent-blue);
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1.1rem;
+            min-width: 55px;
+            text-align: center;
+        }
+
+        .btn-icon {
+            background: var(--cell-bg);
+            border: 1px solid #333;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+        .btn-icon:hover { background: #333; }
+
+        .level-info { text-align: center; }
+        .diff-label { font-size: 0.7rem; color: #888; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+        .level-title { font-size: 1.4rem; font-weight: bold; color: var(--accent-pink); margin: 0; }
+
+        /* --- Lives --- */
+        .lives-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            height: 25px;
+            flex-shrink: 0;
+        }
+        .heart {
+            color: var(--accent-red);
+            font-size: 1.4rem;
+            transition: transform 0.3s, opacity 0.3s, filter 0.3s;
+        }
+        .heart.lost {
+            filter: grayscale(100%);
+            opacity: 0.2;
+            transform: scale(0.8);
+        }
+
+        /* --- Grid --- */
+        .grid-wrapper {
+            background: #161616;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 4px;
+            width: 90vw;
+            max-width: 360px;
+            transition: all 0.3s;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            font-weight: 600;
+            border-radius: 6px;
+            position: relative;
+        }
+
+        /* Clues */
+        .cell.clue {
+            background-color: var(--cell-bg);
+            color: #fff;
+            border: 1px solid #333;
+            font-size: 1rem;
+            transition: background-color 0.3s, color 0.3s;
+            position: relative;
+        }
+        .cell.clue.correct {
+            background-color: var(--accent-green);
+            border-color: var(--accent-green);
+            color: #fff;
+        }
+        .cell.clue.error {
+            color: var(--accent-red);
+        }
+        
+        /* Easy Mode Small Sum Indicator */
+        .clue-small {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 0.7rem;
+            color: var(--accent-gold);
+            font-weight: normal;
+        }
+
+        /* Playable Numbers */
+        .cell.number {
+            background-color: var(--cell-bg);
+            color: white;
+            cursor: pointer;
+            border: 2px solid #444; 
+            box-shadow: 0 4px 0 #1a1a1a;
+            transition: transform 0.1s, box-shadow 0.1s, border-color 0.3s, background-color 0.3s;
+        }
+        .cell.number:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #1a1a1a;
+        }
+
+        /* Locked State */
+        .cell.number.locked {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+            background: #332a00; 
+        }
+        .cell.number.locked::after {
+            content: '🔒';
+            position: absolute;
+            font-size: 0.6rem;
+            top: 2px;
+            right: 2px;
+        }
+
+        /* Removed State */
+        .cell.removed {
+            background-color: var(--cell-removed);
+            color: #333;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+            border: 1px solid transparent;
+            transform: translateY(4px);
+            cursor: default;
+            pointer-events: none;
+        }
+
+        /* Controls Footer */
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            width: 90vw;
+            max-width: 360px;
+            margin-top: 10px;
+        }
+
+        .toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            background: #222;
+            border: 2px solid #444;
+            border-radius: 30px;
+            color: #888;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            user-select: none;
+        }
+        
+        .toggle-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: #333;
+            background: #111;
+        }
+        
+        .toggle-btn.wide { flex: 2; justify-content: center; }
+        .toggle-btn.icon-only { flex: 0 0 auto; padding: 12px; min-width: 44px; justify-content: center;}
+
+        .toggle-btn.active {
+            background: var(--accent-gold);
+            border-color: var(--accent-gold);
+            color: #000;
+            box-shadow: 0 0 15px rgba(255, 179, 0, 0.3);
+        }
+        
+        .toggle-btn.active.blue {
+             background: var(--accent-blue);
+             border-color: var(--accent-blue);
+             color: #000;
+             box-shadow: 0 0 15px rgba(66, 165, 245, 0.3);
+        }
+        
+        .toggle-btn.active.green {
+             background: var(--accent-green);
+             border-color: var(--accent-green);
+             color: #000;
+             box-shadow: 0 0 15px rgba(102, 187, 106, 0.3);
+        }
+
+        .toggle-btn.hint-btn:active {
+            background: var(--accent-yellow);
+            color: #000;
+        }
+
+        /* Animations */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-5deg); }
+            75% { transform: translateX(5px) rotate(5deg); }
+        }
+        .shake { animation: shake 0.4s ease-in-out; background-color: var(--accent-red) !important; border-color: var(--accent-red) !important; color: white !important; }
+        
+        @keyframes gentle-shake {
+             0% { transform: rotate(0deg); }
+             25% { transform: rotate(2deg); }
+             75% { transform: rotate(-2deg); }
+             100% { transform: rotate(0deg); }
+        }
+        .protected-shake { animation: gentle-shake 0.3s ease-in-out; }
+
+        .empty-corner { visibility: hidden; }
+
+        /* --- Modals --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden; transition: 0.3s; z-index: 999;
+        }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+        
+        .modal {
+            background: var(--panel-bg);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            width: 85%;
+            max-width: 350px;
+            border: 1px solid #333;
+        }
+        .modal h2 { margin-top: 0; font-size: 2rem; margin-bottom: 10px;}
+        .modal p { color: #bbb; margin-bottom: 25px; }
+        
+        .modal button {
+            background: var(--accent-pink);
+            border: none; color: white;
+            padding: 12px 30px; border-radius: 50px;
+            font-size: 1rem; font-weight: bold; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255, 64, 129, 0.4);
+            margin: 5px;
+        }
+        .modal button:hover { transform: scale(1.05); }
+        .modal button.secondary { background: transparent; border: 2px solid #444; box-shadow: none; color: #aaa; }
+        .modal button.secondary:hover { border-color: #666; color: white; }
+
+        .instructions-list { text-align: left; color: #ddd; font-size: 1rem; line-height: 1.5; margin-bottom: 25px; padding-left: 20px; }
+        .instructions-list li { margin-bottom: 10px; }
+        .highlight { color: var(--accent-pink); font-weight: bold; }
+        .gold { color: var(--accent-gold); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-left">
+            <button class="btn-icon" onclick="showInstructions()" title="How to Play">?</button>
+            <div class="timer-badge" id="timer-display">00:00</div>
+        </div>
+        
+        <div class="level-info">
+            <div class="diff-label" id="diff-display">EASY</div>
+            <div class="level-title" id="level-display">Level 1</div>
+        </div>
+        <button class="btn-icon" onclick="restartLevel()">&#8635;</button>
+    </div>
+
+    <div class="lives-container" id="lives-container">
+        <div class="heart">&#10084;</div>
+        <div class="heart">&#10084;</div>
+        <div class="heart">&#10084;</div>
+    </div>
+
+    <div class="grid-wrapper">
+        <div id="grid" class="grid"></div>
+    </div>
+
+    <div class="controls">
+        <button id="mode-btn" class="toggle-btn wide" onclick="toggleLockMode()">
+            <span style="font-size: 1.2rem;">🔒</span>
+            <span id="mode-text">Lock: OFF</span>
+        </button>
+        <button id="hint-btn" class="toggle-btn icon-only hint-btn" onclick="giveHint()" title="Hint (Lock one correct square)">
+            <span style="font-size: 1.2rem;">💡</span>
+        </button>
+        <button id="easy-btn" class="toggle-btn icon-only" onclick="toggleEasyMode()" disabled title="Easy Mode (Unlock by losing a life)">
+            <span style="font-size: 1.2rem;">🛟</span>
+        </button>
+        <button id="sound-btn" class="toggle-btn icon-only active blue" onclick="toggleSound()">
+            <span id="sound-icon" style="font-size: 1.2rem;">🔊</span>
+        </button>
+    </div>
+
+    <!-- Instructions Modal -->
+    <div id="modal-instructions" class="modal-overlay">
+        <div class="modal" style="text-align: left;">
+            <h2 style="color: var(--accent-yellow); text-align:center;">How to Play</h2>
+            <ul class="instructions-list">
+                <li><strong>Goal:</strong> Remove numbers so rows/cols match targets.</li>
+                <li><strong>Tap</strong> to remove a number.</li>
+                <li><strong><span class="gold">Auto-Lock</span></strong>: When a row/col is solved (Green), remaining numbers automatically lock!</li>
+                <li><strong>Manual Lock</strong>: Use the toggle button below to lock numbers manually.</li>
+                <li><strong>Hint 💡</strong>: Tap the bulb to automatically lock one correct number for you.</li>
+                <li><span class="highlight">Warning:</span> Removing a correct number costs a Life &#10084;.</li>
+                <li><strong><span style="color:var(--accent-green)">Easy Mode 🛟</span></strong>: If you lose a life, you can enable Easy Mode to see the sum of your <span class="gold">locked</span> numbers.</li>
+            </ul>
+
+            <div style="text-align: center;">
+                <button onclick="hideInstructions()">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="modal-lose" class="modal-overlay">
+        <div class="modal">
+            <h2 style="color: var(--accent-red)">Game Over</h2>
+            <p>You ran out of lives!</p>
+            <button onclick="restartLevel()">Try Again</button>
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div id="modal-win" class="modal-overlay">
+        <div class="modal">
+            <h2 style="color: var(--accent-green)">Level Clear!</h2>
+            <span style="color:var(--accent-blue); display:block; margin-bottom:20px; font-weight:bold; font-size:1.2rem;" id="final-time">Time: 00:00</span>
+            <button onclick="nextLevel()">Next Level</button>
+        </div>
+    </div>
+
+    <!-- Resume Modal -->
+    <div id="modal-resume" class="modal-overlay">
+        <div class="modal">
+            <h2 style="color: var(--accent-blue)">Welcome Back</h2>
+            <p>We found a saved game.</p>
+            <button id="btn-resume" onclick="resumeGame()">Resume</button>
+            <button class="secondary" onclick="startNewGame()">Start Over</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Configuration ---
+        let currentLevel = 1;
+        let lives = 3;
+        let isGameActive = false;
+        let isLockMode = false;
+        let isEasyMode = false;
+        let isSoundOn = true;
+        const STORAGE_KEY = 'sumDelete_level_v5';
+        
+        // Timer Vars
+        let timerSeconds = 0;
+        let timerInterval = null;
+
+        let currentPuzzle = {
+            size: 0, grid: [], solution: [], 
+            rowTargets: [], colTargets: [], 
+            userState: [], userLocks: []
+        };
+
+        // --- SOUND ENGINE (Web Audio API) ---
+        const SoundFX = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+            playTone: function(freq, type, duration, vol=0.1) {
+                if (!isSoundOn || !this.ctx) return;
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = type; // sine, square, sawtooth, triangle
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            pop: function() { this.playTone(600, 'sine', 0.1, 0.1); },
+            lock: function() { this.playTone(300, 'triangle', 0.1, 0.15); },
+            click: function() { this.playTone(800, 'sine', 0.05, 0.05); },
+            error: function() {
+                if (!isSoundOn || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            },
+            win: function() {
+                if (!isSoundOn || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                // Simple arpeggio
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + i*0.1);
+                    gain.gain.setValueAtTime(0.1, now + i*0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.1 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i*0.1);
+                    osc.stop(now + i*0.1 + 0.3);
+                });
+            },
+            lose: function() {
+                if (!isSoundOn || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                [300, 250, 200].forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + i*0.2);
+                    gain.gain.setValueAtTime(0.1, now + i*0.2);
+                    gain.gain.linearRampToValueAtTime(0, now + i*0.2 + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i*0.2);
+                    osc.stop(now + i*0.2 + 0.2);
+                });
+            }
+        };
+
+        function init() {
+            const savedLevel = localStorage.getItem(STORAGE_KEY);
+            if (savedLevel && parseInt(savedLevel) > 1) {
+                document.getElementById('btn-resume').innerText = `Resume Level ${savedLevel}`;
+                document.getElementById('modal-resume').classList.add('show');
+            } else {
+                startNewGame();
+            }
+        }
+
+        // --- Hint Logic ---
+        function giveHint() {
+            if (!isGameActive) return;
+            SoundFX.init();
+
+            // Find candidates: part of solution and not currently locked or removed
+            const candidates = [];
+            for (let r = 0; r < currentPuzzle.size; r++) {
+                for (let c = 0; c < currentPuzzle.size; c++) {
+                    // It's a correct number AND user hasn't locked it yet AND it's still visible
+                    if (currentPuzzle.solution[r][c] === true && 
+                        currentPuzzle.userLocks[r][c] === false && 
+                        currentPuzzle.userState[r][c] === true) {
+                        candidates.push({r, c});
+                    }
+                }
+            }
+
+            if (candidates.length > 0) {
+                const choice = candidates[Math.floor(Math.random() * candidates.length)];
+                currentPuzzle.userLocks[choice.r][choice.c] = true;
+                const cell = document.getElementById(`cell-${choice.r}-${choice.c}`);
+                if (cell) cell.classList.add('locked');
+                SoundFX.lock();
+                checkSums(); // Update easy mode displays if active
+            }
+        }
+
+        // --- Sound Toggle Logic ---
+        function toggleSound() {
+            SoundFX.init(); 
+            SoundFX.click();
+            isSoundOn = !isSoundOn;
+            const btn = document.getElementById('sound-btn');
+            const icon = document.getElementById('sound-icon');
+            if(isSoundOn) {
+                btn.classList.add('active', 'blue');
+                icon.innerText = '🔊';
+            } else {
+                btn.classList.remove('active', 'blue');
+                icon.innerText = '🔇';
+            }
+        }
+        
+        // --- Easy Mode Logic ---
+        function toggleEasyMode() {
+            if (lives >= 3 && !isEasyMode) return; 
+            
+            SoundFX.init();
+            SoundFX.click();
+            isEasyMode = !isEasyMode;
+            const btn = document.getElementById('easy-btn');
+            
+            if (isEasyMode) {
+                btn.classList.add('active', 'green');
+            } else {
+                btn.classList.remove('active', 'green');
+            }
+            checkSums(); 
+        }
+
+        function startNewGame() {
+            SoundFX.init();
+            currentLevel = 1;
+            localStorage.setItem(STORAGE_KEY, 1);
+            document.getElementById('modal-resume').classList.remove('show');
+            generateLevel(currentLevel);
+        }
+
+        function resumeGame() {
+            SoundFX.init();
+            const savedLevel = localStorage.getItem(STORAGE_KEY);
+            currentLevel = parseInt(savedLevel) || 1;
+            document.getElementById('modal-resume').classList.remove('show');
+            generateLevel(currentLevel);
+        }
+
+        // --- Timer Logic ---
+        function resetTimer() {
+            stopClock();
+            timerSeconds = 0;
+            updateTimerDisplay();
+        }
+        function startClock() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if(isGameActive) { timerSeconds++; updateTimerDisplay(); }
+            }, 1000);
+        }
+        function stopClock() { if (timerInterval) clearInterval(timerInterval); timerInterval = null; }
+        function updateTimerDisplay() {
+            const mins = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+            const secs = (timerSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('timer-display').innerText = `${mins}:${secs}`;
+        }
+
+        // --- Mode Logic ---
+        function toggleLockMode() {
+            SoundFX.init();
+            SoundFX.click();
+            isLockMode = !isLockMode;
+            const btn = document.getElementById('mode-btn');
+            const txt = document.getElementById('mode-text');
+            
+            if (isLockMode) {
+                btn.classList.add('active');
+                txt.innerText = "Lock: ON";
+            } else {
+                btn.classList.remove('active');
+                txt.innerText = "Lock: OFF";
+            }
+        }
+
+        // --- Generator Logic ---
+        function generateLevel(levelNum) {
+            let size = 4;
+            let maxNum = 5;
+            let difficultyLabel = "EASY";
+
+            if (levelNum > 10) { size = 5; maxNum = 9; difficultyLabel = "MEDIUM"; }
+            if (levelNum > 40) { size = 5; if(levelNum>50) size=6; maxNum = 9; difficultyLabel = "HARD"; }
+
+            document.getElementById('level-display').innerText = `Level ${levelNum}`;
+            document.getElementById('diff-display').innerText = difficultyLabel;
+            document.getElementById('modal-win').classList.remove('show');
+            document.getElementById('modal-lose').classList.remove('show');
+            
+            lives = 3;
+            isGameActive = true;
+            isLockMode = false;
+            isEasyMode = false;
+            
+            // Reset UI States
+            document.getElementById('mode-btn').classList.remove('active');
+            document.getElementById('mode-text').innerText = "Lock: OFF";
+            
+            const easyBtn = document.getElementById('easy-btn');
+            easyBtn.classList.remove('active', 'green');
+            easyBtn.disabled = true; 
+
+            updateLivesUI();
+            resetTimer();
+            startClock();
+
+            const grid = [];
+            const solution = [];
+            const userState = [];
+            const userLocks = [];
+
+            for (let r = 0; r < size; r++) {
+                const rowNum = [];
+                const rowSol = [];
+                const rowUser = [];
+                const rowLock = [];
+                for (let c = 0; c < size; c++) {
+                    rowNum.push(Math.floor(Math.random() * maxNum) + 1);
+                    const keep = Math.random() > 0.4; 
+                    rowSol.push(keep);
+                    rowUser.push(true);
+                    rowLock.push(false);
+                }
+                grid.push(rowNum);
+                solution.push(rowSol);
+                userState.push(rowUser);
+                userLocks.push(rowLock);
+            }
+
+            // Ensure Solvability
+            for (let r = 0; r < size; r++) if (!solution[r].includes(true)) solution[r][Math.floor(Math.random()*size)] = true;
+            for (let c = 0; c < size; c++) {
+                let hasKeep = false;
+                for(let r=0; r<size; r++) if(solution[r][c]) hasKeep = true;
+                if (!hasKeep) solution[Math.floor(Math.random()*size)][c] = true;
+            }
+
+            const rowTargets = [];
+            const colTargets = [];
+            for(let r=0; r<size; r++) {
+                let sum = 0;
+                for(let c=0; c<size; c++) if(solution[r][c]) sum += grid[r][c];
+                rowTargets.push(sum);
+            }
+            for(let c=0; c<size; c++) {
+                let sum = 0;
+                for(let r=0; r<size; r++) if(solution[r][c]) sum += grid[r][c];
+                colTargets.push(sum);
+            }
+
+            currentPuzzle = { size, grid, solution, rowTargets, colTargets, userState, userLocks };
+            renderGrid();
+            checkSums(); 
+        }
+
+        function renderGrid() {
+            const gridEl = document.getElementById('grid');
+            gridEl.innerHTML = '';
+            
+            const totalCols = currentPuzzle.size + 1;
+            gridEl.style.gridTemplateColumns = `repeat(${totalCols}, 1fr)`;
+
+            const corner = document.createElement('div');
+            corner.className = 'cell empty-corner';
+            gridEl.appendChild(corner);
+
+            currentPuzzle.colTargets.forEach((target, index) => {
+                const cell = document.createElement('div');
+                cell.className = 'cell clue';
+                cell.id = `col-clue-${index}`;
+                cell.innerHTML = `${target}`; 
+                gridEl.appendChild(cell);
+            });
+
+            for(let r=0; r<currentPuzzle.size; r++) {
+                const clueCell = document.createElement('div');
+                clueCell.className = 'cell clue';
+                clueCell.id = `row-clue-${r}`;
+                clueCell.innerHTML = `${currentPuzzle.rowTargets[r]}`;
+                gridEl.appendChild(clueCell);
+
+                for(let c=0; c<currentPuzzle.size; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell number';
+                    cell.innerText = currentPuzzle.grid[r][c];
+                    cell.id = `cell-${r}-${c}`;
+                    cell.onclick = () => handleInput(r, c, cell);
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+
+        function handleInput(r, c, element) {
+            if (!isGameActive) return;
+            if (currentPuzzle.userState[r][c] === false) return; 
+
+            SoundFX.init();
+
+            if (isLockMode) {
+                currentPuzzle.userLocks[r][c] = !currentPuzzle.userLocks[r][c];
+                if (currentPuzzle.userLocks[r][c]) {
+                    element.classList.add('locked');
+                    SoundFX.lock();
+                } else {
+                    element.classList.remove('locked');
+                    SoundFX.click();
+                }
+                checkSums();
+                return;
+            }
+
+            if (currentPuzzle.userLocks[r][c]) {
+                element.classList.add('protected-shake');
+                setTimeout(() => element.classList.remove('protected-shake'), 300);
+                SoundFX.lock(); 
+                return;
+            }
+
+            const shouldKeep = currentPuzzle.solution[r][c] === true;
+            if (shouldKeep) {
+                loseLife();
+                element.classList.add('shake');
+                setTimeout(() => element.classList.remove('shake'), 400);
+            } else {
+                currentPuzzle.userState[r][c] = false;
+                element.classList.add('removed');
+                element.classList.remove('locked'); 
+                SoundFX.pop();
+                checkSums();
+                checkWinCondition();
+            }
+        }
+
+        function checkSums() {
+            // Check Rows
+            for(let r=0; r<currentPuzzle.size; r++) {
+                let currentSum = 0;
+                let lockedSum = 0;
+                for(let c=0; c<currentPuzzle.size; c++) {
+                    if(currentPuzzle.userState[r][c]) {
+                        const val = currentPuzzle.grid[r][c];
+                        currentSum += val;
+                        if(currentPuzzle.userLocks[r][c]) lockedSum += val;
+                    }
+                }
+                updateClue(`row-clue-${r}`, currentSum, currentPuzzle.rowTargets[r], lockedSum);
+                
+                if (currentSum === currentPuzzle.rowTargets[r]) {
+                    autoLockRow(r);
+                }
+            }
+            
+            // Check Cols
+            for(let c=0; c<currentPuzzle.size; c++) {
+                let currentSum = 0;
+                let lockedSum = 0;
+                for(let r=0; r<currentPuzzle.size; r++) {
+                    if(currentPuzzle.userState[r][c]) {
+                        const val = currentPuzzle.grid[r][c];
+                        currentSum += val;
+                        if(currentPuzzle.userLocks[r][c]) lockedSum += val;
+                    }
+                }
+                updateClue(`col-clue-${c}`, currentSum, currentPuzzle.colTargets[c], lockedSum);
+
+                if (currentSum === currentPuzzle.colTargets[c]) {
+                    autoLockCol(c);
+                }
+            }
+        }
+
+        function autoLockRow(r) {
+            let changed = false;
+            for(let c=0; c<currentPuzzle.size; c++) {
+                if (currentPuzzle.userState[r][c]) { 
+                    if (!currentPuzzle.userLocks[r][c]) {
+                        currentPuzzle.userLocks[r][c] = true;
+                        const cell = document.getElementById(`cell-${r}-${c}`);
+                        if(cell) cell.classList.add('locked');
+                        changed = true;
+                    }
+                }
+            }
+            if(changed && isEasyMode) checkSums();
+        }
+
+        function autoLockCol(c) {
+            let changed = false;
+            for(let r=0; r<currentPuzzle.size; r++) {
+                if (currentPuzzle.userState[r][c]) { 
+                    if (!currentPuzzle.userLocks[r][c]) {
+                        currentPuzzle.userLocks[r][c] = true;
+                        const cell = document.getElementById(`cell-${r}-${c}`);
+                        if(cell) cell.classList.add('locked');
+                        changed = true;
+                    }
+                }
+            }
+            if(changed && isEasyMode) checkSums();
+        }
+
+        function updateClue(id, current, target, lockedSum) {
+            const el = document.getElementById(id);
+            if(!el) return;
+            el.classList.remove('correct', 'error');
+            
+            let html = `${target}`;
+            
+            if (current === target) el.classList.add('correct');
+            else if (current > target) el.classList.add('error');
+            
+            if (isEasyMode && lockedSum > 0 && current !== target) {
+                 html += `<span class="clue-small">${lockedSum}</span>`;
+            }
+            
+            el.innerHTML = html;
+        }
+
+        function checkWinCondition() {
+            let trashRemaining = false;
+            for(let r=0; r<currentPuzzle.size; r++) {
+                for(let c=0; c<currentPuzzle.size; c++) {
+                    if (currentPuzzle.solution[r][c] === false && currentPuzzle.userState[r][c] === true) {
+                        trashRemaining = true;
+                    }
+                }
+            }
+            if (!trashRemaining) {
+                isGameActive = false;
+                stopClock(); 
+                SoundFX.win();
+                const mins = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+                const secs = (timerSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('final-time').innerText = `Time: ${mins}:${secs}`;
+                setTimeout(() => document.getElementById('modal-win').classList.add('show'), 300);
+            }
+        }
+
+        function loseLife() {
+            lives--;
+            updateLivesUI();
+            SoundFX.error();
+            
+            if (lives < 3) {
+                document.getElementById('easy-btn').disabled = false;
+            }
+
+            if (lives <= 0) {
+                isGameActive = false;
+                stopClock();
+                SoundFX.lose();
+                setTimeout(() => document.getElementById('modal-lose').classList.add('show'), 500);
+            }
+        }
+
+        function updateLivesUI() {
+            const hearts = document.querySelectorAll('.heart');
+            hearts.forEach((h, i) => {
+                if (i < lives) h.classList.remove('lost');
+                else h.classList.add('lost');
+            });
+        }
+
+        function showInstructions() {
+            stopClock();
+            SoundFX.click();
+            document.getElementById('modal-instructions').classList.add('show');
+        }
+        function hideInstructions() {
+            document.getElementById('modal-instructions').classList.remove('show');
+            SoundFX.init(); 
+            SoundFX.click();
+            if (isGameActive) startClock();
+        }
+
+        function nextLevel() {
+            currentLevel++;
+            SoundFX.click();
+            localStorage.setItem(STORAGE_KEY, currentLevel);
+            generateLevel(currentLevel);
+        }
+        function restartLevel() { 
+            SoundFX.click();
+            generateLevel(currentLevel); 
+        }
+
+        init();
+    </script>
+    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

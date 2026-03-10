@@ -1,0 +1,597 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Lexi-Launch Defender is a high-octane "Y2K" aesthetic typing defense game where players protect ground-based shields by intercepting falling word-missiles. It features dynamic theme loading from external JSON, a ground-to-air laser interception system, scaling difficulty phases, and a custom Web Audio API synthesizer for retro sound effects.
+TAGS: Typing, Retro-Modern, Canvas, Educational, WebAudio
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lexi-Launch Defender</title>
+    <style>
+        :root {
+            --primary-glow: #00d4ff;
+            --secondary-glow: #ff9900;
+            --panel-bg: rgba(10, 25, 41, 0.85);
+            --text-color: #e0f2f1;
+            --bg-color: #020b16;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+        }
+
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 100%;
+            background: radial-gradient(circle at 50% 120%, #0d2a4a 0%, #020b16 100%);
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.2), inset 0 0 100px rgba(0,0,0,0.5);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .stat-panel {
+            background: var(--panel-bg);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border-left: 3px solid var(--primary-glow);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            pointer-events: all;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sound-toggle {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-size: 10px;
+            background: rgba(255,255,255,0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+            transition: all 0.2s;
+        }
+        .sound-toggle.on { color: var(--primary-glow); border: 1px solid var(--primary-glow); }
+        .sound-toggle.off { color: #666; border: 1px solid #444; }
+
+        #current-word-display {
+            position: absolute;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 28px;
+            background: var(--panel-bg);
+            padding: 10px 30px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 220px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        #start-screen, #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(2, 11, 22, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: all;
+            z-index: 10;
+        }
+
+        h1 { 
+            font-size: 48px; 
+            margin-bottom: 5px; 
+            text-align: center;
+            background: linear-gradient(to bottom, #fff 30%, var(--primary-glow) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.5));
+        }
+
+        p { font-size: 16px; margin-bottom: 20px; color: #a0c4ff; text-align: center;}
+
+        .theme-container {
+            width: 80%;
+            max-height: 40vh;
+            overflow-y: auto;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .theme-item {
+            padding: 12px;
+            margin: 5px 0;
+            background: rgba(10, 25, 41, 0.6);
+            border: 1px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .theme-item:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: var(--primary-glow);
+        }
+
+        .theme-item.selected {
+            background: var(--primary-glow);
+            color: #020b16;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #00d4ff 0%, #0072ff 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 114, 255, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .btn:not(:disabled):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 114, 255, 0.6);
+        }
+
+        .hidden { display: none !important; }
+
+        #active-buffer {
+            color: var(--secondary-glow);
+            font-weight: 800;
+        }
+
+        .loading-text {
+            color: var(--primary-glow);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-overlay">
+        <div class="stats">
+            <div class="stat-panel" id="score-label">DATA: 0000</div>
+            <div class="stat-panel">
+                AUDIO
+                <div class="sound-toggle off" id="sound-btn">OFF</div>
+            </div>
+            <div class="stat-panel" id="theme-label">THEME: ---</div>
+            <div class="stat-panel" id="level-label">PHASE: 1</div>
+        </div>
+        
+        <div id="current-word-display">
+            <span id="active-buffer"></span>
+        </div>
+    </div>
+
+    <!-- Screens -->
+    <div id="start-screen">
+        <h1>LEXI-LAUNCH</h1>
+        <p id="system-status">Initialize Strategic Word Interception System</p>
+        
+        <div class="theme-container" id="theme-list">
+            <div class="loading-text">SCANNING WORDLIST FILES...</div>
+        </div>
+
+        <button class="btn" id="start-btn" disabled>BOOT UP ENGINE</button>
+    </div>
+
+    <div id="game-over" class="hidden">
+        <h1 style="background: linear-gradient(to bottom, #fff, #ff4e50); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">SYSTEM CRITICAL</h1>
+        <p id="final-score">TOTAL DATA RECOVERED: 0</p>
+        <button class="btn" id="restart-btn">RELOAD SYSTEM</button>
+    </div>
+</div>
+
+<script>
+    const container = document.getElementById('game-container');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreLabel = document.getElementById('score-label');
+    const levelLabel = document.getElementById('level-label');
+    const themeLabel = document.getElementById('theme-label');
+    const activeBufferDisplay = document.getElementById('active-buffer');
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over');
+    const startBtn = document.getElementById('start-btn');
+    const restartBtn = document.getElementById('restart-btn');
+    const themeListContainer = document.getElementById('theme-list');
+    const soundBtn = document.getElementById('sound-btn');
+
+    // --- Audio System ---
+    let audioCtx = null;
+    let soundEnabled = false;
+
+    function initAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playSound(type) {
+        if (!soundEnabled || !audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'type') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, now);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start();
+            osc.stop(now + 0.05);
+        } else if (type === 'laser') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(220, now + 0.2);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start();
+            osc.stop(now + 0.2);
+        } else if (type === 'hit') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(110, now);
+            osc.frequency.linearRampToValueAtTime(40, now + 0.3);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            osc.start();
+            osc.stop(now + 0.3);
+        }
+    }
+
+    soundBtn.onclick = () => {
+        initAudio();
+        soundEnabled = !soundEnabled;
+        soundBtn.innerText = soundEnabled ? 'ON' : 'OFF';
+        soundBtn.className = `sound-toggle ${soundEnabled ? 'on' : 'off'}`;
+    };
+
+    // --- Data Loading ---
+    const defaultWordList = {
+        theme: "System Default",
+        wordlist: [
+            {word: "access", points: 10}, {word: "binary", points: 10}, {word: "cloud", points: 10},
+            {word: "code", points: 10},   {word: "cyber", points: 10},  {word: "data", points: 10},
+            {word: "debug", points: 10},  {word: "error", points: 10},  {word: "fault", points: 10},
+            {word: "grid", points: 10},   {word: "input", points: 10},  {word: "logic", points: 10},
+            {word: "memory", points: 10}, {word: "node", points: 10},   {word: "output", points: 10},
+            {word: "pixel", points: 10},  {word: "port", points: 10},   {word: "proxy", points: 10},
+            {word: "pulse", points: 10},  {word: "query", points: 10},  {word: "web", points: 10},
+            {word: "mage", points: 10}
+        ]
+    };
+
+    let availableThemes = [];
+    let selectedTheme = null;
+
+    async function loadThemes() {
+        try {
+            const response = await fetch('./lexilaunch/wordlist.json');
+            if (!response.ok) throw new Error("File not found");
+            const data = await response.json();
+            availableThemes = Array.isArray(data) ? data : [data];
+            
+            // Sort themes alphabetically
+            availableThemes.sort((a, b) => {
+                const nameA = (a.theme || "").toLowerCase();
+                const nameB = (b.theme || "").toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+
+        } catch (error) {
+            console.warn("Theme load failed, using default wordlist.");
+            availableThemes = [defaultWordList];
+        } finally {
+            renderThemes();
+        }
+    }
+
+    function renderThemes() {
+        themeListContainer.innerHTML = '';
+        availableThemes.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'theme-item';
+            div.innerText = item.theme || `Theme ${index + 1}`;
+            div.onclick = () => {
+                document.querySelectorAll('.theme-item').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                selectedTheme = item;
+                startBtn.disabled = false;
+            };
+            themeListContainer.appendChild(div);
+        });
+    }
+
+    // --- Game Entities ---
+    class Laser {
+        constructor(startX, startY, endX, endY) {
+            this.startX = startX;
+            this.startY = startY;
+            this.endX = endX;
+            this.endY = endY;
+            this.life = 1.0;
+        }
+        update() { this.life -= 0.1; }
+        draw() {
+            ctx.strokeStyle = `rgba(0, 212, 255, ${this.life})`;
+            ctx.lineWidth = 4 * this.life;
+            ctx.beginPath();
+            ctx.moveTo(this.startX, this.startY);
+            ctx.lineTo(this.endX, this.endY);
+            ctx.stroke();
+            ctx.lineWidth = 1;
+        }
+    }
+
+    class Particle {
+        constructor(x, y, color) {
+            this.x = x; this.y = y;
+            this.vx = (Math.random() - 0.5) * 6;
+            this.vy = (Math.random() - 0.5) * 6;
+            this.life = 1.0;
+            this.size = Math.random() * 3 + 1;
+            this.color = color;
+        }
+        update() { this.x += this.vx; this.y += this.vy; this.life -= 0.015; }
+        draw() {
+            ctx.globalAlpha = this.life;
+            ctx.fillStyle = this.color;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    class Shield {
+        constructor(x, width) {
+            this.x = x; this.y = canvas.height - 50;
+            this.width = width; this.height = 10;
+            this.health = 100;
+        }
+        draw() {
+            if (this.health <= 0) return;
+            ctx.shadowBlur = 15; ctx.shadowColor = "#00d4ff";
+            const grad = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
+            grad.addColorStop(0, "rgba(0, 212, 255, 0.8)");
+            grad.addColorStop(1, "rgba(0, 114, 255, 0.4)");
+            ctx.fillStyle = grad;
+            ctx.beginPath(); ctx.roundRect(this.x, this.y, this.width * (this.health / 100), this.height, 5); ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+    }
+
+    class Missile {
+        constructor(wordObj) {
+            this.word = wordObj.word;
+            this.points = wordObj.points || 10;
+            this.x = Math.random() * (canvas.width - 150) + 75;
+            this.y = -50;
+            this.speed = (0.6 + Math.random() * 0.4) * gameState.speedMultiplier;
+            this.isDead = false;
+        }
+        update() {
+            this.y += this.speed;
+            if (this.y > canvas.height - 50) this.hitShield();
+        }
+        draw() {
+            const gradient = ctx.createLinearGradient(this.x, this.y - 40, this.x, this.y);
+            gradient.addColorStop(0, "transparent");
+            gradient.addColorStop(1, "rgba(255, 153, 0, 0.4)");
+            ctx.strokeStyle = gradient; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(this.x, this.y - 40); ctx.lineTo(this.x, this.y); ctx.stroke();
+            ctx.fillStyle = "#ff9900"; ctx.shadowBlur = 10; ctx.shadowColor = "#ff9900";
+            ctx.beginPath(); ctx.arc(this.x, this.y, 6, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+            ctx.font = "bold 15px Arial"; ctx.textAlign = "center";
+            const textWidth = ctx.measureText(this.word).width;
+            ctx.fillStyle = "rgba(10, 25, 41, 0.8)";
+            ctx.beginPath(); ctx.roundRect(this.x - (textWidth/2) - 10, this.y - 35, textWidth + 20, 22, 10); ctx.fill();
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.1)"; ctx.stroke();
+            ctx.fillStyle = "white"; ctx.fillText(this.word, this.x, this.y - 19);
+        }
+        hitShield() {
+            this.isDead = true;
+            createExplosion(this.x, this.y, "#ff4e50");
+            playSound('hit');
+            let hitFound = false;
+            gameState.shields.forEach(s => {
+                if (this.x > s.x && this.x < s.x + s.width && s.health > 0) {
+                    s.health -= 34; hitFound = true;
+                }
+            });
+            if (!hitFound) endGame();
+        }
+    }
+
+    // --- Main Logic ---
+    let gameState = {
+        score: 0, level: 1, missiles: [], particles: [], lasers: [], shields: [],
+        inputBuffer: "", spawnTimer: 0, gameActive: false, speedMultiplier: 1.0,
+        wordsCleared: 0, currentWordList: []
+    };
+
+    function resizeCanvas() {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        if (gameState.gameActive) gameState.shields.forEach(s => s.y = canvas.height - 50);
+        draw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function initGame() {
+        if (!selectedTheme) return;
+        initAudio();
+        resizeCanvas();
+        gameState = {
+            score: 0, level: 1, missiles: [], particles: [], lasers: [],
+            shields: [new Shield(80, 180), new Shield(310, 180), new Shield(540, 180)],
+            inputBuffer: "", spawnTimer: 0, gameActive: true, speedMultiplier: 1.0,
+            wordsCleared: 0, currentWordList: selectedTheme.wordlist
+        };
+        themeLabel.innerText = `THEME: ${selectedTheme.theme.toUpperCase()}`;
+        scoreLabel.innerText = `DATA: 0000`;
+        levelLabel.innerText = `PHASE: 1`;
+        activeBufferDisplay.innerText = "";
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        requestAnimationFrame(gameLoop);
+    }
+
+    function createExplosion(x, y, color) {
+        for (let i = 0; i < 25; i++) gameState.particles.push(new Particle(x, y, color));
+    }
+
+    function update() {
+        if (!gameState.gameActive) return;
+        gameState.spawnTimer++;
+        const spawnRate = Math.max(25, 100 - (gameState.level * 8));
+        if (gameState.spawnTimer > spawnRate) {
+            const wordObj = gameState.currentWordList[Math.floor(Math.random() * gameState.currentWordList.length)];
+            gameState.missiles.push(new Missile(wordObj));
+            gameState.spawnTimer = 0;
+        }
+        gameState.missiles.forEach((m, idx) => { m.update(); if (m.isDead) gameState.missiles.splice(idx, 1); });
+        gameState.particles.forEach((p, idx) => { p.update(); if (p.life <= 0) gameState.particles.splice(idx, 1); });
+        gameState.lasers.forEach((l, idx) => { l.update(); if (l.life <= 0) gameState.lasers.splice(idx, 1); });
+        if (gameState.shields.filter(s => s.health > 0).length === 0) endGame();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const groundHeight = 30;
+        const groundGrad = ctx.createLinearGradient(0, canvas.height - groundHeight, 0, canvas.height);
+        groundGrad.addColorStop(0, "#0a1929"); groundGrad.addColorStop(1, "#020b16");
+        ctx.fillStyle = groundGrad; ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+        ctx.strokeStyle = "rgba(0, 212, 255, 0.3)"; ctx.strokeRect(0, canvas.height - groundHeight, canvas.width, 1);
+
+        gameState.shields.forEach(s => s.draw());
+        gameState.missiles.forEach(m => m.draw());
+        gameState.particles.forEach(p => p.draw());
+        gameState.lasers.forEach(l => l.draw());
+
+        const vignette = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 100, canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height));
+        vignette.addColorStop(0, "rgba(0,0,0,0)"); vignette.addColorStop(1, "rgba(0,0,0,0.4)");
+        ctx.fillStyle = vignette; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function gameLoop() {
+        if (!gameState.gameActive) return;
+        update(); draw(); requestAnimationFrame(gameLoop);
+    }
+
+    function endGame() {
+        gameState.gameActive = false;
+        document.getElementById('final-score').innerText = `TOTAL DATA RECOVERED: ${gameState.score}`;
+        gameOverScreen.classList.remove('hidden');
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (!gameState.gameActive) return;
+        if (e.key === "Backspace") {
+            gameState.inputBuffer = gameState.inputBuffer.slice(0, -1);
+        } else if (e.key === "Escape") {
+            gameState.inputBuffer = "";
+        } else if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+            gameState.inputBuffer += e.key.toLowerCase();
+            playSound('type');
+            const matchIndex = gameState.missiles.findIndex(m => m.word.toLowerCase() === gameState.inputBuffer);
+            if (matchIndex !== -1) {
+                const m = gameState.missiles[matchIndex];
+                gameState.lasers.push(new Laser(canvas.width/2, canvas.height-30, m.x, m.y));
+                playSound('laser');
+                setTimeout(() => {
+                    createExplosion(m.x, m.y, "#00d4ff");
+                    gameState.score += m.points;
+                    gameState.wordsCleared++;
+                    if (gameState.wordsCleared % 10 === 0) {
+                        gameState.level++;
+                        gameState.speedMultiplier += 0.12;
+                        levelLabel.innerText = `PHASE: ${gameState.level}`;
+                    }
+                    scoreLabel.innerText = `DATA: ${gameState.score.toString().padStart(4, '0')}`;
+                }, 50);
+                gameState.missiles.splice(matchIndex, 1);
+                gameState.inputBuffer = "";
+            }
+        }
+        activeBufferDisplay.innerText = gameState.inputBuffer.toUpperCase();
+    });
+
+    startBtn.addEventListener('click', initGame);
+    restartBtn.addEventListener('click', initGame);
+    resizeCanvas();
+    loadThemes();
+</script>
+<a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

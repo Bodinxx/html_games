@@ -1,0 +1,1274 @@
+<!-- 
+CATEGORY: TTRPG Tools
+DESCRIPTION: This code implements a robust, browser-based Dungeon Generator for tabletop RPGs. It features procedural map creation with multiple layout algorithms (Standard, Mine, Labyrinth), customizable themes (motifs), difficulty scaling, and interactive canvas rendering. Includes features for generating room descriptions with monsters, traps, and treasure based on D&D 5e mechanics, along with export options for maps and keys.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Dungeon Generator 2.4</title>
+    <style>
+        :root {
+            --bg-color: #f0f0f0;
+            --panel-bg: #ffffff;
+            --accent-color: #3b82f6;
+            --text-color: #333;
+            --border-color: #ccc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Layout */
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 0.8rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 { margin: 0; font-size: 1.3rem; }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden; 
+        }
+
+        /* Sidebar Controls */
+        .sidebar {
+            width: 300px;
+            min-width: 300px;
+            background: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .row { display: flex; gap: 8px; }
+        .row > div { flex: 1; }
+
+        label {
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #555;
+        }
+
+        select, input[type="text"], input[type="number"], button {
+            padding: 0.35rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Zoom Slider */
+        input[type="range"] { width: 100%; margin: 3px 0; }
+
+        button.primary {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+            margin-top: 8px;
+        }
+        button.primary:hover { background-color: #2563eb; }
+        
+        button.secondary {
+            background-color: #64748b;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+            margin-top: 4px;
+        }
+        button.secondary:hover { background-color: #475569; }
+
+        .btn-group { display: flex; gap: 5px; margin-top: 4px; }
+        .btn-group button { flex: 1; font-size: 0.75rem; padding: 0.3rem; }
+
+        /* Canvas Area */
+        .canvas-wrapper {
+            flex: 1;
+            background-color: #555; /* Dark background behind canvas for contrast */
+            overflow: hidden; /* Hide scrollbars from wrapper, use inner if needed */
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .canvas-scroll-area {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+
+        canvas {
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* Legend */
+        .legend-panel {
+            width: 350px;
+            min-width: 350px;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            padding: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .legend-header {
+            padding: 1rem 1.5rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        .legend-header h2 { margin: 0; font-size: 1.2rem; }
+
+        .room-list { list-style: none; padding: 0; margin: 0; }
+        
+        .room-item {
+            padding: 0.8rem 1.2rem;
+            border-bottom: 1px solid #eee;
+        }
+        .room-item:nth-child(even) { background-color: #fafafa; }
+        
+        .room-title {
+            font-weight: bold;
+            color: #d35400;
+            margin-bottom: 0.2rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .room-detail { font-size: 0.85rem; line-height: 1.35; color: #444; }
+
+        .wandering-header {
+            background: #2c3e50;
+            color: white;
+            padding: 0.5rem 1.2rem;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .tag.monster { background: #fee2e2; color: #991b1b; }
+        .tag.treasure { background: #fef3c7; color: #92400e; }
+        .tag.trap { background: #f3f4f6; color: #1f2937; }
+        .tag.empty { background: #e5e7eb; color: #6b7280; }
+        .tag.stairs { background: #dbeafe; color: #1e40af; }
+
+        /* Responsive */
+        @media (max-width: 1000px) {
+            .main-container { flex-direction: column; overflow-y: auto; }
+            .sidebar, .legend-panel { width: 100%; height: auto; border: none; min-width: 0; }
+            .canvas-wrapper { min-height: 500px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>⚔️ Dungeon Generator 1.01</h1>
+        <div style="font-size: 0.8rem; opacity: 0.8;">Advanced Generator</div>
+    </header>
+
+    <div class="main-container">
+        <!-- Controls -->
+        <div class="sidebar">
+            <div class="control-group">
+                <label for="dungeonSize">Dungeon Size</label>
+                <select id="dungeonSize">
+                    <option value="small">Small (30x30)</option>
+                    <option value="medium" selected>Medium (45x45)</option>
+                    <option value="large">Large (60x60)</option>
+                    <option value="huge">Huge (80x80)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="layoutStyle">Layout Style</label>
+                <select id="layoutStyle">
+                    <option value="scattered">Scattered Rooms</option>
+                    <option value="dense">Dense Complex</option>
+                    <option value="labyrinth">Labyrinth</option>
+                    <option value="mine">Mine</option>
+                </select>
+            </div>
+
+            <div class="row">
+                <div class="control-group">
+                    <label for="dungeonLevel">Level (1-20)</label>
+                    <input type="number" id="dungeonLevel" value="1" min="1" max="20">
+                </div>
+                <div class="control-group">
+                    <label for="partySize">Party Size</label>
+                    <input type="number" id="partySize" value="4" min="1" max="10">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="difficulty">Difficulty</label>
+                <select id="difficulty">
+                    <option value="easy">Easy (Fewer Threats)</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="hard">Hard (More/Stronger Mobs)</option>
+                    <option value="deadly">Deadly (Heavy Combat)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="motif">Motif / Theme</label>
+                <select id="motif">
+                    <option value="standard">Standard / Mixed</option>
+                    <option value="abandoned">Abandoned</option>
+                    <option value="mine">Mine</option>
+                    <option value="monstrous_aberrant">Monstrous: Aberrant</option>
+                    <option value="monstrous_giant">Monstrous: Giant</option>
+                    <option value="monstrous_undead">Monstrous: Undead</option>
+                    <option value="monstrous_vermin">Monstrous: Vermin</option>
+                    <option value="aquatic">Environment: Aquatic</option>
+                    <option value="desert">Environment: Desert</option>
+                    <option value="underdark">Environment: Underdark</option>
+                    <option value="arcane">Arcane / Magic</option>
+                    <option value="fire">Elemental: Fire</option>
+                    <option value="cold">Elemental: Cold</option>
+                    <option value="abyssal">Plane: Abyssal</option>
+                    <option value="infernal">Plane: Infernal</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="roomShape">Room Shapes</label>
+                <select id="roomShape">
+                    <option value="random">Random Mixed</option>
+                    <option value="rect">Rectangles Only</option>
+                    <option value="round">Round / Elliptical</option>
+                    <option value="diamond">Diamond</option>
+                    <option value="hexagon">Hexagon</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="doorStyle">Door Type</label>
+                <select id="doorStyle">
+                    <option value="standard" selected>Standard</option>
+                    <option value="basic">Basic (No Locks)</option>
+                    <option value="secure">Secure (High Lock)</option>
+                    <option value="deathtrap">Deathtrap</option>
+                    <option value="none">None</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="deadEndStyle">Remove Dead Ends</label>
+                <select id="deadEndStyle">
+                    <option value="none" selected>None (Maze-like)</option>
+                    <option value="some">Some (Loops)</option>
+                    <option value="all">All (High Connect)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="egressStyle">Entry / Exit</label>
+                <select id="egressStyle">
+                    <option value="stairs">Stairs (Standard)</option>
+                    <option value="edge">Edge Tunnels</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="gridShow">Grid Options</label>
+                <select id="gridShow">
+                    <option value="full">Full Grid</option>
+                    <option value="corners">Corners Only</option>
+                    <option value="none">No Grid</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="zoomRange">Zoom Level: <span id="zoomVal">100%</span></label>
+                <input type="range" id="zoomRange" min="25" max="200" value="100" oninput="updateZoom(this.value)">
+            </div>
+
+            <div class="control-group">
+                <label for="seedInput">Seed (Optional)</label>
+                <input type="text" id="seedInput" placeholder="Empty for random">
+            </div>
+
+            <button class="primary" onclick="generateDungeon()">Construct Dungeon</button>
+            
+            <hr style="width:100%; border:0; border-top:1px solid #ddd; margin: 8px 0;">
+            
+            <label>Exports</label>
+            <div class="btn-group">
+                <button class="secondary" onclick="downloadMap()">Map (PNG)</button>
+                <button class="secondary" onclick="downloadKey()">Key (TXT)</button>
+            </div>
+            <div class="btn-group">
+                <button class="secondary" onclick="exportJSON()">Save JSON</button>
+                <button class="secondary" onclick="document.getElementById('fileInput').click()">Load JSON</button>
+            </div>
+            <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="importJSON(this)">
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-wrapper">
+            <div class="canvas-scroll-area">
+                <canvas id="dungeonCanvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend-panel">
+            <div class="legend-header">
+                <h2>Room Key</h2>
+            </div>
+            <div id="roomList" class="room-list">
+                <div style="padding: 1.5rem; color: #888; text-align: center;">Generate a dungeon to see room details.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION & STATE ---
+        const TILE_SIZE = 24; 
+        let currentSeed = 0;
+        let rng = null; 
+        let dungeonData = null;
+        let activeDB = null; 
+
+        const TILES = {
+            WALL: 0,
+            FLOOR: 1,
+            DOOR: 2,
+            SECRET_DOOR: 3,
+            STAIRS_UP: 4,
+            STAIRS_DOWN: 5
+        };
+
+        // --- FALLBACK DATA ---
+        const DEFAULT_DB = {
+            monsters: [
+                { name: "Giant Rat", cr: 0.125, tags: ["vermin", "abandoned"] },
+                { name: "Kobold", cr: 0.125, tags: ["standard", "mine", "fire"] },
+                { name: "Skeleton", cr: 0.25, tags: ["undead", "standard"] },
+                { name: "Zombie", cr: 0.25, tags: ["undead", "standard"] },
+                { name: "Goblin", cr: 0.25, tags: ["standard", "mine", "abandoned"] },
+                { name: "Orc", cr: 0.5, tags: ["standard", "mine"] },
+                { name: "Rust Monster", cr: 0.5, tags: ["aberrant", "mine", "underdark"] },
+                { name: "Ghoul", cr: 1, tags: ["undead"] },
+                { name: "Giant Spider", cr: 1, tags: ["vermin", "underdark", "abandoned"] },
+                { name: "Specter", cr: 1, tags: ["undead", "arcane"] },
+                { name: "Gelatinous Cube", cr: 2, tags: ["standard", "cleaning"] },
+                { name: "Ogre", cr: 2, tags: ["giant", "standard"] },
+                { name: "Mimic", cr: 2, tags: ["standard", "arcane"] },
+                { name: "Hell Hound", cr: 3, tags: ["fire", "infernal"] },
+                { name: "Ghost", cr: 4, tags: ["undead"] },
+                { name: "Troll", cr: 5, tags: ["giant", "standard"] },
+                { name: "Wraith", cr: 5, tags: ["undead"] },
+                { name: "Mind Flayer", cr: 7, tags: ["aberrant", "underdark"] },
+                { name: "Hydra", cr: 8, tags: ["aquatic"] },
+                { name: "Fire Giant", cr: 9, tags: ["giant", "fire"] },
+                { name: "Beholder", cr: 13, tags: ["aberrant", "underdark"] },
+                { name: "Lich", cr: 21, tags: ["undead", "arcane"] }
+            ],
+            treasure: {
+                tier1: ["2d6 x 10 gp", "Potion of Healing", "Scroll of Magic Missile", "Gem (50gp)", "+1 Ammunition"],
+                tier2: ["2d4 x 50 gp", "Potion of Greater Healing", "+1 Weapon", "Bag of Holding", "Gem (100gp)", "Ring of Protection"],
+                tier3: ["2d6 x 100 gp", "Potion of Superior Healing", "+2 Weapon", "+1 Armor", "Wand of Fireballs", "Gem (500gp)"],
+                tier4: ["2d6 x 1000 gp", "Potion of Supreme Healing", "+3 Weapon", "Legendary Item", "Staff of Power"]
+            },
+            features: {
+                standard: ["Pile of rubble", "Broken statue", "Tapestry", "Iron chandelier", "Wooden crates", "Bookcase"],
+                mine: ["Broken mine cart", "Pickaxes on wall", "Collapsed tunnel", "Rail tracks", "Lantern on hook"],
+                arcane: ["Glowing runes", "Alchemical table", "Floating orb", "Chalk circle", "Humming crystal"],
+                aquatic: ["Puddle of brine", "Barnacles on wall", "Dripping ceiling", "Pool of water"],
+                abandoned: ["Thick dust", "Cobwebs", "Rotting furniture", "Collapsed ceiling"]
+            },
+            traps: [
+                { name: "Pit Trap", dc: 12, desc: "10ft deep pit." },
+                { name: "Tripwire", dc: 14, desc: "Triggers a crossbow trap." },
+                { name: "Pressure Plate", dc: 13, desc: "Releases poison gas." },
+                { name: "Glyph of Warding", dc: 15, desc: "Explosive runes." }
+            ]
+        };
+
+        // --- RNG ---
+        class SeedeRNG {
+            constructor(seed) {
+                this.seed = typeof seed === 'string' && seed.length > 0 ? this.hashCode(seed) : (seed || Math.floor(Math.random() * 2147483647));
+            }
+            hashCode(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                    hash |= 0;
+                }
+                return Math.abs(hash);
+            }
+            next() {
+                this.seed = (this.seed * 9301 + 49297) % 233280;
+                return this.seed / 233280;
+            }
+            range(min, max) { return Math.floor(this.next() * (max - min + 1)) + min; }
+            pick(array) { return array[this.range(0, array.length - 1)]; }
+            chance(percentage) { return this.next() * 100 < percentage; }
+        }
+
+        // --- DUNGEON LOGIC ---
+        class Dungeon {
+            constructor(config) {
+                this.width = config.width;
+                this.height = config.height;
+                this.level = config.level;
+                this.partySize = config.partySize;
+                this.motif = config.motif;
+                this.layout = config.layout;
+                this.egressStyle = config.egressStyle;
+                this.doorStyle = config.doorStyle;
+                this.deadEndStyle = config.deadEndStyle;
+                this.roomShape = config.roomShape;
+                this.difficulty = config.difficulty; // easy, normal, hard, deadly
+                
+                this.grid = [];
+                this.rooms = []; 
+                this.doors = {}; 
+                this.wanderingMonsters = [];
+                
+                for(let y=0; y<this.height; y++) {
+                    this.grid.push(new Array(this.width).fill(TILES.WALL));
+                }
+            }
+
+            generate() {
+                if (this.layout === 'mine') this.generateMine();
+                else if (this.layout === 'labyrinth') this.generateLabyrinth();
+                else this.generateStandard();
+
+                this.pruneDeadEnds();
+                this.connectIslands();
+                this.placeDoors();
+                this.placeSecretDoors();
+                this.placePeripheralEgress();
+                this.generateRoomContent();
+                this.generateWanderingMonsters();
+            }
+
+            // ... (Layout Algos) ...
+            generateStandard() {
+                const attemptCount = (this.layout === 'dense') ? 300 : 80;
+                const minRoom = 3, maxRoom = 9;
+
+                for(let i=0; i<attemptCount; i++) {
+                    const w = rng.range(minRoom, maxRoom);
+                    const h = rng.range(minRoom, maxRoom);
+                    const x = rng.range(1, this.width - w - 1);
+                    const y = rng.range(1, this.height - h - 1);
+                    
+                    let shape = this.roomShape;
+                    if (shape === 'random') {
+                        const r = rng.range(1, 100);
+                        if (r > 90) shape = 'hexagon';
+                        else if (r > 80) shape = 'diamond';
+                        else if (r > 70) shape = 'circle';
+                        else if (r > 60) shape = 'L';
+                        else shape = 'rect';
+                    }
+
+                    const newRoom = { x, y, w, h, id: this.rooms.length+1, shape: shape };
+                    if (!this.roomOverlaps(newRoom)) {
+                        this.carveRoom(newRoom);
+                        this.rooms.push(newRoom);
+                    }
+                }
+                this.connectRoomsSequentially();
+                if(this.layout === 'dense') this.addRandomLoops();
+            }
+
+            generateMine() {
+                let miners = [{ x: Math.floor(this.width/2), y: Math.floor(this.height/2), life: 100 }];
+                this.grid[Math.floor(this.height/2)][Math.floor(this.width/2)] = TILES.FLOOR;
+                while (miners.length > 0) {
+                    let m = miners.pop();
+                    let d = rng.pick([[0,1], [0,-1], [1,0], [-1,0]]);
+                    m.x += d[0]; m.y += d[1]; m.life--;
+                    if(m.x > 1 && m.x < this.width-1 && m.y > 1 && m.y < this.height-1) {
+                        this.grid[m.y][m.x] = TILES.FLOOR;
+                        if(rng.chance(5) && miners.length < 10) miners.push({x: m.x, y: m.y, life: rng.range(20, 50)});
+                        if(m.life > 0) miners.push(m);
+                        if(rng.chance(2)) {
+                            const rw = rng.range(3,5), rh = rng.range(3,5);
+                            const room = { x: m.x-1, y: m.y-1, w: rw, h: rh, id: this.rooms.length+1, shape: 'rect' };
+                            if(m.x+rw < this.width-1 && m.y+rh < this.height-1) {
+                                this.carveRoom(room); this.rooms.push(room); m.life = 0;
+                            }
+                        }
+                    }
+                }
+            }
+
+            generateLabyrinth() {
+                const stack = [{x: 1, y: 1}];
+                this.grid[1][1] = TILES.FLOOR;
+                const dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]];
+                while(stack.length > 0) {
+                    const current = stack[stack.length - 1];
+                    let neighbors = [];
+                    for(let d of dirs) {
+                        let nx = current.x + d[0], ny = current.y + d[1];
+                        if (nx > 0 && nx < this.width-1 && ny > 0 && ny < this.height-1) {
+                            if (this.grid[ny][nx] === TILES.WALL) neighbors.push({x: nx, y: ny, dx: d[0]/2, dy: d[1]/2});
+                        }
+                    }
+                    if(neighbors.length > 0) {
+                        let next = rng.pick(neighbors);
+                        this.grid[next.y][next.x] = TILES.FLOOR; 
+                        this.grid[current.y + next.dy][current.x + next.dx] = TILES.FLOOR;
+                        stack.push({x: next.x, y: next.y});
+                    } else stack.pop();
+                }
+                for(let i=0; i<10; i++) {
+                    const w = rng.range(3, 6), h = rng.range(3, 6);
+                    const x = rng.range(1, this.width - w - 1), y = rng.range(1, this.height - h - 1);
+                    const room = { x, y, w, h, id: this.rooms.length+1, shape: 'rect' };
+                    this.carveRoom(room); this.rooms.push(room);
+                }
+            }
+
+            roomOverlaps(room) {
+                for (let r of this.rooms) {
+                    if (room.x <= r.x + r.w + 1 && room.x + room.w + 1 >= r.x &&
+                        room.y <= r.y + r.h + 1 && room.y + room.h + 1 >= r.y) return true;
+                }
+                return false;
+            }
+
+            carveRoom(room) {
+                const cx = room.x + room.w/2;
+                const cy = room.y + room.h/2;
+
+                for(let y = room.y; y < room.y + room.h; y++) {
+                    for(let x = room.x; x < room.x + room.w; x++) {
+                        let carve = false;
+                        
+                        if(room.shape === 'rect') carve = true;
+                        else if(room.shape === 'L') {
+                            if(!(x > room.x + room.w/2 && y < room.y + room.h/2)) carve = true;
+                        } 
+                        else if (room.shape === 'circle' || room.shape === 'round') {
+                            let radius = Math.min(room.w, room.h) / 2;
+                            if (Math.sqrt(Math.pow(x-cx, 2) + Math.pow(y-cy, 2)) <= radius) carve = true;
+                        }
+                        else if (room.shape === 'diamond') {
+                            // |x-cx| + |y-cy| <= radius
+                            let radius = Math.min(room.w, room.h) / 2;
+                            if (Math.abs(x - cx) + Math.abs(y - cy) <= radius) carve = true;
+                        }
+                        else if (room.shape === 'hexagon') {
+                            // Approximated horizontal hexagon
+                            // dx + dy/2 <= width/2 (rough hex logic)
+                            let dx = Math.abs(x - cx);
+                            let dy = Math.abs(y - cy);
+                            if (dy <= room.h/2 && dx + dy/2 <= room.w/2) carve = true;
+                        }
+
+                        if(carve && y < this.height && x < this.width) this.grid[y][x] = TILES.FLOOR;
+                    }
+                }
+            }
+
+            connectRoomsSequentially() {
+                let sortedRooms = [...this.rooms].sort((a,b) => a.x - b.x);
+                for (let i = 0; i < sortedRooms.length - 1; i++) {
+                    this.drawCorridor(sortedRooms[i], sortedRooms[i+1]);
+                }
+            }
+            
+            addRandomLoops() {
+                 for(let i=0; i < this.rooms.length; i++) {
+                    if(rng.chance(30)) {
+                        const r1 = this.rooms[i];
+                        const r2 = rng.pick(this.rooms);
+                        if(r1 !== r2) this.drawCorridor(r1, r2);
+                    }
+                }
+            }
+
+            drawCorridor(r1, r2) {
+                let x1 = Math.floor(r1.x + r1.w/2), y1 = Math.floor(r1.y + r1.h/2);
+                let x2 = Math.floor(r2.x + r2.w/2), y2 = Math.floor(r2.y + r2.h/2);
+                let x = x1, y = y1;
+                const dig = (dx, dy) => { if (this.grid[dy][dx] === TILES.WALL) this.grid[dy][dx] = TILES.FLOOR; };
+                if (rng.chance(50)) {
+                    while (x !== x2) { x += (x < x2 ? 1 : -1); dig(x, y); }
+                    while (y !== y2) { y += (y < y2 ? 1 : -1); dig(x, y); }
+                } else {
+                    while (y !== y2) { y += (y < y2 ? 1 : -1); dig(x, y); }
+                    while (x !== x2) { x += (x < x2 ? 1 : -1); dig(x, y); }
+                }
+            }
+
+            pruneDeadEnds() {
+                if (this.deadEndStyle === 'none') return;
+                
+                let limit = 200; // max iterations to prevent freeze
+                
+                // Helper: Count floor neighbors
+                const getNeighbors = (x, y) => {
+                    let n = 0;
+                    if(this.grid[y-1][x] === TILES.FLOOR) n++;
+                    if(this.grid[y+1][x] === TILES.FLOOR) n++;
+                    if(this.grid[y][x-1] === TILES.FLOOR) n++;
+                    if(this.grid[y][x+1] === TILES.FLOOR) n++;
+                    return n;
+                }
+
+                // Gather dead ends
+                let deadEnds = [];
+                for(let y=1; y<this.height-1; y++) {
+                    for(let x=1; x<this.width-1; x++) {
+                        if(this.grid[y][x] === TILES.FLOOR && getNeighbors(x,y) === 1) {
+                            deadEnds.push({x,y});
+                        }
+                    }
+                }
+
+                let processList = [];
+                if (this.deadEndStyle === 'all') processList = deadEnds;
+                else if (this.deadEndStyle === 'some') {
+                    // Process 50%
+                    processList = deadEnds.filter(() => rng.chance(50));
+                }
+
+                // Connect them
+                processList.forEach(pt => {
+                    // Try to dig in a straight line until we hit another floor
+                    // Find valid direction
+                    let dx=0, dy=0;
+                    if (this.grid[pt.y-1][pt.x] === TILES.FLOOR) dy = 1; // Open above, dig down
+                    else if (this.grid[pt.y+1][pt.x] === TILES.FLOOR) dy = -1; // Open below, dig up
+                    else if (this.grid[pt.y][pt.x-1] === TILES.FLOOR) dx = 1; // Open left, dig right
+                    else if (this.grid[pt.y][pt.x+1] === TILES.FLOOR) dx = -1; // Open right, dig left
+                    
+                    // Dig straight
+                    let tx = pt.x + dx, ty = pt.y + dy;
+                    let digDist = 0;
+                    // Look ahead 10 spaces max
+                    let foundConnect = false;
+                    for(let k=0; k<10; k++) {
+                        if (tx<=0 || ty<=0 || tx>=this.width-1 || ty>=this.height-1) break;
+                        if (this.grid[ty][tx] === TILES.FLOOR) { foundConnect = true; break; }
+                        tx += dx; ty += dy;
+                        digDist++;
+                    }
+                    
+                    if (foundConnect && digDist > 0) {
+                        // Backtrack and carve
+                        let cx = pt.x + dx, cy = pt.y + dy;
+                        while(cx !== tx || cy !== ty) {
+                            this.grid[cy][cx] = TILES.FLOOR;
+                            cx += dx; cy += dy;
+                        }
+                    }
+                });
+            }
+
+            connectIslands() { /* Implied */ }
+
+            isTunnel(x, y) {
+                if (x<0 || y<0 || x>=this.width || y>=this.height) return false;
+                return this.grid[y][x] === TILES.FLOOR;
+            }
+
+            placeDoors() {
+                if (this.doorStyle === 'none') return;
+
+                this.rooms.forEach(room => {
+                    for(let x=room.x; x < room.x+room.w; x++) {
+                        if (this.isTunnel(x, room.y-1)) this.maybeDoor(x, room.y-1);
+                        if (this.isTunnel(x, room.y+room.h)) this.maybeDoor(x, room.y+room.h);
+                    }
+                    for(let y=room.y; y < room.y+room.h; y++) {
+                        if (this.isTunnel(room.x-1, y)) this.maybeDoor(room.x-1, y);
+                        if (this.isTunnel(room.x+room.w, y)) this.maybeDoor(room.x+room.w, y);
+                    }
+                });
+            }
+
+            maybeDoor(x, y) {
+                const up = this.grid[y-1] && this.grid[y-1][x] === TILES.WALL;
+                const down = this.grid[y+1] && this.grid[y+1][x] === TILES.WALL;
+                const left = this.grid[y][x-1] === TILES.WALL;
+                const right = this.grid[y][x+1] === TILES.WALL;
+
+                if ( (up && down && !left && !right) || (!up && !down && left && right) ) {
+                    if(rng.chance(30)) {
+                        this.grid[y][x] = TILES.DOOR;
+                        
+                        let lockedC = 15, trapC = 5;
+                        if (this.doorStyle === 'basic') { lockedC = 0; trapC = 0; }
+                        else if (this.doorStyle === 'secure') { lockedC = 50; trapC = 10; }
+                        else if (this.doorStyle === 'deathtrap') { lockedC = 15; trapC = 60; }
+
+                        this.doors[`${x},${y}`] = {
+                            locked: rng.chance(lockedC),
+                            swing: rng.chance(50) ? 'in' : 'out', 
+                            trapped: rng.chance(trapC)
+                        };
+                    }
+                }
+            }
+            
+            placeSecretDoors() {
+                for(let y=1; y<this.height-1; y++) {
+                    for(let x=1; x<this.width-1; x++) {
+                        if(this.grid[y][x] === TILES.DOOR && rng.chance(5)) {
+                            this.grid[y][x] = TILES.SECRET_DOOR;
+                        }
+                    }
+                }
+            }
+
+            placePeripheralEgress() {
+                if (this.rooms.length < 2) return;
+                const startRoom = this.rooms[0];
+                const endRoom = this.rooms[this.rooms.length - 1];
+                
+                if (this.egressStyle === 'edge') {
+                    // Entrance
+                    this.carvePathToEdge(startRoom, "Entrance");
+                    // Exit
+                    this.carvePathToEdge(endRoom, "Exit");
+                } else {
+                    // Stairs (Default)
+                    let sx = Math.floor(startRoom.x + startRoom.w/2), sy = Math.floor(startRoom.y + startRoom.h/2);
+                    this.grid[sy][sx] = TILES.STAIRS_UP;
+                    startRoom.special = "Entrance / Stairs Up";
+                    let ex = Math.floor(endRoom.x + endRoom.w/2), ey = Math.floor(endRoom.y + endRoom.h/2);
+                    this.grid[ey][ex] = TILES.STAIRS_DOWN;
+                    endRoom.special = "Exit / Stairs Down";
+                }
+            }
+
+            carvePathToEdge(room, label) {
+                const cx = Math.floor(room.x + room.w/2);
+                const cy = Math.floor(room.y + room.h/2);
+                
+                // Distances to edges
+                const dTop = cy;
+                const dBottom = this.height - 1 - cy;
+                const dLeft = cx;
+                const dRight = this.width - 1 - cx;
+                
+                const min = Math.min(dTop, dBottom, dLeft, dRight);
+                
+                if (min === dTop) {
+                    for(let y=cy; y>=0; y--) this.grid[y][cx] = TILES.FLOOR;
+                } else if (min === dBottom) {
+                    for(let y=cy; y<this.height; y++) this.grid[y][cx] = TILES.FLOOR;
+                } else if (min === dLeft) {
+                    for(let x=cx; x>=0; x--) this.grid[cy][x] = TILES.FLOOR;
+                } else {
+                    for(let x=cx; x<this.width; x++) this.grid[cy][x] = TILES.FLOOR;
+                }
+                
+                room.special = `${label} (Tunnel)`;
+            }
+
+            generateRoomContent() {
+                let tier = 'tier1';
+                if (this.level >= 5) tier = 'tier2';
+                if (this.level >= 11) tier = 'tier3';
+                if (this.level >= 17) tier = 'tier4';
+
+                // Difficulty Adjustments (Lower Threshold = Higher Probability)
+                let monsterThresh = 75; // Default (25% chance)
+                let trapThresh = 65;    // Default (10% chance)
+                let treasureThresh = 60; // Default (5% chance)
+
+                if (this.difficulty === 'easy') {
+                    // Easy: 15% monster, 5% trap
+                    monsterThresh = 85; 
+                    trapThresh = 80;    
+                } else if (this.difficulty === 'normal') {
+                    // Medium: 25% monster, 10% trap
+                    monsterThresh = 75; 
+                    trapThresh = 65;    
+                } else if (this.difficulty === 'hard') {
+                    // Hard: 55% monster, 20% trap
+                    monsterThresh = 45; 
+                    trapThresh = 25;    
+                } else if (this.difficulty === 'deadly') {
+                    // Deadly: 75% monster, 25% trap (0% empty)
+                    monsterThresh = 25; 
+                    trapThresh = 0;    
+                }
+
+                this.rooms.forEach(room => {
+                    const roll = rng.range(1, 100);
+                    room.content = { type: 'empty', desc: 'Empty', details: [] };
+                    if (room.special) room.content.details.push("Feature: " + room.special);
+                    
+                    // Feature lookup
+                    const featureList = activeDB.features[this.motif] || activeDB.features['standard'];
+                    if (rng.chance(50) && featureList) room.content.details.push(rng.pick(featureList));
+
+                    if (roll > monsterThresh) {
+                        room.content.type = 'monster'; room.content.tag = 'Monster';
+                        const encounter = this.generateEncounter();
+                        room.content.details.push(`Encounter (CR ${encounter.crTotal}): ${encounter.desc}`);
+                        if (rng.chance(40)) room.content.details.push("Loot: " + rng.pick(activeDB.treasure[tier]));
+                    } else if (roll > trapThresh) {
+                        room.content.type = 'trap'; room.content.tag = 'Trap';
+                        const trap = rng.pick(activeDB.traps);
+                        room.content.details.push(`Trap (DC ${trap.dc}): ${trap.name} - ${trap.desc}`);
+                    } else if (roll > treasureThresh) {
+                        room.content.type = 'treasure'; room.content.tag = 'Treasure';
+                        room.content.details.push("Cache: " + rng.pick(activeDB.treasure[tier]));
+                    }
+                });
+            }
+
+            generateEncounter() {
+                // Difficulty Budget Multiplier
+                let diffMod = 1.0;
+                if (this.difficulty === 'easy') diffMod = 0.6;
+                if (this.difficulty === 'hard') diffMod = 1.5;
+                if (this.difficulty === 'deadly') diffMod = 2.5;
+
+                const budget = Math.max(0.25, (this.partySize * this.level / 4) * diffMod);
+                
+                // --- LOGIC BRIDGE: Clean motif string for Monster Tags ---
+                // The Motif keys in the features object (e.g. 'monstrous_aberrant') don't always
+                // match the Monster Tags (e.g. 'aberrant'). We strip prefixes for monster filtering.
+                let searchTag = this.motif;
+                if (searchTag.startsWith('monstrous_')) {
+                    searchTag = searchTag.replace('monstrous_', '');
+                }
+
+                let available = activeDB.monsters.filter(m => {
+                    if (this.motif === 'standard') return true; 
+                    if (m.tags.includes('standard')) return true; // Always allow standard mobs
+                    // Match the cleaned search tag
+                    return m.tags.includes(searchTag);
+                });
+                
+                // Fallback to all if none match
+                if (available.length === 0) available = activeDB.monsters;
+
+                let currentCR = 0, mobList = [], attempts = 0;
+                while (currentCR < budget && attempts < 10) {
+                    const m = rng.pick(available);
+                    if (m.cr <= (budget - currentCR) || (mobList.length===0 && m.cr > budget)) {
+                        mobList.push(m.name); currentCR += m.cr;
+                    }
+                    attempts++;
+                }
+                const counts = {};
+                mobList.forEach(x => { counts[x] = (counts[x] || 0) + 1; });
+                const desc = Object.keys(counts).map(k => `${counts[k]}x ${k}`).join(', ');
+                return { crTotal: currentCR, desc: desc || "wandering vermin" };
+            }
+
+            generateWanderingMonsters() {
+                this.wanderingMonsters = [];
+                // Generate a d20 table with ranges
+                const ranges = [
+                    { r: "1-4", w: 4 },
+                    { r: "5-8", w: 4 },
+                    { r: "9-12", w: 4 },
+                    { r: "13-15", w: 3 },
+                    { r: "16-17", w: 2 },
+                    { r: "18-19", w: 2 },
+                    { r: "20", w: 1 }
+                ];
+
+                ranges.forEach(rangeObj => {
+                    const enc = this.generateEncounter();
+                    this.wanderingMonsters.push({
+                        range: rangeObj.r,
+                        desc: enc.desc
+                    });
+                });
+            }
+        }
+
+        // --- RENDERER ---
+        function renderDungeon() {
+            const canvas = document.getElementById('dungeonCanvas');
+            const ctx = canvas.getContext('2d');
+            const gridType = document.getElementById('gridShow').value;
+
+            const mapW = dungeonData.width * TILE_SIZE;
+            const mapH = dungeonData.height * TILE_SIZE;
+            canvas.width = mapW + TILE_SIZE*2; 
+            canvas.height = mapH + TILE_SIZE*2;
+
+            ctx.fillStyle = "#ffffff"; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.translate(TILE_SIZE, TILE_SIZE);
+
+            // Darker Wall Pattern
+            const pCanvas = document.createElement('canvas');
+            pCanvas.width = 10; pCanvas.height = 10;
+            const pCtx = pCanvas.getContext('2d');
+            pCtx.fillStyle = '#777'; 
+            pCtx.fillRect(0,0,10,10);
+            pCtx.strokeStyle = '#555'; 
+            pCtx.beginPath(); pCtx.moveTo(0,10); pCtx.lineTo(10,0); pCtx.stroke();
+            const wallPattern = ctx.createPattern(pCanvas, 'repeat');
+
+            // 1. Draw Tiles
+            for (let y = 0; y < dungeonData.height; y++) {
+                for (let x = 0; x < dungeonData.width; x++) {
+                    const type = dungeonData.grid[y][x];
+                    const px = x * TILE_SIZE;
+                    const py = y * TILE_SIZE;
+
+                    if (type === TILES.WALL) {
+                        ctx.fillStyle = wallPattern;
+                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                    } else {
+                        ctx.fillStyle = "#fff";
+                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                    }
+                }
+            }
+
+            // 2. Grid
+            if (gridType !== 'none') {
+                ctx.strokeStyle = '#b0c4de';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                if (gridType === 'full') {
+                    for (let x = 0; x <= dungeonData.width; x++) { ctx.moveTo(x * TILE_SIZE, 0); ctx.lineTo(x * TILE_SIZE, mapH); }
+                    for (let y = 0; y <= dungeonData.height; y++) { ctx.moveTo(0, y * TILE_SIZE); ctx.lineTo(mapW, y * TILE_SIZE); }
+                    ctx.stroke();
+                } else if (gridType === 'corners') {
+                   for (let y = 0; y <= dungeonData.height; y++) {
+                        for (let x = 0; x <= dungeonData.width; x++) {
+                            const cx = x * TILE_SIZE; const cy = y * TILE_SIZE;
+                            ctx.moveTo(cx - 2, cy); ctx.lineTo(cx + 2, cy);
+                            ctx.moveTo(cx, cy - 2); ctx.lineTo(cx, cy + 2);
+                        }
+                    }
+                    ctx.stroke();
+                }
+            }
+
+            // 3. Walls Outline
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let y = 0; y < dungeonData.height; y++) {
+                for (let x = 0; x < dungeonData.width; x++) {
+                    if (dungeonData.grid[y][x] !== TILES.WALL) {
+                        const px = x * TILE_SIZE;
+                        const py = y * TILE_SIZE;
+                        if (y===0 || dungeonData.grid[y-1][x] === TILES.WALL) { ctx.moveTo(px, py); ctx.lineTo(px+TILE_SIZE, py); }
+                        if (y===dungeonData.height-1 || dungeonData.grid[y+1][x] === TILES.WALL) { ctx.moveTo(px, py+TILE_SIZE); ctx.lineTo(px+TILE_SIZE, py+TILE_SIZE); }
+                        if (x===0 || dungeonData.grid[y][x-1] === TILES.WALL) { ctx.moveTo(px, py); ctx.lineTo(px, py+TILE_SIZE); }
+                        if (x===dungeonData.width-1 || dungeonData.grid[y][x+1] === TILES.WALL) { ctx.moveTo(px+TILE_SIZE, py); ctx.lineTo(px+TILE_SIZE, py+TILE_SIZE); }
+                    }
+                }
+            }
+            ctx.stroke();
+
+            // 4. Icons & Doors
+            for (let y = 0; y < dungeonData.height; y++) {
+                for (let x = 0; x < dungeonData.width; x++) {
+                    const type = dungeonData.grid[y][x];
+                    const px = x * TILE_SIZE;
+                    const py = y * TILE_SIZE;
+                    
+                    let vertical = (y>0 && y<dungeonData.height-1 && dungeonData.grid[y-1][x]!==TILES.WALL);
+
+                    if (type === TILES.DOOR) {
+                        ctx.fillStyle = "#fff"; ctx.strokeStyle = "#000"; ctx.lineWidth = 1;
+                        
+                        // Door Rect
+                        ctx.beginPath();
+                        if (vertical) ctx.rect(px, py + TILE_SIZE/2 - 2, TILE_SIZE, 4);
+                        else ctx.rect(px + TILE_SIZE/2 - 2, py, 4, TILE_SIZE);
+                        ctx.fill(); ctx.stroke();
+
+                        // Door Details
+                        const doorInfo = dungeonData.doors[`${x},${y}`];
+                        if (doorInfo) {
+                            if (doorInfo.locked) {
+                                ctx.strokeStyle = "red"; ctx.lineWidth = 2;
+                                ctx.beginPath();
+                                ctx.moveTo(px + 4, py + 4); ctx.lineTo(px + TILE_SIZE - 4, py + TILE_SIZE - 4);
+                                ctx.moveTo(px + TILE_SIZE - 4, py + 4); ctx.lineTo(px + 4, py + TILE_SIZE - 4);
+                                ctx.stroke();
+                            } else {
+                                // Swing Indicator
+                                ctx.strokeStyle = "#333"; ctx.lineWidth = 1;
+                                ctx.beginPath();
+                                if(vertical) {
+                                    ctx.moveTo(px, py+TILE_SIZE/2); 
+                                    ctx.lineTo(px+6, py+TILE_SIZE/2 + 6);
+                                } else {
+                                    ctx.moveTo(px+TILE_SIZE/2, py);
+                                    ctx.lineTo(px+TILE_SIZE/2 + 6, py+6);
+                                }
+                                ctx.stroke();
+                            }
+                        }
+                    }
+                    else if (type === TILES.SECRET_DOOR) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = "#444";
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([4, 2]); // Dashed line for secret
+                        if (vertical) {
+                            ctx.moveTo(px, py + TILE_SIZE/2);
+                            ctx.lineTo(px + TILE_SIZE, py + TILE_SIZE/2);
+                        } else {
+                            ctx.moveTo(px + TILE_SIZE/2, py);
+                            ctx.lineTo(px + TILE_SIZE/2, py + TILE_SIZE);
+                        }
+                        ctx.stroke();
+                        ctx.setLineDash([]); 
+
+                        ctx.fillStyle = "#333"; 
+                        ctx.font = "bold 16px serif"; 
+                        ctx.textAlign="center"; 
+                        ctx.textBaseline="middle";
+                        ctx.fillText("S", px+TILE_SIZE/2, py+TILE_SIZE/2);
+                    }
+                    else if (type === TILES.STAIRS_UP) {
+                        ctx.fillStyle = "rgba(0,0,255,0.2)"; ctx.fillRect(px,py,TILE_SIZE,TILE_SIZE);
+                        ctx.fillStyle = "#000"; ctx.font = "16px Arial"; 
+                        ctx.fillText("S", px+TILE_SIZE/2, py+TILE_SIZE/2);
+                    }
+                    else if (type === TILES.STAIRS_DOWN) {
+                        ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(px,py,TILE_SIZE,TILE_SIZE);
+                        ctx.fillStyle = "#000"; ctx.font = "16px Arial";
+                        ctx.fillText("E", px+TILE_SIZE/2, py+TILE_SIZE/2);
+                    }
+                }
+            }
+
+            // 5. Room Numbers
+            ctx.fillStyle = "#d35400";
+            ctx.font = "bold 14px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            dungeonData.rooms.forEach(room => {
+                const cx = (room.x + room.w/2) * TILE_SIZE;
+                const cy = (room.y + room.h/2) * TILE_SIZE;
+                ctx.fillText(room.id, cx, cy);
+            });
+        }
+
+        function renderLegend() {
+            const list = document.getElementById('roomList');
+            list.innerHTML = '';
+            
+            const sortedRooms = [...dungeonData.rooms].sort((a,b) => a.id - b.id);
+
+            sortedRooms.forEach(room => {
+                const item = document.createElement('li');
+                item.className = 'room-item';
+                const c = room.content;
+                let detailsHtml = c.details.map(d => `<div>• ${d}</div>`).join('');
+                if (room.special) detailsHtml += `<div style="color:blue">• ${room.special}</div>`;
+
+                item.innerHTML = `
+                    <div class="room-title">
+                        <span>Room ${room.id}</span>
+                        <span class="tag ${c.type}">${c.tag}</span>
+                    </div>
+                    <div class="room-detail">${detailsHtml}</div>
+                `;
+                list.appendChild(item);
+            });
+
+            // Wandering Monsters (d20 Table)
+            if (dungeonData.wanderingMonsters && dungeonData.wanderingMonsters.length > 0) {
+                const header = document.createElement('div');
+                header.className = 'wandering-header';
+                header.innerText = 'Wandering Monsters (d20)';
+                list.appendChild(header);
+
+                dungeonData.wanderingMonsters.forEach((entry) => {
+                    const item = document.createElement('li');
+                    item.className = 'room-item';
+                    item.innerHTML = `
+                        <div class="room-title"><span>Roll ${entry.range}</span></div>
+                        <div class="room-detail">${entry.desc}</div>
+                    `;
+                    list.appendChild(item);
+                });
+            }
+        }
+
+        // --- I/O FUNCTIONS ---
+
+        async function initData() {
+            // Try to fetch external JSON
+            try {
+                const response = await fetch('dungeon_gen/dungeon_data.json');
+                if (!response.ok) throw new Error("Network response was not ok");
+                activeDB = await response.json();
+                console.log("Loaded external dungeon data.");
+            } catch (error) {
+                console.warn("Could not load external JSON (expected in preview). Using fallback data.");
+                activeDB = DEFAULT_DB;
+            }
+        }
+
+        async function generateDungeon() {
+            // Ensure data is loaded
+            if (!activeDB) await initData();
+
+            const sizeStr = document.getElementById('dungeonSize').value;
+            let w = 45, h = 45;
+            if (sizeStr === 'small') { w=30; h=30; }
+            if (sizeStr === 'large') { w=60; h=60; }
+            if (sizeStr === 'huge') { w=80; h=80; }
+
+            const seedStr = document.getElementById('seedInput').value;
+            rng = new SeedeRNG(seedStr);
+            if(!seedStr) document.getElementById('seedInput').placeholder = "Seed: " + rng.seed;
+            currentSeed = rng.seed;
+
+            dungeonData = new Dungeon({
+                width: w, height: h,
+                level: parseInt(document.getElementById('dungeonLevel').value),
+                partySize: parseInt(document.getElementById('partySize').value),
+                motif: document.getElementById('motif').value,
+                layout: document.getElementById('layoutStyle').value,
+                egressStyle: document.getElementById('egressStyle').value,
+                doorStyle: document.getElementById('doorStyle').value,
+                deadEndStyle: document.getElementById('deadEndStyle').value,
+                roomShape: document.getElementById('roomShape').value,
+                difficulty: document.getElementById('difficulty').value
+            });
+            dungeonData.generate();
+
+            renderDungeon();
+            renderLegend();
+        }
+
+        function updateZoom(val) {
+            document.getElementById('zoomVal').innerText = val + "%";
+            document.getElementById('dungeonCanvas').style.transform = `scale(${val/100})`;
+        }
+
+        function downloadMap() {
+            const canvas = document.getElementById('dungeonCanvas');
+            const link = document.createElement('a');
+            link.download = `dungeon_map.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        function downloadKey() {
+            let text = "DUNGEON KEY\n";
+            text += "===========\n\n";
+            const sortedRooms = [...dungeonData.rooms].sort((a,b) => a.id - b.id);
+            sortedRooms.forEach(r => {
+                text += `Room ${r.id} [${r.content.tag}]\n`;
+                if(r.special) text += `  Feature: ${r.special}\n`;
+                r.content.details.forEach(d => text += `  - ${d}\n`);
+                text += "\n";
+            });
+
+            if(dungeonData.wanderingMonsters && dungeonData.wanderingMonsters.length > 0) {
+                text += "\nWANDERING MONSTERS (d20)\n========================\n";
+                dungeonData.wanderingMonsters.forEach((entry) => {
+                    text += `${entry.range}: ${entry.desc}\n`;
+                });
+            }
+
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', "dungeon_key.txt");
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        function exportJSON() {
+            const json = JSON.stringify(dungeonData);
+            const blob = new Blob([json], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.download = "dungeon_save.json";
+            a.href = url;
+            a.click();
+        }
+
+        function importJSON(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    dungeonData = Object.assign(new Dungeon({}), data);
+                    renderDungeon();
+                    renderLegend();
+                    alert("Dungeon loaded successfully!");
+                } catch(err) {
+                    alert("Error loading JSON: " + err);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        window.onload = generateDungeon;
+    </script>
+    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

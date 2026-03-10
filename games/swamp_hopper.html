@@ -1,0 +1,594 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Swamp Hopper is an arcade-style survival game where you navigate a treacherous swamp to rescue baby hoppers. Avoid predatory Mud Snakes that dive to hide, dodge exploding toxic bubbles, and master the timing of moving logs across increasingly difficult levels.
+TAGS: Arcade, Retro, Action, Skill-based, Pixel-Art
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Swamp Hopper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            background-color: #1a1a1a;
+            color: #fff;
+            font-family: 'Press+Start+2P', cursive;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle, #2d3e50 0%, #000 100%);
+        }
+
+        canvas {
+            background-color: #001a00;
+            border: 4px solid #4a7c44;
+            box-shadow: 0 0 20px rgba(74, 124, 68, 0.5);
+            max-width: 95vw;
+            max-height: 65vh;
+            image-rendering: pixelated;
+        }
+
+        .ui-panel {
+            margin-bottom: 0.5rem;
+            text-align: center;
+            width: 100%;
+            max-width: 440px;
+        }
+
+        .stats {
+            font-size: 10px;
+            color: #90ee90;
+            margin-bottom: 5px;
+            display: flex;
+            gap: 15px;
+            justify-content: space-between;
+            padding: 0 10px;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .btn {
+            background: #4a7c44;
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-family: 'Press+Start+2P', cursive;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            border-bottom: 4px solid #2d4d29;
+            transition: all 0.1s;
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            border-bottom-width: 0;
+        }
+
+        /* Sound Toggle Styles */
+        .sound-control {
+            font-size: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .toggle-bg {
+            width: 30px;
+            height: 16px;
+            background: #333;
+            border-radius: 8px;
+            position: relative;
+            transition: background 0.3s;
+        }
+        .toggle-dot {
+            width: 12px;
+            height: 12px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s;
+        }
+        .sound-on .toggle-bg { background: #4a7c44; }
+        .sound-on .toggle-dot { left: 16px; }
+
+        #mobile-controls {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        @media (max-pointer: coarse) {
+            #mobile-controls { display: grid; }
+        }
+
+        .d-btn {
+            width: 55px;
+            height: 55px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid #4a7c44;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="ui-panel">
+        <div class="stats">
+            <span>LVL: <span id="level-val">1</span></span>
+            <div class="sound-control" id="sound-toggle" onclick="toggleSound()">
+                SOUND
+                <div class="toggle-bg"><div class="toggle-dot"></div></div>
+            </div>
+            <span>PTS: <span id="score-val">0</span></span>
+        </div>
+        <div class="stats">
+            <span>SAVED: <span id="saved-val">0</span>/3</span>
+            <span>LIVES: <span id="lives-val">3</span></span>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="mobile-controls">
+        <div></div>
+        <div class="d-btn" onmousedown="handleControl('up')" ontouchstart="handleControl('up')">↑</div>
+        <div></div>
+        <div class="d-btn" onmousedown="handleControl('left')" ontouchstart="handleControl('left')">←</div>
+        <div class="d-btn" onmousedown="handleControl('down')" ontouchstart="handleControl('down')">↓</div>
+        <div class="d-btn" onmousedown="handleControl('right')" ontouchstart="handleControl('right')">→</div>
+    </div>
+
+    <div id="overlay">
+        <h1 id="title-text" class="text-2xl text-green-500 mb-4 text-center">SWAMP HOPPER</h1>
+        <p id="msg-text" class="text-xs text-gray-400 text-center px-10 leading-relaxed">
+            Rescue 3 baby hoppers to advance!<br><br>
+            Snakes can dive—wait for them to submerge!
+        </p>
+        <button class="btn" onclick="startGame()">START GAME</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const levelDisplay = document.getElementById('level-val');
+    const scoreDisplay = document.getElementById('score-val');
+    const livesDisplay = document.getElementById('lives-val');
+    const savedDisplay = document.getElementById('saved-val');
+    const overlay = document.getElementById('overlay');
+    const msgText = document.getElementById('msg-text');
+    const titleText = document.getElementById('title-text');
+    const soundToggle = document.getElementById('sound-toggle');
+
+    const GRID = 40;
+    const COLS = 11;
+    const ROWS = 13;
+    canvas.width = GRID * COLS;
+    canvas.height = GRID * ROWS;
+
+    let level = 1;
+    let score = 0;
+    let lives = 3;
+    let savedInLevel = 0;
+    let gameRunning = false;
+    let particles = [];
+    let bubbles = [];
+    let frameCount = 0;
+    let soundEnabled = false;
+
+    // --- Audio Engine ---
+    let audioCtx = null;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    }
+
+    function toggleSound() {
+        soundEnabled = !soundEnabled;
+        if (soundEnabled) {
+            soundToggle.classList.add('sound-on');
+            initAudio();
+        } else {
+            soundToggle.classList.remove('sound-on');
+        }
+    }
+
+    function playSound(type) {
+        if (!soundEnabled || !audioCtx) return;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        switch (type) {
+            case 'jump':
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start();
+                osc.stop(now + 0.1);
+                break;
+            case 'die':
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.linearRampToValueAtTime(20, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.start();
+                osc.stop(now + 0.3);
+                break;
+            case 'rescue':
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.setValueAtTime(600, now + 0.05);
+                osc.frequency.setValueAtTime(800, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start();
+                osc.stop(now + 0.2);
+                break;
+            case 'pop':
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.start();
+                osc.stop(now + 0.05);
+                break;
+            case 'win':
+                [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.type = 'triangle';
+                    o.connect(g); g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(f, now + (i * 0.1));
+                    g.gain.setValueAtTime(0.1, now + (i * 0.1));
+                    g.gain.exponentialRampToValueAtTime(0.01, now + (i * 0.1) + 0.3);
+                    o.start(now + (i * 0.1));
+                    o.stop(now + (i * 0.1) + 0.3);
+                });
+                break;
+        }
+    }
+
+    // --- Game Logic ---
+    const colors = {
+        grass: '#2d4d29',
+        sludge: '#3a1f5d',
+        water: '#1e3a5f',
+        hopper: '#a0e426',
+        baby: '#4ecdc4',
+        log: '#6b4423',
+        snake: '#8b0000',
+        tongue: '#ff4d4d',
+        bubble: 'rgba(144, 238, 144, 0.5)'
+    };
+
+    class Entity {
+        constructor(x, y, w, h) {
+            this.x = x; this.y = y; this.w = w; this.h = h;
+        }
+    }
+
+    class Hopper extends Entity {
+        constructor() {
+            super(Math.floor(COLS / 2) * GRID, (ROWS - 1) * GRID, GRID - 4, GRID - 4);
+            this.initialX = this.x;
+            this.initialY = this.y;
+        }
+        reset() { this.x = this.initialX; this.y = this.initialY; }
+        draw() {
+            ctx.fillStyle = colors.hopper;
+            ctx.beginPath();
+            ctx.roundRect(this.x + 4, this.y + 4, this.w - 4, this.h - 4, 8);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.fillRect(this.x + 8, this.y + 8, 6, 6);
+            ctx.fillRect(this.x + 22, this.y + 8, 6, 6);
+            ctx.fillStyle = 'black';
+            ctx.fillRect(this.x + 10, this.y + 8, 3, 3);
+            ctx.fillRect(this.x + 24, this.y + 8, 3, 3);
+        }
+        move(dx, dy) {
+            if (!gameRunning) return;
+            const newX = this.x + dx * GRID;
+            const newY = this.y + dy * GRID;
+            if (newX >= 0 && newX < canvas.width) this.x = newX;
+            if (newY >= 0 && newY < canvas.height) this.y = newY;
+            if (dy < 0) updateScore(10);
+            playSound('jump');
+        }
+    }
+
+    class Obstacle extends Entity {
+        constructor(x, y, w, speed, type) {
+            super(x, y, w, GRID);
+            this.speed = speed;
+            this.type = type;
+            this.offset = Math.random() * 1000;
+            this.isSubmerged = false;
+            this.diveCycle = 180 + Math.random() * 120;
+        }
+
+        update() {
+            this.x += this.speed;
+            if (this.speed > 0 && this.x > canvas.width) this.x = -this.w;
+            else if (this.speed < 0 && this.x < -this.w) this.x = canvas.width;
+
+            if (this.type === 'snake') {
+                const cyclePos = (frameCount + this.offset) % (this.diveCycle * 2);
+                this.isSubmerged = cyclePos > this.diveCycle;
+            }
+        }
+
+        draw() {
+            if (this.type === 'log') {
+                ctx.fillStyle = colors.log;
+                ctx.beginPath();
+                ctx.roundRect(this.x + 2, this.y + 4, this.w - 4, this.h - 8, 10);
+                ctx.fill();
+            } else {
+                const wiggle = Math.sin((frameCount + this.offset) * 0.1) * 5;
+                ctx.globalAlpha = this.isSubmerged ? 0.2 : 1.0;
+                ctx.fillStyle = colors.snake;
+                if (this.isSubmerged) {
+                    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                    ctx.beginPath();
+                    ctx.ellipse(this.x + 20, this.y + 20, 15 + wiggle, 5, 0, 0, Math.PI*2);
+                    ctx.stroke();
+                } else {
+                    for(let i=0; i<3; i++) {
+                        ctx.beginPath();
+                        ctx.ellipse(this.x + (i*12) + 10, this.y + 20 + (i % 2 === 0 ? wiggle : -wiggle), 12, 8, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    const headX = this.speed > 0 ? this.x + 35 : this.x + 5;
+                    ctx.beginPath();
+                    ctx.ellipse(headX, this.y + 20 + wiggle, 10, 10, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'yellow';
+                    ctx.fillRect(headX - (this.speed > 0 ? 0 : 4), this.y + 15 + wiggle, 3, 3);
+                }
+                ctx.globalAlpha = 1.0;
+            }
+        }
+    }
+
+    let hopper = new Hopper();
+    let rows = [];
+
+    function initLevel() {
+        rows = [];
+        const baseSpeed = 0.8 + (level * 0.4);
+        for (let i = 1; i < ROWS - 1; i++) {
+            const isHazardZone = i > 6;
+            const rowData = {
+                y: i * GRID,
+                obstacles: [],
+                speed: (Math.random() > 0.5 ? 1 : -1) * (baseSpeed * (0.7 + Math.random() * 0.6)),
+                type: isHazardZone ? 'snake' : 'log'
+            };
+            const count = isHazardZone ? 3 : 2;
+            const spacing = canvas.width / count;
+            for (let j = 0; j < count; j++) {
+                rowData.obstacles.push(new Obstacle(j * spacing, i * GRID, isHazardZone ? GRID : GRID * 2.8, rowData.speed, rowData.type));
+            }
+            rows.push(rowData);
+        }
+        bubbles = [];
+    }
+
+    function updateScore(val) {
+        score += val;
+        scoreDisplay.textContent = score;
+    }
+
+    function die() {
+        lives--;
+        livesDisplay.textContent = lives;
+        playSound('die');
+        createExplosion(hopper.x + GRID/2, hopper.y + GRID/2, colors.tongue);
+        if (lives <= 0) gameOver(); else hopper.reset();
+    }
+
+    function rescueHopper() {
+        savedInLevel++;
+        savedDisplay.textContent = savedInLevel;
+        updateScore(200);
+        playSound('rescue');
+        createExplosion(hopper.x + GRID/2, hopper.y + GRID/2, colors.baby);
+        if (savedInLevel >= 3) nextLevel(); else hopper.reset();
+    }
+
+    function nextLevel() {
+        level++;
+        savedInLevel = 0;
+        levelDisplay.textContent = level;
+        savedDisplay.textContent = savedInLevel;
+        updateScore(1000);
+        playSound('win');
+        hopper.reset();
+        initLevel();
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        playSound('die');
+        titleText.textContent = "GAME OVER";
+        msgText.textContent = `You saved ${level * 3 + savedInLevel - 3} hoppers. Score: ${score}`;
+        overlay.style.display = "flex";
+    }
+
+    function startGame() {
+        initAudio();
+        level = 1; score = 0; lives = 3; savedInLevel = 0;
+        levelDisplay.textContent = level; scoreDisplay.textContent = score;
+        livesDisplay.textContent = lives; savedDisplay.textContent = savedInLevel;
+        hopper.reset(); initLevel();
+        overlay.style.display = "none";
+        gameRunning = true;
+    }
+
+    function handleControl(dir) {
+        if (dir === 'up') hopper.move(0, -1);
+        if (dir === 'down') hopper.move(0, 1);
+        if (dir === 'left') hopper.move(-1, 0);
+        if (dir === 'right') hopper.move(1, 0);
+    }
+
+    window.addEventListener('keydown', e => {
+        if (e.key === 'ArrowUp' || e.key === 'w') handleControl('up');
+        if (e.key === 'ArrowDown' || e.key === 's') handleControl('down');
+        if (e.key === 'ArrowLeft' || e.key === 'a') handleControl('left');
+        if (e.key === 'ArrowRight' || e.key === 'd') handleControl('right');
+    });
+
+    function createExplosion(x, y, color) {
+        for (let i = 0; i < 12; i++) {
+            particles.push({ x, y, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, life: 1.0, color });
+        }
+    }
+
+    function drawBackground() {
+        ctx.fillStyle = colors.grass;
+        ctx.fillRect(0, 0, canvas.width, GRID);
+        for(let i=0; i<3; i++) {
+            const slotX = (i + 1) * (canvas.width / 4) - GRID/2;
+            if (i >= savedInLevel) {
+                ctx.fillStyle = colors.baby;
+                ctx.beginPath(); ctx.arc(slotX + GRID/2, GRID/2, 12, 0, Math.PI*2); ctx.fill();
+            } else {
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                ctx.strokeRect(slotX + 10, 10, 20, 20);
+            }
+        }
+        ctx.fillStyle = colors.grass;
+        ctx.fillRect(0, (ROWS - 1) * GRID, canvas.width, GRID);
+        ctx.fillRect(0, 6 * GRID, canvas.width, GRID);
+        ctx.fillStyle = colors.water;
+        ctx.fillRect(0, GRID, canvas.width, 5 * GRID);
+        ctx.fillStyle = colors.sludge;
+        ctx.fillRect(0, 7 * GRID, canvas.width, 5 * GRID);
+    }
+
+    function spawnBubble() {
+        if (Math.random() < 0.02 + (level * 0.005)) {
+            bubbles.push({
+                x: Math.random() * canvas.width,
+                y: (7 + Math.floor(Math.random() * 5)) * GRID + GRID/2,
+                size: 2,
+                maxSize: 15 + Math.random() * 10,
+                burst: false
+            });
+        }
+    }
+
+    function update() {
+        if (!gameRunning) return;
+        frameCount++;
+        spawnBubble();
+
+        let onLog = false;
+        if (hopper.y === 0) { rescueHopper(); return; }
+
+        rows.forEach(row => {
+            row.obstacles.forEach(obs => {
+                obs.update();
+                if (hopper.x < obs.x + obs.w && hopper.x + hopper.w > obs.x &&
+                    hopper.y < obs.y + obs.h && hopper.y + hopper.h > obs.y) {
+                    if (obs.type === 'snake' && !obs.isSubmerged) die();
+                    else if (obs.type === 'log') { onLog = true; hopper.x += obs.speed; }
+                }
+            });
+        });
+
+        bubbles.forEach((b, i) => {
+            b.size += 0.3;
+            if (b.size >= b.maxSize) b.burst = true;
+            if (b.burst) {
+                playSound('pop');
+                if (Math.abs(hopper.x + GRID/2 - b.x) < 20 && Math.abs(hopper.y + GRID/2 - b.y) < 20) die();
+                bubbles.splice(i, 1);
+            }
+        });
+
+        if (hopper.y > 0 && hopper.y < 6 * GRID && !onLog) die();
+        if (hopper.x < 0 || hopper.x + hopper.w > canvas.width) die();
+
+        particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.life -= 0.03;
+            if (p.life <= 0) particles.splice(i, 1);
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBackground();
+        ctx.fillStyle = colors.bubble;
+        ctx.strokeStyle = '#fff';
+        bubbles.forEach(b => {
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        });
+        rows.forEach(row => row.obstacles.forEach(obs => obs.draw()));
+        hopper.draw();
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, 4, 4);
+        });
+        ctx.globalAlpha = 1;
+        requestAnimationFrame(() => { update(); draw(); });
+    }
+
+    draw();
+</script>
+<a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

@@ -1,0 +1,512 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Cyber Squeeze is a high-speed arcade action game inspired by the classic Tapper. Serve energy batteries to thirsty androids across multiple lanes, catch empty casings to maintain station integrity, and survive increasingly fast levels in a neon-lit cyberpunk environment.
+TAGS: Arcade, Retro, Action, Cyberpunk, Skill-based
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyber Squeeze - Arcade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050507;
+            color: #00f2ff;
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #game-container {
+            position: relative;
+            height: 90vh;
+            aspect-ratio: 4 / 3;
+            background: linear-gradient(180deg, #0f0f13 0%, #050505 100%);
+            border: 2px solid #1a1a2e;
+            box-shadow: 0 0 40px rgba(0, 242, 255, 0.15), inset 0 0 20px rgba(0,0,0,1);
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .bar-lane {
+            position: absolute;
+            left: 0;
+            width: 85%;
+            height: 1.5%;
+            background: linear-gradient(90deg, #222, #000);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+            border-radius: 4px;
+            border-bottom: 1px solid #333;
+        }
+
+        .player {
+            position: absolute;
+            width: 7%;
+            height: 10%;
+            transition: top 0.1s ease-out;
+            z-index: 10;
+        }
+
+        .customer {
+            position: absolute;
+            width: 6%;
+            height: 9%;
+            z-index: 5;
+        }
+
+        .energy-cell {
+            position: absolute;
+            width: 4.5%;
+            height: 3.5%;
+            z-index: 8;
+        }
+
+        .ui-panel {
+            position: absolute;
+            top: 2%;
+            left: 2%;
+            right: 2%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1% 2%;
+            background: rgba(0,0,0,0.85);
+            border: 1px solid rgba(0, 242, 255, 0.3);
+            border-radius: 8px;
+            z-index: 100;
+            font-size: 1.8vh;
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            text-align: center;
+            padding: 5%;
+        }
+
+        .btn {
+            background: #00f2ff;
+            color: #000;
+            padding: 1.5vh 4vh;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 3%;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            font-size: 2vh;
+        }
+
+        .btn:hover {
+            background: #fff;
+            box-shadow: 0 0 20px #00f2ff;
+        }
+
+        .sound-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .switch {
+            width: 3.5vh;
+            height: 1.8vh;
+            background: #222;
+            border-radius: 20px;
+            position: relative;
+            border: 1px solid #00f2ff;
+        }
+
+        .switch::after {
+            content: '';
+            position: absolute;
+            top: 10%;
+            left: 5%;
+            width: 40%;
+            height: 80%;
+            background: #00f2ff;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .switch.on::after {
+            left: 55%;
+            box-shadow: 0 0 10px #00f2ff;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 4%;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 5%;
+            z-index: 200;
+        }
+
+        .ctrl-btn {
+            width: 8vh;
+            height: 8vh;
+            background: rgba(0, 242, 255, 0.1);
+            border: 2px solid #00f2ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #00f2ff;
+            font-size: 3vh;
+        }
+
+        .instruction-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2%;
+            margin: 4% 0;
+            text-align: left;
+            font-size: 1.6vh;
+        }
+
+        .instruction-item {
+            background: rgba(0, 242, 255, 0.05);
+            padding: 1.5vh;
+            border-left: 3px solid #00f2ff;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="ui-panel">
+        <div>SCORE: <span id="score-val" class="text-white">0</span></div>
+        <div class="hidden sm:block text-[1.4vh]">LEVEL: <span id="level-val" class="text-white">1</span></div>
+        <div>HP: <span id="hp-val" class="text-white">100</span>%</div>
+        <div class="sound-toggle" onclick="toggleSound()">
+            <span class="text-[1vh]">AUDIO</span>
+            <div id="sound-switch" class="switch on"></div>
+        </div>
+    </div>
+
+    <!-- The 4 Lanes -->
+    <div class="bar-lane" style="top: 20%;"></div>
+    <div class="bar-lane" style="top: 40%;"></div>
+    <div class="bar-lane" style="top: 60%;"></div>
+    <div class="bar-lane" style="top: 80%;"></div>
+
+    <div id="entities"></div>
+
+    <!-- Start/Instructions Screen -->
+    <div id="start-screen" class="overlay">
+        <h1 class="text-[5vh] font-bold mb-1 tracking-widest text-cyan-400">CYBER SQUEEZE</h1>
+        <p class="text-[1.2vh] text-gray-400 uppercase tracking-[0.5em] mb-4">Android Recharge Protocol</p>
+        
+        <div class="instruction-grid w-full max-w-2xl">
+            <div class="instruction-item">
+                <span class="text-cyan-400 font-bold">⚡ SERVE:</span>
+                <p>Launch batteries to thirsty droids.</p>
+            </div>
+            <div class="instruction-item">
+                <span class="text-cyan-400 font-bold">♻️ RECYCLE:</span>
+                <p>Catch empty casings returning to you.</p>
+            </div>
+            <div class="instruction-item">
+                <span class="text-cyan-400 font-bold">🚫 DEFEND:</span>
+                <p>Don't let droids reach your terminal.</p>
+            </div>
+            <div class="instruction-item">
+                <span class="text-cyan-400 font-bold">🎮 CONTROLS:</span>
+                <p>Arrows: Lanes / Space: Launch</p>
+            </div>
+        </div>
+
+        <div class="btn" onclick="startGame()">Initiate Sequence</div>
+    </div>
+
+    <div id="game-over-screen" class="overlay hidden">
+        <h1 class="text-[5vh] font-bold mb-2 text-red-500">SYSTEM CRASH</h1>
+        <p id="final-score" class="text-[3vh] mb-6 text-cyan-400 font-bold">Final Score: 0</p>
+        <div class="btn" onclick="location.reload()">System Reboot</div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div class="controls md:hidden">
+        <div class="ctrl-btn" id="btn-up">▲</div>
+        <div class="ctrl-btn" id="btn-serve">⚡</div>
+        <div class="ctrl-btn" id="btn-down">▼</div>
+    </div>
+</div>
+
+<script>
+    const container = document.getElementById('game-container');
+    const entitiesLayer = document.getElementById('entities');
+    const scoreVal = document.getElementById('score-val');
+    const levelVal = document.getElementById('level-val');
+    const hpVal = document.getElementById('hp-val');
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const soundSwitch = document.getElementById('sound-switch');
+
+    // Game Config - Percentages for scaling
+    const LANE_COUNT = 4;
+    const LANE_Y_PCT = [20, 40, 60, 80];
+    const PLAYER_X_PCT = 85;
+    const CUSTOMER_START_X_PCT = 5;
+
+    let gameActive = false;
+    let score = 0;
+    let level = 1;
+    let hp = 100;
+    let currentLane = 0;
+    let customers = [];
+    let cells = [];
+    let emptyCells = [];
+    let spawnTimer = 0;
+    let soundEnabled = true;
+
+    // --- Audio System ---
+    let audioCtx = null;
+    function initAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playSound(freq, type, duration, vol = 0.05, slide = 0) {
+        if (!soundEnabled || !audioCtx) return;
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            if (slide !== 0) osc.frequency.exponentialRampToValueAtTime(slide, audioCtx.currentTime + duration);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        } catch(e) {}
+    }
+
+    const SFX = {
+        serve: () => playSound(600, 'square', 0.1, 0.03, 200),
+        hit: () => playSound(300, 'sine', 0.1, 0.05),
+        catch: () => playSound(1000, 'sine', 0.1, 0.05, 1200),
+        damage: () => playSound(80, 'sawtooth', 0.4, 0.08, 40),
+        level: () => {
+            [440, 554, 659].forEach((f, i) => setTimeout(() => playSound(f, 'triangle', 0.15), i * 120));
+        }
+    };
+
+    function toggleSound() {
+        soundEnabled = !soundEnabled;
+        soundSwitch.className = soundEnabled ? 'switch on' : 'switch';
+        if (soundEnabled) initAudio();
+    }
+
+    // --- Graphics ---
+    const playerSvg = `<svg viewBox="0 0 50 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="15" width="30" height="40" rx="4" fill="#00f2ff" fill-opacity="0.2" stroke="#00f2ff" stroke-width="2"/>
+        <circle cx="25" cy="8" r="6" fill="#00f2ff" fill-opacity="0.8"/>
+        <rect x="22" y="14" width="6" height="4" fill="#00f2ff"/>
+        <rect x="15" y="25" width="20" height="3" fill="#00f2ff"/>
+        <path d="M10 35 L5 45 M40 35 L45 45" stroke="#00f2ff" stroke-width="2"/>
+    </svg>`;
+
+    const androidSvg = `<svg viewBox="0 0 50 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="12" y="12" width="26" height="22" rx="2" fill="#ff0055" fill-opacity="0.2" stroke="#ff0055" stroke-width="2"/>
+        <rect x="15" y="34" width="20" height="20" fill="#330011" stroke="#ff0055" stroke-width="2"/>
+        <circle cx="20" cy="20" r="2" fill="#ff0055">
+            <animate attributeName="opacity" values="1;0.2;1" dur="1s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="30" cy="20" r="2" fill="#ff0055">
+            <animate attributeName="opacity" values="1;0.2;1" dur="1s" repeatCount="indefinite" />
+        </circle>
+        <path d="M25 12 L25 5 M22 5 L28 5" stroke="#ff0055" stroke-width="1.5"/>
+        <path d="M12 40 L6 45 M38 40 L44 45" stroke="#ff0055" stroke-width="2"/>
+    </svg>`;
+
+    const batterySvg = `<svg viewBox="0 0 40 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="4" width="32" height="17" rx="2" fill="#00f2ff" fill-opacity="0.1" stroke="#00f2ff" stroke-width="2"/>
+        <rect x="34" y="8" width="4" height="9" rx="1" fill="#00f2ff"/>
+        <rect x="6" y="8" width="6" height="9" fill="#00f2ff" fill-opacity="0.8"/>
+        <rect x="14" y="8" width="6" height="9" fill="#00f2ff" fill-opacity="0.5"/>
+        <rect x="22" y="8" width="6" height="9" fill="#00f2ff" fill-opacity="0.2"/>
+    </svg>`;
+
+    const playerEl = document.createElement('div');
+    playerEl.className = 'player';
+    playerEl.innerHTML = playerSvg;
+    entitiesLayer.appendChild(playerEl);
+
+    function updatePlayerPos() {
+        playerEl.style.top = (LANE_Y_PCT[currentLane] - 10) + '%';
+        playerEl.style.left = PLAYER_X_PCT + '%';
+    }
+
+    function startGame() {
+        initAudio();
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        gameActive = true;
+        score = 0; level = 1; hp = 100; currentLane = 0;
+        customers.forEach(c => c.el.remove());
+        cells.forEach(c => c.el.remove());
+        emptyCells.forEach(c => c.el.remove());
+        customers = []; cells = []; emptyCells = [];
+        updateUI();
+        updatePlayerPos();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function spawnCustomer() {
+        const lane = Math.floor(Math.random() * LANE_COUNT);
+        const el = document.createElement('div');
+        el.className = 'customer';
+        el.innerHTML = androidSvg;
+        entitiesLayer.appendChild(el);
+        customers.push({ el, lane, x: CUSTOMER_START_X_PCT, speed: 0.15 + (level * 0.05) });
+    }
+
+    function serveCell() {
+        SFX.serve();
+        const el = document.createElement('div');
+        el.className = 'energy-cell';
+        el.innerHTML = batterySvg;
+        entitiesLayer.appendChild(el);
+        cells.push({ el, lane: currentLane, x: PLAYER_X_PCT - 5, speed: 1.2 });
+    }
+
+    function gameLoop() {
+        if (!gameActive) return;
+
+        spawnTimer++;
+        const spawnRate = Math.max(40, 180 - (level * 20));
+        if (spawnTimer > spawnRate) {
+            spawnCustomer();
+            spawnTimer = 0;
+        }
+
+        customers.forEach((c) => {
+            c.x += c.speed;
+            c.el.style.left = c.x + '%';
+            c.el.style.top = (LANE_Y_PCT[c.lane] - 9) + '%';
+            if (c.x > PLAYER_X_PCT - 6) {
+                takeDamage(20);
+                removeEntity(c, customers);
+            }
+        });
+
+        cells.forEach((cell) => {
+            cell.x -= cell.speed;
+            cell.el.style.left = cell.x + '%';
+            cell.el.style.top = (LANE_Y_PCT[cell.lane] - 3.5) + '%';
+            let hit = false;
+            customers.forEach((cust) => {
+                if (!hit && cust.lane === cell.lane && Math.abs(cust.x - cell.x) < 5) {
+                    score += 100;
+                    hit = true;
+                    SFX.hit();
+                    createEmptyCell(cust.lane, cust.x);
+                    removeEntity(cust, customers);
+                }
+            });
+            if (hit || cell.x < CUSTOMER_START_X_PCT) {
+                if (!hit) takeDamage(5);
+                removeEntity(cell, cells);
+            }
+        });
+
+        emptyCells.forEach((ec) => {
+            ec.x += ec.speed;
+            ec.el.style.left = ec.x + '%';
+            ec.el.style.top = (LANE_Y_PCT[ec.lane] - 3.5) + '%';
+            if (ec.x > PLAYER_X_PCT - 2) {
+                if (currentLane === ec.lane) {
+                    score += 50;
+                    SFX.catch();
+                } else {
+                    takeDamage(10);
+                }
+                removeEntity(ec, emptyCells);
+            }
+        });
+
+        if (score >= level * 2000) {
+            level++;
+            hp = Math.min(100, hp + 15);
+            SFX.level();
+            updateUI();
+        }
+
+        updateUI();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function createEmptyCell(lane, x) {
+        const el = document.createElement('div');
+        el.className = 'energy-cell';
+        el.style.filter = 'grayscale(1) brightness(0.5)';
+        el.innerHTML = batterySvg;
+        entitiesLayer.appendChild(el);
+        emptyCells.push({ el, lane, x, speed: 0.7 });
+    }
+
+    function removeEntity(obj, array) {
+        if (obj.el) obj.el.remove();
+        const index = array.indexOf(obj);
+        if (index > -1) array.splice(index, 1);
+    }
+
+    function takeDamage(amount) {
+        hp -= amount;
+        SFX.damage();
+        container.style.boxShadow = 'inset 0 0 60px rgba(255,0,0,0.4), 0 0 40px rgba(0, 242, 255, 0.15)';
+        setTimeout(() => container.style.boxShadow = '0 0 40px rgba(0, 242, 255, 0.15), inset 0 0 20px rgba(0,0,0,1)', 200);
+        if (hp <= 0) endGame();
+    }
+
+    function updateUI() {
+        scoreVal.innerText = score;
+        levelVal.innerText = level;
+        hpVal.innerText = Math.max(0, hp);
+    }
+
+    function endGame() {
+        gameActive = false;
+        gameOverScreen.classList.remove('hidden');
+        document.getElementById('final-score').innerText = `Final Score: ${score}`;
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (!gameActive) return;
+        if (e.code === 'ArrowUp') { currentLane = (currentLane - 1 + LANE_COUNT) % LANE_COUNT; updatePlayerPos(); }
+        if (e.code === 'ArrowDown') { currentLane = (currentLane + 1) % LANE_COUNT; updatePlayerPos(); }
+        if (e.code === 'Space') { e.preventDefault(); serveCell(); }
+    });
+
+    // Mobile inputs
+    document.getElementById('btn-up').onpointerdown = (e) => { e.preventDefault(); currentLane = (currentLane - 1 + LANE_COUNT) % LANE_COUNT; updatePlayerPos(); };
+    document.getElementById('btn-down').onpointerdown = (e) => { e.preventDefault(); currentLane = (currentLane + 1) % LANE_COUNT; updatePlayerPos(); };
+    document.getElementById('btn-serve').onpointerdown = (e) => { e.preventDefault(); serveCell(); };
+</script>
+
+<a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

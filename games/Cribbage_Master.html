@@ -1,0 +1,825 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Cribbage Master: A feature-rich Cribbage game featuring an authentic S-track board, animated leapfrog pegging, and a statistical advisor. Play against a professional AI in a tournament-style environment with automatic scoring, synthesized sound effects, and celebratory fireworks.
+TAGS: Cards, Games, Board Game, AI, Cribbage
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cribbage Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0c0c0c;
+            color: #e5e5e5;
+            overflow: hidden; 
+            height: 100vh;
+        }
+
+        /* Authentic Wood S-Track Board */
+        .crib-board {
+            background-color: #f3d5b5; 
+            background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+            border: 4px solid #5d4037;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 40px rgba(93, 64, 55, 0.3);
+            width: 240px;
+            height: 100%;
+            padding: 8px 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-bottom: 10px solid #3e2723;
+        }
+
+        .track-container {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+            padding: 2px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 8px;
+            width: 100%;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .lane {
+            display: flex;
+            flex-direction: column;
+            width: 60px;
+            border-radius: 30px;
+            padding: 2px 2px;
+            position: relative;
+        }
+        .lane-red { background: rgba(185, 28, 28, 0.08); border: 1px solid rgba(185, 28, 28, 0.1); }
+        .lane-blue { background: rgba(29, 78, 216, 0.08); border: 1px solid rgba(29, 78, 216, 0.1); }
+
+        .hole-pair {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            padding: 0.5px 0;
+            position: relative;
+        }
+
+        .hole {
+            width: 9px;
+            height: 9px;
+            background: #1a110e;
+            border-radius: 50%;
+            box-shadow: inset 1px 1px 2px rgba(0,0,0,0.9);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Skunk Lines */
+        .hole.skunk::after {
+            content: 'S';
+            position: absolute;
+            font-size: 6px;
+            font-weight: 900;
+            color: #7f1d1d;
+            top: -8px;
+        }
+        .hole-pair.skunk-line { border-top: 1px solid rgba(127, 29, 29, 0.5); margin-top: 2px; }
+
+        .hole-pair.divider {
+            margin-bottom: 3px;
+            border-bottom: 1px solid rgba(45, 27, 16, 0.25);
+            padding-bottom: 1px;
+        }
+
+        .hole-num {
+            position: absolute;
+            font-size: 7px;
+            font-weight: 900;
+            color: #2d1b10;
+            right: -12px;
+            top: 0;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .peg {
+            width: 8px;
+            height: 18px;
+            border-radius: 4px 4px 2px 2px;
+            position: absolute;
+            top: -12px;
+            z-index: 50;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.7);
+            transition: all 0.1s linear;
+        }
+        .peg-p1 { background: #ef4444; border: 1px solid #7f1d1d; background-image: linear-gradient(to bottom, #f87171, #b91c1c); }
+        .peg-p1.trail { opacity: 0.5; transform: scale(0.85); z-index: 40; }
+        
+        .peg-p2 { background: #3b82f6; border: 1px solid #1e3a8a; background-image: linear-gradient(to bottom, #60a5fa, #1d4ed8); }
+        .peg-p2.trail { opacity: 0.5; transform: scale(0.85); z-index: 40; }
+
+        .special-area {
+            width: 100%;
+            background: rgba(0,0,0,0.08);
+            border-radius: 8px;
+            padding: 4px;
+            margin: 2px 0;
+            text-align: center;
+            border: 1px solid rgba(45, 27, 16, 0.15);
+        }
+        .special-label {
+            font-size: 8px;
+            font-weight: 900;
+            color: #2d1b10;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+        }
+
+        .card {
+            width: 85px;
+            height: 120px;
+            background: white;
+            border-radius: 10px;
+            color: black;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            user-select: none;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.6);
+            position: relative;
+            overflow: hidden;
+        }
+        .card:hover { transform: translateY(-10px); z-index: 50; }
+        .card.selected { outline: 4px solid #facc15; transform: translateY(-15px); }
+        .card.advisor-hint { outline: 4px solid #10b981; animation: pulse 2s infinite; }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0); }
+        }
+
+        .card.back {
+            background: #991b1b;
+            background-image: radial-gradient(circle, transparent 20%, #7f1d1d 20%, #7f1d1d 80%, transparent 80%, transparent), radial-gradient(circle, transparent 20%, #7f1d1d 20%, #7f1d1d 80%, transparent 80%, transparent) 25px 25px;
+            background-size: 50px 50px;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .rank-text { font-size: 3rem; line-height: 1; font-weight: 900; letter-spacing: -2px; }
+        .suit-corner { font-size: 1.5rem; font-weight: 900; margin-left: auto; line-height: 1; }
+        .suit-center { font-size: 4.5rem; line-height: 1; opacity: 0.9; margin-top: 4px; text-align: center; width: 100%; }
+
+        .suit-red { color: #dc2626; }
+        .suit-black { color: #171717; }
+
+        .dealing { animation: cardDeal 0.4s ease-out forwards; }
+        @keyframes cardDeal {
+            from { transform: translate(-300px, -300px) rotate(-20deg); opacity: 0; }
+            to { transform: translate(0, 0) rotate(0); opacity: 1; }
+        }
+
+        #fireworks-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="flex p-3 gap-6 relative">
+    <canvas id="fireworks-canvas"></canvas>
+
+    <!-- CRIB BOARD -->
+    <div class="crib-board shrink-0">
+        <div class="special-area">
+            <div class="special-label">Start</div>
+            <div class="flex justify-center gap-4 mt-1">
+                <div class="hole" id="hole-p1-0"></div>
+                <div class="hole" id="hole-p2-0"></div>
+            </div>
+        </div>
+
+        <div class="track-container">
+            <div id="lane-0" class="lane lane-red"></div>
+            <div id="lane-1" class="lane lane-blue"></div>
+            <div id="lane-2" class="lane lane-red"></div>
+        </div>
+        
+        <div class="special-area mt-auto">
+            <div class="special-label">Finish 121</div>
+            <div class="flex justify-center gap-4 mt-1">
+                <div class="hole" id="hole-p1-121"></div>
+                <div class="hole" id="hole-p2-121"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN INTERFACE -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden">
+        <div class="flex justify-between items-center mb-2 px-2 shrink-0">
+            <div>
+                <h1 class="text-4xl font-black text-white leading-none tracking-tighter">Cribbage<span class="text-red-600">Master</span></h1>
+                <div class="text-[11px] uppercase font-bold text-gray-400 mt-1 tracking-widest flex items-center gap-4">
+                    Tournament Edition
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox" id="sound-toggle" checked class="accent-red-600"> 
+                        <span class="text-[9px] text-gray-500 uppercase">Sound Effects</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="flex gap-4">
+                <div class="bg-red-900/20 border-2 border-red-500/30 px-8 py-2 rounded-2xl text-center shadow-lg min-w-[120px]">
+                    <div class="text-[10px] text-red-400 font-black uppercase tracking-widest">YOU</div>
+                    <div id="p1-score" class="text-2xl font-black">0</div>
+                </div>
+                <div class="bg-blue-900/20 border-2 border-blue-500/30 px-8 py-2 rounded-2xl text-center shadow-lg min-w-[120px]">
+                    <div class="text-[10px] text-blue-400 font-black uppercase tracking-widest">BOT</div>
+                    <div id="p2-score" class="text-2xl font-black">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col gap-4 min-h-0">
+            <div class="flex gap-4 flex-1 min-h-0">
+                <div class="flex-1 flex flex-col gap-3 min-h-0">
+                    <div class="h-28 bg-white/[0.03] rounded-3xl border border-white/10 flex items-center justify-center relative shrink-0">
+                        <div id="p2-hand-display" class="flex gap-2"></div>
+                    </div>
+
+                    <div class="flex-1 bg-gradient-to-b from-emerald-950/10 to-transparent border-2 border-white/5 rounded-[2.5rem] flex flex-col items-center justify-start p-6 relative min-h-0">
+                        <div id="play-pile" class="flex justify-center items-center h-32 relative w-full mt-4"></div>
+                        <div class="text-center mt-6">
+                            <div id="count-display" class="text-7xl font-black text-yellow-500 drop-shadow-2xl">0</div>
+                            <div id="status-msg" class="text-xs text-gray-400 mt-2 font-black uppercase tracking-[0.2em]">Press Deal</div>
+                        </div>
+                        <div id="starter-card-area" class="absolute left-8 bottom-8 flex flex-col items-center">
+                            <span class="text-[10px] text-white/30 mb-2 uppercase font-black tracking-widest">Starter</span>
+                            <div id="starter-card"></div>
+                        </div>
+                        <div id="action-layer" class="mt-auto mb-4 flex gap-6">
+                            <button id="main-action-btn" class="bg-yellow-500 hover:bg-yellow-400 text-black px-14 py-4 rounded-full font-black shadow-2xl active:scale-95 uppercase tracking-widest text-base">DEAL</button>
+                            <button id="go-btn" class="hidden bg-white/5 hover:bg-white/10 text-white border-2 border-white/10 px-14 py-4 rounded-full font-black transition-all uppercase tracking-widest text-base">GO</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-72 bg-indigo-900/10 border border-indigo-500/20 rounded-[2rem] p-6 flex flex-col justify-center text-center shrink-0">
+                    <h3 class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-3">ADVISOR</h3>
+                    <div id="advisor-content" class="flex-1 overflow-y-auto">
+                        <p id="advisor-text" class="text-sm font-medium text-indigo-100/80 leading-snug">Ready to play.</p>
+                        <div id="count-breakdown" class="hidden text-left mt-4 text-[11px] font-mono text-indigo-200/60 bg-black/20 p-3 rounded-lg border border-white/5"></div>
+                    </div>
+                    <button id="help-btn" class="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-black transition-all uppercase tracking-widest text-white shadow-xl border-b-4 border-indigo-800 hidden">GET HINT</button>
+                    <div class="mt-4 pt-4 border-t border-white/5">
+                        <span id="crib-owner" class="text-yellow-600 font-black uppercase text-xs tracking-widest"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="h-44 bg-white/[0.03] rounded-3xl border border-white/10 flex items-center justify-center relative p-4 shrink-0">
+                <div class="absolute top-3 left-8 text-[10px] font-black text-white/10 uppercase tracking-widest">Your Cards</div>
+                <div id="p1-hand-display" class="flex gap-4 items-center"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="score-popup" class="fixed inset-0 pointer-events-none flex items-center justify-center z-[100] opacity-0 transition-opacity">
+        <div class="bg-yellow-500 text-black px-10 py-4 rounded-full text-5xl font-black shadow-2xl transform scale-50 transition-transform" id="score-popup-val">+2</div>
+    </div>
+
+    <script>
+        function incrementCounter() {
+          const filename = "Cribbage_Master.html";
+          fetch(`counter.php?file=${encodeURIComponent(filename)}`)
+              .catch(err => console.error("Counter failed:", err));
+        }
+        // AUDIO ENGINE
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, duration, vol) {
+            if (!document.getElementById('sound-toggle').checked) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sounds = {
+            click: () => playTone(800, 'sine', 0.1, 0.1),
+            peg: () => playTone(1200, 'triangle', 0.05, 0.1),
+            deal: () => playTone(200, 'square', 0.1, 0.05),
+            win: () => {
+                playTone(400, 'sine', 0.5, 0.2);
+                setTimeout(() => playTone(600, 'sine', 0.5, 0.2), 100);
+                setTimeout(() => playTone(800, 'sine', 0.5, 0.2), 200);
+            }
+        };
+
+        // GAME CONSTANTS
+        const SUITS = ['♠', '♥', '♦', '♣'];
+        const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        const VALUES = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10 };
+        const ORDER = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13 };
+
+        class Card {
+            constructor(rank, suit) {
+                this.rank = rank; this.suit = suit;
+                this.value = VALUES[rank]; this.order = ORDER[rank];
+                this.id = Math.random().toString(36).substr(2, 9);
+            }
+        }
+
+        // FIREWORKS ENGINE
+        const fwCanvas = document.getElementById('fireworks-canvas');
+        const fwCtx = fwCanvas.getContext('2d');
+        let fwParticles = [];
+        function resizeFW() { fwCanvas.width = window.innerWidth; fwCanvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeFW);
+        resizeFW();
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                this.v = { x: (Math.random() - 0.5) * 10, y: (Math.random() - 0.5) * 10 };
+                this.alpha = 1;
+            }
+            draw() {
+                fwCtx.globalAlpha = this.alpha;
+                fwCtx.fillStyle = this.color;
+                fwCtx.beginPath();
+                fwCtx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                fwCtx.fill();
+            }
+            update() {
+                this.x += this.v.x; this.y += this.v.y;
+                this.v.y += 0.05; this.alpha -= 0.01;
+            }
+        }
+
+        function triggerFirework() {
+            const x = Math.random() * fwCanvas.width;
+            const y = Math.random() * fwCanvas.height * 0.5;
+            const color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            for (let i = 0; i < 30; i++) fwParticles.push(new Particle(x, y, color));
+            sounds.win();
+        }
+
+        function animateFW() {
+            fwCtx.clearRect(0, 0, fwCanvas.width, fwCanvas.height);
+            fwParticles = fwParticles.filter(p => p.alpha > 0);
+            fwParticles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(animateFW);
+        }
+        animateFW();
+
+        class Game {
+            constructor() {
+                this.p1Pegs = [0, 0, 0];
+                this.p2Pegs = [0, 0, 0];
+                this.dealer = 0; this.phase = 'START';
+                this.deck = []; 
+                this.originalHands = [[], []];
+                this.hands = [[], []];
+                this.crib = []; this.starter = null;
+                this.playPile = []; this.currentCount = 0;
+                this.turn = 0; this.p1Selected = []; this.passCount = 0;
+                this.lastToPlay = null;
+                this.showPhaseStep = 0;
+                this.isAnimating = false;
+
+                this.initBoard();
+                this.setupListeners();
+            }
+
+            initBoard() {
+                for (let laneIdx = 0; laneIdx < 3; laneIdx++) {
+                    const lane = document.getElementById(`lane-${laneIdx}`);
+                    lane.innerHTML = '';
+                    for (let i = 0; i < 40; i++) {
+                        const holePair = document.createElement('div');
+                        holePair.className = 'hole-pair';
+                        const trackVal = (laneIdx * 40) + i + 1;
+                        if (trackVal % 5 === 0) holePair.classList.add('divider');
+                        const h1 = document.createElement('div'); h1.className = 'hole'; h1.id = `hole-p1-${trackVal}`;
+                        const h2 = document.createElement('div'); h2.className = 'hole'; h2.id = `hole-p2-${trackVal}`;
+                        if (trackVal === 61) { h1.classList.add('skunk'); h2.classList.add('skunk'); }
+                        if (trackVal === 91) { h1.classList.add('skunk'); h2.classList.add('skunk'); }
+                        if (trackVal % 5 === 0) {
+                            const lbl = document.createElement('span'); lbl.className = 'hole-num'; lbl.innerText = trackVal;
+                            h2.appendChild(lbl);
+                        }
+                        holePair.appendChild(h1); holePair.appendChild(h2);
+                        if (laneIdx === 1) lane.prepend(holePair); else lane.appendChild(holePair);
+                    }
+                }
+                this.updatePegs();
+            }
+
+            setupListeners() {
+                document.getElementById('main-action-btn').addEventListener('click', () => {
+                    if (this.isAnimating) return;
+                    if (this.phase === 'START' || this.phase === 'GAMEOVER') this.deal();
+                    else if (this.phase === 'SHOW') this.advanceShowPhase();
+                });
+                document.getElementById('help-btn').addEventListener('click', () => this.showHint());
+                document.getElementById('go-btn').addEventListener('click', () => this.handleGo());
+            }
+
+            createDeck() {
+                this.deck = [];
+                for (let s of SUITS) for (let r of RANKS) this.deck.push(new Card(r, s));
+                for (let i = this.deck.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
+                }
+            }
+
+            async deal() {
+                // FIRE COUNTER ON NEW GAME START OR RESTART
+                if (this.phase === 'START' || this.phase === 'GAMEOVER') {
+                    incrementCounter(); 
+                }
+                
+                if (this.phase === 'GAMEOVER') {
+                    this.p1Pegs = [0, 0, 0];
+                    this.p2Pegs = [0, 0, 0];
+                }
+                this.isAnimating = true;
+                this.createDeck();
+                const h1Full = this.deck.splice(0, 6);
+                const h2Full = this.deck.splice(0, 6);
+                
+                this.hands = [[], []];
+                this.originalHands = [[...h1Full], [...h2Full]];
+                this.crib = []; this.playPile = []; this.currentCount = 0;
+                this.starter = null; this.phase = 'DISCARD';
+                this.p1Selected = []; this.passCount = 0;
+                this.lastToPlay = null;
+                this.dealer = 1 - this.dealer;
+                
+                document.getElementById('crib-owner').innerText = this.dealer === 0 ? "YOUR CRIB" : "BOT'S CRIB";
+                document.getElementById('main-action-btn').classList.add('hidden');
+                document.getElementById('main-action-btn').innerText = "DEAL";
+                document.getElementById('status-msg').innerText = "DEALING...";
+                document.getElementById('count-display').innerText = '0';
+                
+                this.renderStarter();
+                this.renderPlayPile();
+                this.updatePegs();
+
+                for (let i = 0; i < 6; i++) {
+                    this.hands[0].push(h1Full[i]);
+                    this.renderHands();
+                    sounds.deal();
+                    await new Promise(r => setTimeout(r, 150));
+                    this.hands[1].push(h2Full[i]);
+                    this.renderHands();
+                    sounds.deal();
+                    await new Promise(r => setTimeout(r, 150));
+                }
+
+                document.getElementById('status-msg').innerText = "DISCARD 2 CARDS";
+                document.getElementById('help-btn').classList.remove('hidden');
+                this.botDiscard();
+                this.isAnimating = false;
+            }
+
+            botDiscard() {
+                const hand = [...this.hands[1]];
+                let bestScore = -1;
+                let bestDiscardIdx = [0, 1];
+                for (let i = 0; i < 6; i++) {
+                    for (let j = i + 1; j < 6; j++) {
+                        const tempHand = hand.filter((_, idx) => idx !== i && idx !== j);
+                        const score = this.calculateBasicScore(tempHand);
+                        if (score > bestScore) { bestScore = score; bestDiscardIdx = [i, j]; }
+                    }
+                }
+                const d1 = this.hands[1][bestDiscardIdx[0]];
+                const d2 = this.hands[1][bestDiscardIdx[1]];
+                this.hands[1] = this.hands[1].filter(c => c !== d1 && c !== d2);
+                this.crib.push(d1, d2);
+                this.originalHands[1] = [...this.hands[1]];
+            }
+
+            renderHands() {
+                const p1Area = document.getElementById('p1-hand-display');
+                p1Area.innerHTML = '';
+                this.hands[0].forEach(card => {
+                    const cardEl = this.createCardUI(card);
+                    cardEl.onclick = () => this.handleCardClick(card, cardEl);
+                    if (this.p1Selected.includes(card.id)) cardEl.classList.add('selected');
+                    p1Area.appendChild(cardEl);
+                });
+                const p2Area = document.getElementById('p2-hand-display');
+                p2Area.innerHTML = '';
+                this.hands[1].forEach(() => {
+                    const back = document.createElement('div'); back.className = 'card back scale-75';
+                    p2Area.appendChild(back);
+                });
+            }
+
+            createCardUI(card) {
+                const div = document.createElement('div');
+                div.className = `card ${card.suit === '♥' || card.suit === '♦' ? 'suit-red' : 'suit-black'}`;
+                div.innerHTML = `<div class="flex items-start"><span class="rank-text">${card.rank}</span><span class="suit-corner">${card.suit}</span></div><div class="suit-center">${card.suit}</div>`;
+                return div;
+            }
+
+            handleCardClick(card, el) {
+                if (this.phase === 'DISCARD') {
+                    if (this.p1Selected.includes(card.id)) this.p1Selected = this.p1Selected.filter(id => id !== card.id);
+                    else if (this.p1Selected.length < 2) this.p1Selected.push(card.id);
+                    if (this.p1Selected.length === 2) this.confirmDiscard();
+                    this.renderHands();
+                    sounds.click();
+                } else if (this.phase === 'PLAY' && this.turn === 0) {
+                    this.playCard(0, card);
+                }
+            }
+
+            confirmDiscard() {
+                const discards = this.hands[0].filter(c => this.p1Selected.includes(c.id));
+                this.hands[0] = this.hands[0].filter(c => !this.p1Selected.includes(c.id));
+                this.originalHands[0] = [...this.hands[0]];
+                this.crib.push(...discards);
+                this.startPlayPhase();
+            }
+
+            startPlayPhase() {
+                this.phase = 'PLAY'; 
+                this.starter = this.deck.splice(0, 1)[0];
+                this.renderStarter();
+                document.getElementById('help-btn').classList.add('hidden');
+                if (this.starter.rank === 'J') this.addScore(1, 2, "His Heels");
+                this.turn = 1 - this.dealer; this.currentCount = 0; this.playPile = [];
+                this.updateStatus(); this.renderHands();
+                if (this.turn === 1) setTimeout(() => this.botPlay(), 800);
+            }
+
+            renderStarter() {
+                const area = document.getElementById('starter-card');
+                area.innerHTML = '';
+                if (this.starter) area.appendChild(this.createCardUI(this.starter));
+                else {
+                    const back = document.createElement('div'); back.className = 'card back opacity-30 scale-75';
+                    area.appendChild(back);
+                }
+            }
+
+            playCard(playerIndex, card) {
+                if (this.currentCount + card.value > 31) return;
+                sounds.click();
+                this.hands[playerIndex] = this.hands[playerIndex].filter(c => c.id !== card.id);
+                this.playPile.push({ card, player: playerIndex });
+                this.currentCount += card.value;
+                this.lastToPlay = playerIndex;
+                this.scorePegging(playerIndex);
+                this.turn = 1 - playerIndex; this.passCount = 0;
+                this.renderHands(); this.renderPlayPile(); this.updateStatus();
+                if (this.hands[0].length === 0 && this.hands[1].length === 0) setTimeout(() => this.resetCount(), 1000);
+                else if (this.turn === 1) setTimeout(() => this.botPlay(), 800);
+                else this.checkPlayerCanMove();
+            }
+
+            checkPlayerCanMove() {
+                if (this.hands[0].length === 0) {
+                    if (this.hands[1].length > 0) setTimeout(() => this.handleGo(), 500);
+                    return;
+                }
+                const canMove = this.hands[0].some(c => c.value + this.currentCount <= 31);
+                document.getElementById('go-btn').classList.toggle('hidden', canMove);
+            }
+
+            handleGo() {
+                this.turn = 1; this.passCount++;
+                document.getElementById('go-btn').classList.add('hidden');
+                if (this.passCount >= 2) this.resetCount();
+                else this.botPlay();
+            }
+
+            botPlay() {
+                if (this.phase !== 'PLAY' || this.turn !== 1) return;
+                const validCards = this.hands[1].filter(c => c.value + this.currentCount <= 31);
+                if (validCards.length > 0) this.playCard(1, validCards[0]);
+                else {
+                    this.passCount++; this.turn = 0;
+                    if (this.passCount >= 2) this.resetCount();
+                    else { this.updateStatus(); this.checkPlayerCanMove(); }
+                }
+            }
+
+            resetCount() {
+                if (this.currentCount !== 31 && this.lastToPlay !== null) this.addScore(this.lastToPlay, 1, "Go");
+                this.currentCount = 0; this.passCount = 0; this.playPile = [];
+                this.updateStatus(); this.renderPlayPile();
+                if (this.hands[0].length === 0 && this.hands[1].length === 0) this.startShowPhase();
+                else {
+                    this.turn = 1 - this.lastToPlay; this.lastToPlay = null;
+                    if (this.turn === 1) setTimeout(() => this.botPlay(), 600);
+                    else this.checkPlayerCanMove();
+                }
+            }
+
+            updateStatus() {
+                document.getElementById('count-display').innerText = this.currentCount;
+                document.getElementById('status-msg').innerText = this.turn === 0 ? "YOUR TURN" : "BOT THINKING...";
+            }
+
+            renderPlayPile() {
+                const pile = document.getElementById('play-pile'); pile.innerHTML = '';
+                const totalCards = Math.min(5, this.playPile.length);
+                const offset = 45;
+                const startLeft = -((totalCards - 1) * offset) / 2;
+                this.playPile.slice(-5).forEach((p, idx) => {
+                    const el = this.createCardUI(p.card); 
+                    el.style.position = 'absolute'; el.style.left = `calc(50% + ${startLeft + (idx * offset)}px)`;
+                    el.style.transform = 'translateX(-50%)'; el.style.zIndex = idx;
+                    pile.appendChild(el);
+                });
+            }
+
+            scorePegging(playerIndex) {
+                let pts = 0; 
+                if (this.currentCount === 31 || this.currentCount === 15) pts += 2;
+                const cards = this.playPile.map(p => p.card); const len = cards.length;
+                if (len >= 2 && cards[len-1].rank === cards[len-2].rank) {
+                    if (len >= 3 && cards[len-2].rank === cards[len-3].rank) {
+                        if (len >= 4 && cards[len-3].rank === cards[len-4].rank) pts += 12; else pts += 6;
+                    } else pts += 2;
+                }
+                if (len >= 3) {
+                    for (let k = 3; k <= Math.min(len, 7); k++) {
+                        const sub = cards.slice(len - k).map(c => c.order).sort((a,b) => a-b);
+                        let isRun = true;
+                        for (let i = 0; i < sub.length - 1; i++) if (sub[i+1] !== sub[i] + 1) isRun = false;
+                        if (isRun) { pts = k; break; } 
+                    }
+                }
+                if (pts > 0) this.addScore(playerIndex, pts, "Pegging Score");
+            }
+
+            async addScore(player, amt, reason) {
+                if (amt <= 0) return;
+                this.showScorePopup(amt);
+                const pegs = (player === 0) ? this.p1Pegs : this.p2Pegs;
+                const oldLead = pegs[0];
+                pegs[1] = oldLead;
+                for (let i = 0; i < amt; i++) {
+                    pegs[0]++;
+                    this.updatePegs();
+                    sounds.peg();
+                    await new Promise(r => setTimeout(r, 120));
+                    if (pegs[0] >= 121) break;
+                }
+
+                if (pegs[0] >= 121) {
+                    this.phase = 'GAMEOVER';
+                    document.getElementById('status-msg').innerText = player === 0 ? "YOU WON!" : "BOT WON!";
+                    if (player === 0) {
+                        let shotCount = 0;
+                        const interval = setInterval(() => {
+                            triggerFirework();
+                            shotCount++;
+                            if (shotCount >= 10) {
+                                clearInterval(interval);
+                                this.showNewGameButton();
+                            }
+                        }, 600);
+                    } else {
+                        this.showNewGameButton();
+                    }
+                }
+            }
+
+            showNewGameButton() {
+                const btn = document.getElementById('main-action-btn');
+                btn.innerText = "NEW GAME";
+                btn.classList.remove('hidden');
+            }
+
+            updatePegs() {
+                document.getElementById('p1-score').innerText = this.p1Pegs[0];
+                document.getElementById('p2-score').innerText = this.p2Pegs[0];
+                document.querySelectorAll('.peg').forEach(p => p.remove());
+                const draw = (pegs, pNum) => {
+                    const lead = Math.min(pegs[0], 121);
+                    const trail = Math.min(pegs[1], 121);
+                    const hLead = document.getElementById(`hole-p${pNum}-${lead}`);
+                    const hTrail = document.getElementById(`hole-p${pNum}-${trail}`);
+                    if (hLead) { const p = document.createElement('div'); p.className = `peg peg-p${pNum}`; hLead.appendChild(p); }
+                    if (hTrail && lead !== trail) { const p = document.createElement('div'); p.className = `peg peg-p${pNum} trail`; hTrail.appendChild(p); }
+                };
+                draw(this.p1Pegs, 1); draw(this.p2Pegs, 2);
+            }
+
+            showScorePopup(amt) {
+                const el = document.getElementById('score-popup'); const val = document.getElementById('score-popup-val');
+                val.innerText = `+${amt}`; el.style.opacity = '1'; val.style.transform = 'scale(1)';
+                setTimeout(() => { el.style.opacity = '0'; val.style.transform = 'scale(0.5)'; }, 1000);
+            }
+
+            startShowPhase() {
+                this.phase = 'SHOW'; this.showPhaseStep = 0;
+                document.getElementById('status-msg').innerText = "COUNTING PHASE";
+                document.getElementById('main-action-btn').classList.remove('hidden');
+                document.getElementById('main-action-btn').innerText = "NEXT: COUNT HAND";
+                this.advanceShowPhase();
+            }
+
+            advanceShowPhase() {
+                const nonDealer = 1 - this.dealer; const dealer = this.dealer;
+                const breakdownEl = document.getElementById('count-breakdown');
+                const pile = document.getElementById('play-pile');
+                breakdownEl.classList.remove('hidden');
+                pile.innerHTML = '';
+                let cardsToScore = []; let pIndex = -1; let isCrib = false; let title = "";
+
+                if (this.showPhaseStep === 0) { title = `${nonDealer === 0 ? "Your" : "Bot's"} Hand`; cardsToScore = this.originalHands[nonDealer]; pIndex = nonDealer; this.showPhaseStep = 1; document.getElementById('main-action-btn').innerText = "NEXT: DEALER HAND"; }
+                else if (this.showPhaseStep === 1) { title = `${dealer === 0 ? "Your" : "Bot's"} Hand`; cardsToScore = this.originalHands[dealer]; pIndex = dealer; this.showPhaseStep = 2; document.getElementById('main-action-btn').innerText = "NEXT: THE CRIB"; }
+                else if (this.showPhaseStep === 2) { title = "The Crib"; cardsToScore = this.crib; pIndex = dealer; isCrib = true; this.showPhaseStep = 3; document.getElementById('main-action-btn').innerText = "START NEXT ROUND"; }
+                else { this.deal(); return; }
+
+                const offset = 95; const startLeft = -((cardsToScore.length - 1) * offset) / 2;
+                cardsToScore.forEach((card, idx) => {
+                    const el = this.createCardUI(card); el.style.position = 'absolute';
+                    el.style.left = `calc(50% + ${startLeft + (idx * offset)}px)`; el.style.transform = 'translateX(-50%)';
+                    pile.appendChild(el);
+                });
+                const result = this.calculateDetailedScore(cardsToScore, this.starter, isCrib);
+                document.getElementById('advisor-text').innerText = title;
+                document.getElementById('count-display').innerText = result.total;
+                breakdownEl.innerHTML = result.breakdown.length > 0 ? result.breakdown.join("<br>") : "No points in hand.";
+                this.addScore(pIndex, result.total, "Hand Score");
+            }
+
+            calculateDetailedScore(hand, starter, isCrib) {
+                const cards = [...hand, starter]; let total = 0; let breakdown = [];
+                const combos = this.getCombinations(cards);
+                combos.forEach(c => { const sum = c.reduce((acc, card) => acc + card.value, 0); if (sum === 15) { total += 2; breakdown.push(`15 for 2 (${c.map(card => card.rank).join('+')})`); } });
+                for (let i = 0; i < cards.length; i++) for (let j = i + 1; j < cards.length; j++) if (cards[i].rank === cards[j].rank) { total += 2; breakdown.push(`Pair for 2 (${cards[i].rank}'s)`); }
+                const findRuns = (arr) => {
+                    const sorted = [...new Set(arr.map(c => c.order))].sort((a,b) => a-b);
+                    let runs = []; let cur = [sorted[0]];
+                    for (let i = 1; i < sorted.length; i++) if (sorted[i] === sorted[i-1] + 1) cur.push(sorted[i]); else { if (cur.length >= 3) runs.push(cur); cur = [sorted[i]]; }
+                    if (cur.length >= 3) runs.push(cur); return runs;
+                };
+                const runs = findRuns(cards);
+                runs.forEach(r => { const cnt = (o) => cards.filter(c => c.order === o).length; let mult = 1; r.forEach(o => mult *= cnt(o)); total += (r.length * mult); breakdown.push(`Run of ${r.length}${mult > 1 ? ' (x'+mult+')' : ''} for ${r.length * mult}`); });
+                const handSuits = hand.map(c => c.suit);
+                if (handSuits.every(s => s === handSuits[0])) {
+                    if (!isCrib) { if (starter.suit === handSuits[0]) { total += 5; breakdown.push("Flush for 5"); } else { total += 4; breakdown.push("Flush for 4"); } }
+                    else if (starter.suit === handSuits[0]) { total += 5; breakdown.push("Flush for 5"); }
+                }
+                hand.forEach(c => { if (c.rank === 'J' && c.suit === starter.suit) { total += 1; breakdown.push("His Nobs for 1"); } });
+                return { total, breakdown };
+            }
+
+            calculateBasicScore(cards) { return this.calculateDetailedScore(cards, this.starter || new Card('A', '♠'), false).total; }
+            getCombinations(array) {
+                let combinations = [];
+                let f = (prefix, array) => { for (let i = 0; i < array.length; i++) { combinations.push(prefix.concat(array[i])); f(prefix.concat(array[i]), array.slice(i + 1)); } };
+                f([], array); return combinations;
+            }
+
+            showHint() {
+                if (this.phase !== 'DISCARD') return;
+                const hand = [...this.hands[0]]; let bestS = -1; let bestD = [hand[0], hand[1]];
+                for (let i = 0; i < 6; i++) {
+                    for (let j = i + 1; j < 6; j++) {
+                        const kept = hand.filter((_, idx) => idx !== i && idx !== j); const disc = [hand[i], hand[j]];
+                        let s = this.calculateBasicScore(kept); let cp = this.calculateBasicScore(disc);
+                        if (this.dealer === 0) s += (cp * 0.5); else s -= (cp * 1.2);
+                        if (s > bestS) { bestS = s; bestD = disc; }
+                    }
+                }
+                const els = document.querySelectorAll('#p1-hand-display .card');
+                els.forEach(el => el.classList.remove('advisor-hint'));
+                this.hands[0].forEach((card, idx) => { if (bestD.find(c => c.id === card.id)) els[idx].classList.add('advisor-hint'); });
+                document.getElementById('advisor-text').innerText = "Maximize your total and manage the crib. Hint provided!";
+            }
+        }
+        const game = new Game();
+    </script>
+    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

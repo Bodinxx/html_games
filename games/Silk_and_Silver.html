@@ -1,0 +1,1289 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Levant Trade is a deep maritime strategy game set in the Mediterranean. Navigate historical ports to buy low and sell high on commodities ranging from grain to illicit hashish. Manage compounding debt, bank your profits in Venice, and upgrade your ship's hull and arsenal. You must balance cargo space with cannons to survive turn-based naval battles against the Borgia Syndicate in this high-stakes quest for fortune.
+TAGS: Strategy, Simulation, Trading, Adventure, Old School
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silk & Silver: Levant Trade</title>
+    <style>
+        :root {
+            --bg: #0c0c0c;
+            --amber: #ffb000;
+            --amber-dim: #946600;
+            --border: #444;
+            --paper: #1a1a1a;
+            --flash: #fff;
+            --danger: #ff4444;
+        }
+
+        /* Global Scrollbar Styling */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--amber-dim) var(--bg);
+        }
+
+        *::-webkit-scrollbar {
+            width: 8px;
+        }
+        *::-webkit-scrollbar-track {
+            background: var(--bg);
+            border-left: 1px solid var(--amber-dim);
+        }
+        *::-webkit-scrollbar-thumb {
+            background: var(--amber-dim);
+        }
+        *::-webkit-scrollbar-thumb:hover {
+            background: var(--amber);
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--amber);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            text-transform: uppercase;
+            overflow: hidden;
+        }
+
+        #setup-container, #game-container {
+            background-color: var(--paper);
+            width: 100%;
+            max-width: 800px;
+            border: 4px solid var(--amber);
+            padding: 30px;
+            box-shadow: 0 0 20px rgba(255, 176, 0, 0.2);
+            position: relative;
+        }
+
+        #game-container { display: none; }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid var(--amber);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+
+        h1, h2, h3 { margin: 0; letter-spacing: 2px; }
+
+        .setup-box {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        input[type="text"], input[type="number"] {
+            background: #000;
+            border: 2px solid var(--amber);
+            color: var(--amber);
+            padding: 10px;
+            font-family: inherit;
+            font-size: 1.2em;
+            outline: none;
+        }
+
+        .trans-input {
+            width: 120px;
+            font-size: 1em;
+            padding: 5px;
+            margin: 5px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            border: 1px solid var(--amber-dim);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .hull-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #222;
+            border: 1px solid var(--amber-dim);
+            margin-top: 5px;
+            position: relative;
+        }
+
+        .hull-bar-fill {
+            height: 100%;
+            background: var(--amber);
+            transition: width 0.3s ease;
+        }
+
+        .port-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .port-view { grid-template-columns: 1fr; }
+        }
+
+        .market-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: none;
+        }
+
+        button {
+            background: var(--bg);
+            color: var(--amber);
+            border: 1px solid var(--amber);
+            padding: 4px 8px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--amber);
+            color: var(--bg);
+        }
+
+        button:disabled {
+            border-color: var(--amber-dim);
+            color: var(--amber-dim);
+            cursor: not-allowed;
+        }
+
+        .log {
+            height: 100px;
+            overflow-y: auto;
+            border: 1px solid var(--amber-dim);
+            padding: 10px;
+            font-size: 0.85em;
+            margin-top: 20px;
+            background: #000;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-main {
+            padding: 15px;
+            font-weight: bold;
+            flex-grow: 1;
+        }
+
+        .nav-btn {
+            min-width: 200px;
+            flex-grow: 0;
+        }
+
+        #modal-close-btn {
+            display: block;
+            margin: 20px auto 0;
+            min-width: 200px;
+            flex-grow: 0;
+        }
+
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg);
+            border: 4px solid var(--amber);
+            padding: 20px;
+            z-index: 100;
+            width: 95%;
+            max-width: 900px;
+            height: auto;
+            max-height: 98vh;
+            display: none;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            z-index: 90;
+        }
+
+        .type-option {
+            border: 1px solid var(--amber-dim);
+            padding: 15px;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .type-option:hover {
+            border-color: var(--amber);
+            background: #222;
+        }
+
+        .type-option.selected {
+            background: var(--amber);
+            color: var(--bg);
+        }
+
+        #combat-stats {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px dashed var(--amber);
+            background: #111;
+        }
+
+        #fleet-visual {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            padding: 20px;
+            min-height: 220px;
+            background: #000;
+            border: 1px solid var(--amber-dim);
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+            justify-items: center;
+            align-items: center;
+        }
+
+        .ship-container {
+            width: 80px;
+            text-align: center;
+            position: relative;
+            transition: all 0.5s;
+        }
+
+        .ship-icon {
+            width: 72px;
+            height: 72px;
+            fill: var(--amber);
+        }
+
+        .ship-health-small {
+            width: 100%;
+            height: 4px;
+            background: #333;
+            margin-top: 4px;
+        }
+
+        .ship-health-fill {
+            height: 100%;
+            background: var(--amber);
+            transition: width 0.2s;
+        }
+
+        .ship-container.hit {
+            animation: shake 0.2s;
+            filter: brightness(3);
+        }
+
+        .ship-container.sunk {
+            transform: translateY(40px) rotate(15deg);
+            opacity: 0;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            40% { transform: translate(3px, 2px) rotate(-1deg); }
+            60% { transform: translate(-1px, -1px) rotate(1deg); }
+            80% { transform: translate(-3px, 1px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .cannon-ball {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--amber);
+            border-radius: 50%;
+            bottom: 20px;
+            left: 50%;
+            z-index: 10;
+            box-shadow: 0 0 10px var(--amber);
+        }
+
+        #fleet-visual::after {
+            content: " ";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(255,176,0,0.05) 0px, rgba(255,176,0,0.05) 1px, transparent 1px, transparent 2px);
+            pointer-events: none;
+        }
+
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        /* Toggle Switch Styling */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 0.7em;
+            border: 1px solid var(--amber-dim);
+            padding: 8px 12px;
+            background: #000;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #222;
+            border: 1px solid var(--amber-dim);
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--amber-dim);
+            transition: .4s;
+        }
+
+        input:checked + .slider {
+            background-color: var(--amber-dim);
+            border-color: var(--amber);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(18px);
+            background-color: var(--amber);
+        }
+
+        #modal-content {
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+    </style>
+</head>
+<body>
+
+<div id="setup-container">
+    <div class="header">
+        <h1>SILK & SILVER</h1>
+        <p>Merchant Identification Required</p>
+    </div>
+    <div class="setup-box">
+        <label>Enter Name:</label>
+        <input type="text" id="player-name-input" maxlength="12" placeholder="MERCHANT">
+        
+        <label>Select Starting Class:</label>
+        <div class="type-option" id="type1" onclick="selectType(1)">
+            <strong>TYPE 1: ESTABLISHED</strong><br>
+            500 Gold / 0 Guns / Standard Sloop
+        </div>
+        <div class="type-option" id="type2" onclick="selectType(2)">
+            <strong>TYPE 2: PRIVATEER</strong><br>
+            0 Gold / 5 Guns / Armed Vessel
+        </div>
+
+        <button class="btn-main" id="start-btn" onclick="startGame()">Commence Trade</button>
+        <button class="btn-main" id="continue-btn" style="display: none; background: var(--amber); color: var(--bg);" onclick="continueGame()">Continue Journey</button>
+        <button class="btn-main" style="border-color: var(--amber-dim); opacity: 0.8;" onclick="showInstructions()">How to Play</button>
+    </div>
+</div>
+
+<div id="game-container">
+    <div class="header">
+        <h1 id="merchant-name-display">SILK & SILVER</h1>
+        <div id="location-display">PORT: VENICE</div>
+    </div>
+
+    <div class="stats-grid">
+        <div>GOLD: <span id="cash">0</span></div>
+        <div>BANK: <span id="bank">0</span></div>
+        <div>DEBT: <span id="debt">0</span></div>
+        <div>HOLD: <span id="hold-used">0</span>/<span id="hold-total">60</span></div>
+        <div>GUNS: <span id="guns">0</span></div>
+        <div class="hull-stat">
+            HULL: <span id="health">100</span>%
+            <div class="hull-bar-container">
+                <div id="player-hull-fill" class="hull-bar-fill" style="width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="port-view">
+        <div class="market">
+            <h3>MARKET</h3>
+            <div id="market-container"></div>
+        </div>
+        <div class="inventory">
+            <h3>CARGO</h3>
+            <div id="inventory-container"></div>
+        </div>
+    </div>
+
+    <div id="log" class="log">Waiting for orders...</div>
+
+    <div class="actions">
+        <button class="btn-main" onclick="showTravel()">SET SAIL</button>
+        <button class="btn-main" onclick="showInstructions()">HANDBOOK</button>
+        <button class="btn-main" onclick="visitBank()" id="bank-btn">BANK</button>
+        <button class="btn-main" onclick="visitWarehouse()" id="warehouse-btn">WAREHOUSE</button>
+        <button class="btn-main" onclick="visitYard()" id="yard-btn">ARSENAL</button>
+    </div>
+
+    <div id="overlay" class="overlay"></div>
+    <div id="modal" class="modal">
+        <h2 id="modal-title">SYSTEM MESSAGE</h2>
+        <div id="modal-content"></div>
+        <br>
+        <div id="modal-actions" class="actions"></div>
+        <button class="btn-main" id="modal-close-btn" onclick="closeModal()">CONTINUE</button>
+    </div>
+</div>
+
+<script>
+    // Game Constants
+    const SAVE_KEY = 'silk_and_silver_save';
+    const commodities = [
+        { name: "Grain", min: 5, max: 25 },
+        { name: "Spices", min: 50, max: 150 },
+        { name: "Wine", min: 200, max: 500 },
+        { name: "Glassware", min: 600, max: 1500 },
+        { name: "Silk", min: 2000, max: 5000 },
+        { name: "Hashish", min: 8000, max: 20000, risky: true }
+    ];
+    const ports = ["Venice", "Constantinople", "Alexandria", "Tripoli", "Genoa", "Tunis", "Naples", "Marseille"];
+    const SHIP_SPRITE = `
+        <svg class="ship-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 40 L54 40 L48 52 L16 52 Z" />
+            <rect x="20" y="10" width="2" height="30" />
+            <rect x="42" y="15" width="2" height="25" />
+            <path d="M22 12 Q35 15 35 25 Q22 35 22 12" fill="none" stroke="currentColor" stroke-width="2" />
+            <path d="M44 17 Q52 20 52 28 Q44 35 44 17" fill="none" stroke="currentColor" stroke-width="2" />
+            <rect x="15" y="42" width="4" height="2" fill="var(--bg)" />
+            <rect x="25" y="42" width="4" height="2" fill="var(--bg)" />
+            <rect x="35" y="42" width="4" height="2" fill="var(--bg)" />
+            <rect x="45" y="42" width="4" height="2" fill="var(--bg)" />
+        </svg>
+    `;
+
+    // Global State
+    let state = {
+        playerName: "Merchant",
+        cash: 500,
+        bank: 0,
+        debt: 2000,
+        holdTotal: 60,
+        warehouseTotal: 1000,
+        guns: 0,
+        health: 100,
+        currentPort: "Venice",
+        inventory: { Grain: 0, Spices: 0, Wine: 0, Glassware: 0, Silk: 0, Hashish: 0 },
+        warehouse: { Grain: 0, Spices: 0, Wine: 0, Glassware: 0, Silk: 0, Hashish: 0 },
+        prices: {},
+        selectedType: 1,
+        combat: null,
+        voyageCount: 0,
+        autoCombat: false,
+        lastCombatAction: null
+    };
+
+    // UI/Flow Functions
+    function selectType(t) {
+        state.selectedType = t;
+        document.getElementById('type1').classList.toggle('selected', t === 1);
+        document.getElementById('type2').classList.toggle('selected', t === 2);
+    }
+
+    function startGame() {
+        const nameInput = document.getElementById('player-name-input').value.trim();
+        state.playerName = nameInput || "MERCHANT";
+        if (state.selectedType === 1) { 
+            state.cash = 500; state.guns = 0; state.debt = 2000; 
+        } else { 
+            state.cash = 0; state.guns = 5; state.debt = 0;
+        }
+        document.getElementById('setup-container').style.display = 'none';
+        document.getElementById('game-container').style.display = 'block';
+        document.getElementById('merchant-name-display').innerText = state.playerName;
+        init();
+    }
+
+    function continueGame() {
+        const savedData = localStorage.getItem(SAVE_KEY);
+        if (savedData) {
+            state = JSON.parse(savedData);
+            document.getElementById('setup-container').style.display = 'none';
+            document.getElementById('game-container').style.display = 'block';
+            document.getElementById('merchant-name-display').innerText = state.playerName;
+            init();
+        }
+    }
+
+    function saveProgress() {
+        try {
+            localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+        } catch (e) {
+            console.error("Save failed", e);
+        }
+    }
+
+    function init() {
+        updatePrices();
+        render();
+        log(`CAPTAIN'S LOG: THE VOYAGE COMMENCES IN ${state.currentPort.toUpperCase()}. MAY LADY LUCK BE WITH US.`);
+    }
+
+    function log(msg) {
+        const logEl = document.getElementById('log');
+        logEl.innerHTML += `<div>> ${msg}</div>`;
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function updatePrices() {
+        commodities.forEach(c => { state.prices[c.name] = Math.floor(Math.random() * (c.max - c.min) + c.min); });
+        if (Math.random() > 0.85) {
+            const c = commodities[Math.floor(Math.random() * commodities.length)];
+            const isHigh = Math.random() > 0.5;
+            state.prices[c.name] = isHigh ? c.max * 2 : Math.floor(c.min / 2);
+            log(`RUMORS SUGGEST ${c.name.toUpperCase()} PRICES ARE SHIFTING UNUSUALLY IN ${state.currentPort.toUpperCase()}.`);
+        }
+    }
+
+    function render() {
+        document.getElementById('cash').innerText = state.cash;
+        document.getElementById('bank').innerText = state.bank;
+        document.getElementById('debt').innerText = state.debt;
+        document.getElementById('health').innerText = Math.round(state.health);
+        document.getElementById('player-hull-fill').style.width = `${state.health}%`;
+        document.getElementById('guns').innerText = state.guns;
+        document.getElementById('location-display').innerText = `PORT: ${state.currentPort.toUpperCase()}`;
+        const used = getHoldUsed();
+        document.getElementById('hold-used').innerText = used;
+        document.getElementById('hold-total').innerText = state.holdTotal;
+
+        let marketHTML = '';
+        commodities.forEach(c => {
+            const price = state.prices[c.name];
+            marketHTML += `<div class="market-item"><span>${c.name}: ${price}</span><div>
+                <button onclick="openTradeModal('${c.name}', 'buy')">BUY</button>
+                <button onclick="openTradeModal('${c.name}', 'sell')">SELL</button>
+            </div></div>`;
+        });
+        document.getElementById('market-container').innerHTML = marketHTML;
+
+        let invHTML = '';
+        commodities.forEach(c => {
+            const sQty = state.inventory[c.name];
+            const wQty = state.warehouse[c.name];
+            if (sQty > 0 || wQty > 0) {
+                invHTML += `<div class="market-item"><span>${c.name}: ${sQty} (WH: ${wQty})</span></div>`;
+            }
+        });
+        document.getElementById('inventory-container').innerHTML = invHTML || 'HOLD & WAREHOUSE EMPTY';
+        
+        const isVenice = state.currentPort === "Venice";
+        document.getElementById('bank-btn').style.display = isVenice ? "block" : "none";
+        document.getElementById('yard-btn').style.display = isVenice ? "block" : "none";
+        document.getElementById('warehouse-btn').style.display = isVenice ? "block" : "none";
+    }
+
+    function getHoldUsed() { return Object.values(state.inventory).reduce((a, b) => a + b, 0) + (state.guns * 10); }
+    function getWarehouseUsed() { return Object.values(state.warehouse).reduce((a, b) => a + b, 0); }
+
+    function openTradeModal(item, mode) {
+        const price = state.prices[item];
+        const used = getHoldUsed();
+        const capacity = state.holdTotal - used;
+        const affordable = Math.floor(state.cash / price);
+        const maxBuy = Math.min(capacity, affordable);
+        const maxSell = state.inventory[item];
+
+        let html = '';
+        if (mode === 'buy') {
+            html = `
+                <p>PURCHASING ${item.toUpperCase()}</p>
+                <p>PRICE: ${price} GOLD | MAX AFFORDABLE: ${maxBuy} UNITS</p>
+                <div class="flex-center">
+                    <input type="number" id="trade-qty" class="trans-input" min="1" max="${maxBuy}" value="${maxBuy}">
+                    <button onclick="document.getElementById('trade-qty').value = ${maxBuy}">MAX</button>
+                </div>
+                <button class="btn-main" onclick="executeTrade('${item}', ${price}, 1)">CONFIRM PURCHASE</button>
+            `;
+        } else {
+            html = `
+                <p>SELLING ${item.toUpperCase()}</p>
+                <p>PRICE: ${price} GOLD | UNITS IN HOLD: ${maxSell}</p>
+                <div class="flex-center">
+                    <input type="number" id="trade-qty" class="trans-input" min="1" max="${maxSell}" value="${maxSell}">
+                    <button onclick="document.getElementById('trade-qty').value = ${maxSell}">MAX</button>
+                </div>
+                <button class="btn-main" onclick="executeTrade('${item}', ${price}, -1)">CONFIRM SALE</button>
+            `;
+        }
+        showModal(mode === 'buy' ? "MARKET: BUY" : "MARKET: SELL", html, true);
+    }
+
+    function executeTrade(item, price, dir) {
+        const qtyInput = document.getElementById('trade-qty');
+        const qty = parseInt(qtyInput.value) || 0;
+        if (qty <= 0) return;
+
+        if (dir === 1) { 
+            const cost = qty * price;
+            const space = state.holdTotal - getHoldUsed();
+            if (qty > space) { log("NOT ENOUGH SPACE IN THE HOLD."); return; }
+            if (cost > state.cash) { log("YOU LACK THE NECESSARY GOLD."); return; }
+            state.cash -= cost;
+            state.inventory[item] += qty;
+            log(`PURCHASED ${qty} UNITS OF ${item.toUpperCase()}.`);
+        } else { 
+            if (qty > state.inventory[item]) { log("YOU DO NOT HAVE THAT MANY UNITS."); return; }
+            state.cash += qty * price;
+            state.inventory[item] -= qty;
+            log(`SOLD ${qty} UNITS OF ${item.toUpperCase()}.`);
+        }
+        closeModal();
+        render();
+    }
+
+    function showTravel() {
+        let html = '<p>COORDINATES:</p>';
+        ports.forEach(p => { 
+            const isCurrent = p === state.currentPort;
+            html += `<button class="btn-main nav-btn" style="margin:5px" ${isCurrent ? 'disabled' : ''} onclick="travel('${p}')">${p.toUpperCase()}</button>`; 
+        });
+        showModal("NAVIGATION", html, true);
+    }
+
+    function travel(dest) { 
+        closeModal(); 
+        log(`THE SAILS ARE UNFURLED. WE STEER FOR ${dest.toUpperCase()}.`);
+        state.currentPort = dest; 
+        if (Math.random() > 0.6) startEncounter(); 
+        else arrive(); 
+    }
+
+    function startEncounter() {
+        const fleetSize = Math.floor(Math.random() * 35) + 5;
+        state.combat = {
+            fleetSize: fleetSize,
+            initialFleetSize: fleetSize,
+            status: "THE BORGIA SYNDICATE HAS INTERCEPTED US! PREPARE FOR BATTLE!",
+            logs: [],
+            busy: false,
+            ships: Array.from({length: fleetSize}, (_, i) => ({ id: i, health: 100, alive: true })),
+            totalSunk: 0 
+        };
+        state.autoCombat = false;
+        state.lastCombatAction = null;
+        renderCombat();
+    }
+
+    function toggleAutoCombat(el) {
+        state.autoCombat = el.checked;
+        if (state.autoCombat && state.lastCombatAction && state.combat && !state.combat.busy) {
+            combatAction(state.lastCombatAction);
+        }
+    }
+
+    function renderCombat() {
+        const c = state.combat;
+        const activeShips = c.ships.filter(s => s.alive).slice(0, 10);
+        
+        let fleetHTML = '';
+        activeShips.forEach(s => {
+            fleetHTML += `
+                <div class="ship-container" id="ship-${s.id}">
+                    ${SHIP_SPRITE}
+                    <div class="ship-health-small">
+                        <div class="ship-health-fill" id="health-fill-${s.id}" style="width: ${s.health}%"></div>
+                    </div>
+                </div>`;
+        });
+
+        let html = `
+            <div id="fleet-visual">${fleetHTML}</div>
+            <div id="combat-stats">SYNDICATE FLEET: ${c.ships.filter(s => s.alive).length} SHIPS<br>YOUR HULL: ${state.health}% | GUNS: ${state.guns}</div>
+            <p id="combat-status">${c.status}</p>
+            <div id="combat-log-small" style="font-size: 0.7em; border-top: 1px solid var(--amber-dim); padding-top:10px; text-align:left; min-height: 45px;">
+                ${c.logs.slice(-3).join('<br>')}
+            </div>
+        `;
+
+        const actions = `
+            <button class="btn-main" id="btn-fight" onclick="combatAction('fight')" ${c.busy ? 'disabled' : ''}>FIGHT</button>
+            <button class="btn-main" id="btn-run" onclick="combatAction('run')" ${c.busy ? 'disabled' : ''}>RUN</button>
+            <button class="btn-main" id="btn-throw" onclick="combatAction('throw')" ${c.busy ? 'disabled' : ''}>THROW CARGO</button>
+            <div class="switch-container">
+                <span style="white-space: nowrap;">AUTO-ACTION</span>
+                <label class="switch">
+                    <input type="checkbox" id="auto-action-toggle" ${state.autoCombat ? 'checked' : ''} onchange="toggleAutoCombat(this)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        `;
+
+        showModal("SEA BATTLE", html, false, actions);
+    }
+
+    function refreshFleetVisual() {
+        const c = state.combat;
+        const activeShips = c.ships.filter(s => s.alive).slice(0, 10);
+        let fleetHTML = '';
+        activeShips.forEach(s => {
+            fleetHTML += `
+                <div class="ship-container" id="ship-${s.id}">
+                    ${SHIP_SPRITE}
+                    <div class="ship-health-small">
+                        <div class="ship-health-fill" id="health-fill-${s.id}" style="width: ${s.health}%"></div>
+                    </div>
+                </div>`;
+        });
+        const visual = document.getElementById('fleet-visual');
+        if (visual) visual.innerHTML = fleetHTML;
+    }
+
+    async function combatAction(type) {
+        if (state.combat.busy) return;
+        state.combat.busy = true;
+        state.lastCombatAction = type;
+        renderCombat();
+
+        const c = state.combat;
+        c.logs = [];
+
+        if (type === 'fight') {
+            if (state.guns === 0) {
+                c.status = "WE HAVE NO GUNS TO MAN! THE CREW IS DESPERATE!";
+            } else {
+                await fireBroadside();
+                if (c.ships.filter(s => s.alive).length <= 0) {
+                    const bountyPerShip = 150 + (state.voyageCount * 25);
+                    const loot = c.totalSunk * bountyPerShip;
+                    state.cash += loot;
+                    c.status = `VICTORY! COLLECTED ${loot} GOLD IN BOUNTIES FOR ${c.totalSunk} VESSELS.`;
+                    state.combat.busy = false;
+                    endCombat();
+                    return;
+                }
+            }
+            await enemyVolley();
+            
+            if (!state.combat.busy) {
+                let fledCount = 0;
+                c.ships.forEach(s => {
+                    if (s.alive && Math.random() < 0.15) {
+                        s.alive = false;
+                        fledCount++;
+                        c.totalSunk++; 
+                        const shipEl = document.getElementById(`ship-${s.id}`);
+                        if (shipEl) shipEl.classList.add('sunk'); 
+                    }
+                });
+
+                if (fledCount > 0) {
+                    c.logs.push(`${fledCount} SHIPS BROKE FORMATION AND FLED!`);
+                    if (c.ships.filter(s => s.alive).length <= 0) {
+                        const bountyPerShip = 150 + (state.voyageCount * 25);
+                        const loot = c.totalSunk * bountyPerShip;
+                        state.cash += loot;
+                        c.status = `ENEMIES DISPERSED. BOUNTY FOR ${c.totalSunk} SHIPS: ${loot} GOLD.`;
+                        endCombat();
+                        return;
+                    }
+                    refreshFleetVisual();
+                }
+            }
+        } 
+        else if (type === 'run') {
+            const used = getHoldUsed();
+            const ratio = used / state.holdTotal;
+            const chance = 0.4 + (0.3 * (1 - ratio));
+            if (Math.random() < chance) {
+                const bountyPerShip = 150 + (state.voyageCount * 25);
+                const loot = c.totalSunk * bountyPerShip;
+                state.cash += loot;
+                c.status = `ESCAPED! BOUNTY FOR ${c.totalSunk} DEFEATED SHIPS: ${loot} GOLD.`;
+                state.combat.busy = false;
+                endCombat();
+                return;
+            } else {
+                c.status = "THEY ARE TOO FAST! WE CANNOT ESCAPE!";
+                await enemyVolley();
+                
+                let fledCount = 0;
+                c.ships.forEach(s => {
+                    if (s.alive && Math.random() < 0.12) {
+                        s.alive = false;
+                        fledCount++;
+                        c.totalSunk++; 
+                        const shipEl = document.getElementById(`ship-${s.id}`);
+                        if (shipEl) shipEl.classList.add('sunk');
+                    }
+                });
+                
+                if (fledCount > 0) {
+                    c.logs.push(`${fledCount} SHIPS HAVE GIVEN UP THE CHASE.`);
+                    if (c.ships.filter(s => s.alive).length <= 0) {
+                        const bountyPerShip = 150 + (state.voyageCount * 25);
+                        const loot = c.totalSunk * bountyPerShip;
+                        state.cash += loot;
+                        c.status = `PURSUERS LOST. BOUNTY FOR ${c.totalSunk} DEFEATED SHIPS: ${loot} GOLD.`;
+                        endCombat();
+                        return;
+                    }
+                    refreshFleetVisual();
+                }
+            }
+        }
+        else if (type === 'throw') {
+            let itemFound = false;
+            for (let item in state.inventory) {
+                if (state.inventory[item] > 0) {
+                    state.inventory[item] = Math.max(0, state.inventory[item] - 10);
+                    itemFound = true;
+                    break;
+                }
+            }
+            c.status = itemFound ? "CARGO JETTISONED TO LIGHTEN OUR LOAD." : "THE HOLD IS ALREADY EMPTY!";
+        }
+
+        state.combat.busy = false;
+        renderCombat();
+
+        // Continue Action Logic
+        if (state.autoCombat && state.combat && (type === 'fight' || type === 'run')) {
+            setTimeout(() => {
+                if (state.autoCombat && state.combat && !state.combat.busy) {
+                    combatAction(type);
+                }
+            }, 1000);
+        }
+    }
+
+    async function fireBroadside() {
+        const c = state.combat;
+        const visual = document.getElementById('fleet-visual');
+        let sunkCount = 0;
+
+        for (let i = 0; i < state.guns; i++) {
+            let activeTargets = c.ships.filter(s => s.alive).slice(0, 10);
+            if (activeTargets.length === 0) break;
+
+            const target = activeTargets[Math.floor(Math.random() * activeTargets.length)];
+            const targetEl = document.getElementById(`ship-${target.id}`);
+            if (!targetEl) {
+                refreshFleetVisual();
+                i--; continue;
+            }
+            const fillEl = document.getElementById(`health-fill-${target.id}`);
+            
+            const ball = document.createElement('div');
+            ball.className = 'cannon-ball';
+            visual.appendChild(ball);
+            
+            const tRect = targetEl.getBoundingClientRect();
+            const vRect = visual.getBoundingClientRect();
+            const destX = (tRect.left + tRect.width/2) - vRect.left;
+            const destY = (tRect.top + tRect.height/2) - vRect.top;
+            
+            ball.style.transition = 'all 0.2s linear';
+            await new Promise(r => setTimeout(r, 10));
+            ball.style.transform = `translate(${destX - vRect.width/2}px, ${destY - vRect.height}px)`;
+            
+            await new Promise(r => setTimeout(r, 200));
+            ball.remove();
+
+            if (Math.random() > 0.4) {
+                targetEl.classList.add('hit');
+                const dmg = Math.floor(Math.random() * 40) + 20;
+                target.health = Math.max(0, target.health - dmg);
+                if (fillEl) fillEl.style.width = `${target.health}%`;
+
+                setTimeout(() => targetEl.classList.remove('hit'), 200);
+                
+                if (target.health <= 0) {
+                    target.alive = false;
+                    targetEl.classList.add('sunk');
+                    sunkCount++;
+                    c.totalSunk++; 
+                    
+                    let remainingInBatch = activeTargets.filter(t => t.alive).length;
+                    if (remainingInBatch === 0 && c.ships.filter(s => s.alive).length > 0) {
+                        await new Promise(r => setTimeout(r, 400));
+                        refreshFleetVisual();
+                    }
+                }
+            }
+            await new Promise(r => setTimeout(r, 50));
+        }
+        c.logs.push(`OUR VOLLEY SENT ${sunkCount} SHIPS TO THE BOTTOM.`);
+    }
+
+    async function enemyVolley() {
+        const c = state.combat;
+        const activeShips = c.ships.filter(s => s.alive).slice(0, 10);
+        if (activeShips.length <= 0) return;
+
+        let hits = 0;
+        for(let i=0; i < activeShips.length; i++) { if (Math.random() > 0.85) hits++; }
+        
+        const damage = hits * 2;
+        state.health = Math.max(0, state.health - damage);
+        
+        const playerFill = document.getElementById('player-hull-fill');
+        if (playerFill) playerFill.style.width = `${state.health}%`;
+        
+        c.logs.push(`THEIR SHOTS STRIKE US ${hits} TIMES. HULL INTEGRITY AT ${state.health}%.`);
+
+        if (hits > 0 && state.guns > 0) {
+            if (Math.random() < 0.04) {
+                state.guns--;
+                c.logs.push("A DIRECT HIT! ONE OF OUR CANNONS HAS BEEN SMASHED TO SPLINTERS.");
+            }
+        }
+        
+        if (state.health <= 0) {
+            closeModal();
+            gameOver("OUR SHIP HAS BEEN SENT TO THE DEPTHS.");
+        }
+        await new Promise(r => setTimeout(r, 800));
+    }
+
+    function endCombat() {
+        render();
+        const actions = `<button class="btn-main" onclick="closeModal(); arrive();">PROCEED</button>`;
+        document.getElementById('modal-actions').innerHTML = actions;
+        document.getElementById('modal-close-btn').style.display = 'none';
+        state.combat.busy = false;
+        state.autoCombat = false; 
+    }
+
+    function arrive() {
+        state.voyageCount++;
+        updatePrices();
+        state.debt = Math.floor(state.debt * 1.1);
+        if (state.bank > 0) state.bank = Math.floor(state.bank * 1.02);
+        
+        if (state.inventory["Hashish"] > 0 && Math.random() > 0.8) {
+            state.inventory["Hashish"] = 0;
+            const fine = Math.floor(state.cash * 0.25);
+            state.cash -= fine;
+            log(`THE INQUISITION HAS BOARDED! OUR CONTRABAND WAS SEIZED AND A FINE OF ${fine} GOLD WAS LEVIED.`);
+        }
+        
+        log(`THE ANCHOR IS DROPPED. WE HAVE ARRIVED IN ${state.currentPort.toUpperCase()}.`);
+        saveProgress();
+
+        if (Math.random() < 0.15) {
+            offerNewShip();
+        } else {
+            render();
+        }
+    }
+
+    function offerNewShip() {
+        const newCapacity = state.holdTotal + 50;
+        const upgradeCost = state.holdTotal * 110;
+        
+        let html = `
+            <p>A LOCAL SHIPWRIGHT APPROACHES YOU ON THE DOCKS.</p>
+            <p>"CAPTAIN, I HAVE A BRAND NEW VESSEL FRESH FROM THE ARSENAL. SHE'S LARGER AND HER HULL IS PRISTINE."</p>
+            <p><strong>OFFER:</strong> ${newCapacity} HOLD CAPACITY | 100% HULL INTEGRITY</p>
+            <p><strong>PRICE:</strong> ${upgradeCost} GOLD</p>
+            <br>
+            <div id="ship-offer-actions" class="actions">
+                <button class="btn-main" onclick="acceptShipOffer(${upgradeCost}, ${newCapacity})" ${state.cash < upgradeCost ? 'disabled' : ''}>ACCEPT OFFER</button>
+                <button class="btn-main" style="border-color: var(--amber-dim)" onclick="closeModal(); render();">DECLINE</button>
+            </div>
+            ${state.cash < upgradeCost ? '<p style="color:var(--danger); font-size:0.8em; margin-top:10px;">YOU LACK THE NECESSARY GOLD.</p>' : ''}
+        `;
+        showModal("EXCEPTIONAL OPPORTUNITY", html, false);
+    }
+
+    function acceptShipOffer(cost, capacity) {
+        state.cash -= cost;
+        state.holdTotal = capacity;
+        state.health = 100;
+        log(`WE HAVE PURCHASED A NEW VESSEL. HOLD CAPACITY IS NOW ${state.holdTotal}.`);
+        closeModal();
+        render();
+    }
+
+    function visitBank() {
+        let html = `
+            <p>GOLD: ${state.cash} | BANK: ${state.bank} | DEBT: ${state.debt}</p>
+            <div style="border: 1px dashed var(--amber-dim); padding: 10px; margin-bottom: 10px;">
+                <p>DEPOSIT TO VAULT</p>
+                <div class="flex-center">
+                    <input type="number" id="bank-dep-qty" class="trans-input" value="${state.cash}">
+                    <button onclick="document.getElementById('bank-dep-qty').value = ${state.cash}">MAX</button>
+                    <button onclick="bankAction('dep')">DEPOSIT</button>
+                </div>
+            </div>
+            <div style="border: 1px dashed var(--amber-dim); padding: 10px; margin-bottom: 10px;">
+                <p>WITHDRAW FROM VAULT</p>
+                <div class="flex-center">
+                    <input type="number" id="bank-wd-qty" class="trans-input" value="${state.bank}">
+                    <button onclick="document.getElementById('bank-wd-qty').value = ${state.bank}">MAX</button>
+                    <button onclick="bankAction('wd')">WITHDRAW</button>
+                </div>
+            </div>
+            <button class="btn-main" onclick="bankAction('pay')">REPAY DEBT (MAX POSSIBLE)</button>
+        `;
+        showModal("MEDICI BANKING INTERFACE", html, true);
+    }
+
+    function bankAction(type) {
+        if (type === 'dep') {
+            const val = parseInt(document.getElementById('bank-dep-qty').value) || 0;
+            const amt = Math.min(val, state.cash);
+            state.bank += amt; state.cash -= amt;
+        }
+        if (type === 'wd') {
+            const val = parseInt(document.getElementById('bank-wd-qty').value) || 0;
+            const amt = Math.min(val, state.bank);
+            state.cash += amt; state.bank -= amt;
+        }
+        if (type === 'pay') { 
+            const amount = Math.min(state.cash, state.debt); 
+            state.cash -= amount; state.debt -= amount; 
+        }
+        render();
+        visitBank();
+    }
+
+    function visitWarehouse() {
+        const used = getWarehouseUsed();
+        let html = `
+            <p>WAREHOUSE CAPACITY: ${used} / ${state.warehouseTotal}</p>
+        `;
+        
+        commodities.forEach(c => {
+            const shipQty = state.inventory[c.name];
+            const houseQty = state.warehouse[c.name];
+            html += `
+                <div class="market-item" style="padding: 10px 0;">
+                    <div style="flex-grow: 1;">
+                        <strong>${c.name.toUpperCase()}</strong><br>
+                        SHIP: ${shipQty} | HOUSE: ${houseQty}
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+                        <button onclick="openWarehouseTransfer('${c.name}', 'toHouse')">STORE</button>
+                        <button onclick="openWarehouseTransfer('${c.name}', 'toShip')">FETCH</button>
+                    </div>
+                </div>
+            `;
+        });
+        showModal("VENICE DOCKS WAREHOUSE", html, true);
+    }
+
+    window.openWarehouseTransfer = (item, mode) => {
+        const usedShip = getHoldUsed();
+        const usedHouse = getWarehouseUsed();
+        const shipQty = state.inventory[item];
+        const houseQty = state.warehouse[item];
+        
+        let max = 0;
+        let title = "";
+        
+        if (mode === 'toHouse') {
+            const houseSpace = state.warehouseTotal - usedHouse;
+            max = Math.min(shipQty, houseSpace);
+            title = "TRANSFER TO WAREHOUSE";
+        } else {
+            const shipSpace = state.holdTotal - usedShip;
+            max = Math.min(houseQty, shipSpace);
+            title = "TRANSFER TO SHIP";
+        }
+
+        let html = `
+            <p>${title}: ${item.toUpperCase()}</p>
+            <p>LIMIT: ${max} UNITS</p>
+            <div class="flex-center">
+                <input type="number" id="transfer-qty" class="trans-input" min="1" max="${max}" value="${max}">
+                <button onclick="document.getElementById('transfer-qty').value = ${max}">MAX</button>
+            </div>
+            <button class="btn-main" onclick="executeWarehouseTransfer('${item}', '${mode}')">CONFIRM TRANSFER</button>
+        `;
+        showModal(title, html, true);
+    }
+
+    window.executeWarehouseTransfer = (item, mode) => {
+        const qty = parseInt(document.getElementById('transfer-qty').value) || 0;
+        if (qty <= 0) return;
+
+        if (mode === 'toHouse') {
+            state.inventory[item] -= qty;
+            state.warehouse[item] += qty;
+            log(`STORED ${qty} UNITS OF ${item.toUpperCase()} IN THE WAREHOUSE.`);
+        } else {
+            state.warehouse[item] -= qty;
+            state.inventory[item] += qty;
+            log(`LOADED ${qty} UNITS OF ${item.toUpperCase()} ONTO THE SHIP.`);
+        }
+        closeModal();
+        visitWarehouse();
+    };
+
+    function visitYard() {
+        const maxRepairCost = (100 - state.health) * 50;
+        const gunCost = 1000;
+        const shipCost = state.holdTotal * 100;
+        const warehouseCost = state.warehouseTotal * 2; 
+        
+        let html = `
+            <p>HULL: ${Math.round(state.health)}% | GUNS: ${state.guns}</p>
+            <div style="border: 1px dashed var(--amber-dim); padding: 10px; margin-bottom: 10px;">
+                <p>PARTIAL REPAIRS (50 GOLD = 1%)</p>
+                <div class="flex-center">
+                    <input type="number" id="repair-amt" class="trans-input" value="${Math.min(state.cash, maxRepairCost)}">
+                    <button onclick="document.getElementById('repair-amt').value = ${Math.min(state.cash, maxRepairCost)}">MAX</button>
+                    <button onclick="yardAction('repair')">REPAIR</button>
+                </div>
+            </div>
+            <button class="btn-main" onclick="yardAction('gun')" ${(state.cash < gunCost || (state.holdTotal - getHoldUsed()) < 10) ? 'disabled' : ''}>ADD GUN (${gunCost})</button>
+            <button class="btn-main" onclick="yardAction('ship')" ${state.cash < shipCost ? 'disabled' : ''}>UPGRADE HULL (${shipCost})</button>
+            <button class="btn-main" onclick="yardAction('house')" ${(state.cash < warehouseCost || state.warehouseTotal >= 10000) ? 'disabled' : ''}>EXPAND WAREHOUSE (${warehouseCost})</button>
+        `;
+        showModal("VENICE ARSENAL", html, true);
+    }
+
+    function yardAction(type) {
+        if (type === 'repair') {
+            const goldSpent = parseInt(document.getElementById('repair-amt').value) || 0;
+            const affordable = Math.min(goldSpent, state.cash);
+            const repairPercent = affordable / 50;
+            const needed = 100 - state.health;
+            const actualRepair = Math.min(repairPercent, needed);
+            const actualCost = actualRepair * 50;
+            
+            state.cash -= actualCost;
+            state.health = Math.min(100, state.health + actualRepair);
+            log(`REPAIRS COMPLETE. HULL INTEGRITY RESTORED BY ${actualRepair.toFixed(1)}%.`);
+        }
+        if (type === 'gun') { 
+            const space = state.holdTotal - getHoldUsed();
+            if (space >= 10 && state.cash >= 1000) {
+                state.cash -= 1000; 
+                state.guns++; 
+                log("NEW CANNON INSTALLED."); 
+            } else if (space < 10) {
+                log("NOT ENOUGH SPACE IN THE HOLD FOR A CANNON.");
+            }
+        }
+        if (type === 'ship') { state.cash -= state.holdTotal * 100; state.holdTotal += 50; log("VESSEL HULL STRENGTHENED AND EXPANDED."); }
+        if (type === 'house') { 
+            const cost = state.warehouseTotal * 2;
+            state.cash -= cost; 
+            state.warehouseTotal = Math.min(10000, state.warehouseTotal + 1000); 
+            log("VENICE WAREHOUSE EXPANDED."); 
+        }
+        render();
+        visitYard();
+    }
+
+    function showInstructions() {
+        let html = `
+            <div style="text-align: left; font-size: 0.85em; line-height: 1.5; padding-right: 10px;">
+                <p>Welcome, Merchant. You have set sail to navigate the trade routes of the Mediterranean Levant.</p>
+                
+                <h3>MARKET PRICE GUIDELINES:</h3>
+                <p>Typical price ranges per unit:</p>
+                <ul style="list-style: none; padding: 0;">
+                    <li>- GRAIN: 5 TO 25 GOLD</li>
+                    <li>- SPICES: 50 TO 150 GOLD</li>
+                    <li>- WINE: 200 TO 500 GOLD</li>
+                    <li>- GLASSWARE: 600 TO 1500 GOLD</li>
+                    <li>- SILK: 2000 TO 5000 GOLD</li>
+                    <li>- HASHISH: 8000 TO 20000 GOLD</li>
+                </ul>
+                <p><i style="color:var(--danger)">WARNING:</i> Hashish is highly illegal. Carrying it risks seizure and heavy fines by the Inquisition upon docking.</p>
+                
+                <h3>GAMEPLAY MECHANICS:</h3>
+                <p><strong>- TRADING:</strong> Prices fluctuate at each port. Use the Buy/Sell quantity inputs to maximize profit.</p>
+                <p><strong>- THE WAREHOUSE:</strong> Located only in Venice. Use it to store goods you aren't ready to sell. Can be expanded up to 10,000 units at the Arsenal.</p>
+                <p><strong>- DEBT & BANKING:</strong> Your initial debt compounds by 10% every voyage. Savings in the Venice Bank earn 2% interest.</p>
+                <p><strong>- NAVAL COMBAT:</strong> Borgia fleets intercept travelers. Engaging in battle earns bounties based on ships defeated. The Auto-Action toggle can automate your chosen combat command.</p>
+                <p><strong>- FLEET UPGRADES:</strong> Visit the Venice Arsenal for repairs, hull expansions, or cannons. Each cannon costs 10 units of hold capacity.</p>
+                <p><strong>- SURVIVAL:</strong> Escaping is easier with a lighter load. Jettison heavy cargo if pursuit is too intense.</p>
+            </div>
+        `;
+        showModal("MERCHANT HANDBOOK", html, true);
+    }
+
+    function showModal(title, content, showClose = true, actionButtons = "") {
+        document.getElementById('modal-title').innerText = title;
+        const contentEl = document.getElementById('modal-content');
+        contentEl.innerHTML = content;
+        document.getElementById('modal-actions').innerHTML = actionButtons;
+        document.getElementById('modal-close-btn').style.display = showClose ? 'block' : 'none';
+        
+        const modal = document.getElementById('modal');
+        modal.style.display = 'flex';
+        document.getElementById('overlay').style.display = 'block';
+        contentEl.scrollTop = 0;
+    }
+
+    function closeModal() {
+        document.getElementById('modal').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('modal-close-btn').style.display = 'block';
+    }
+
+    function gameOver(reason) { 
+        localStorage.removeItem(SAVE_KEY);
+        showModal("THE VOYAGE ENDS", `<p>${reason}</p><button class="btn-main" onclick="location.reload()">BEGIN A NEW JOURNEY</button>`, false); 
+    }
+
+    window.onload = () => {
+        const savedData = localStorage.getItem(SAVE_KEY);
+        if (savedData) {
+            document.getElementById('continue-btn').style.display = 'block';
+        }
+    };
+</script>
+<a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

@@ -1,0 +1,575 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Pro Billiards: A high-fidelity physics-based pool simulator featuring authentic 8-Ball and 9-Ball modes. Play against an adjustable intelligent AI or practice solo in a responsive, mobile-optimized environment that automatically adapts to portrait and landscape orientations.
+TAGS: Sports, Simulation, Physics, 8-Ball, 9-Ball, AI
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pro Billiards - 8-Ball & 9-Ball</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #020617;
+            color: #f8fafc;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+        }
+        canvas {
+            box-shadow: 0 0 100px rgba(0, 0, 0, 0.8), 0 0 20px rgba(16, 185, 129, 0.1);
+            cursor: crosshair;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: #1e3d1a;
+            image-rendering: auto;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #ui-top {
+            pointer-events: none;
+            position: fixed;
+            top: 1.5rem;
+            z-index: 20;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+        #ui-top > div { pointer-events: auto; }
+        
+        #ui-bottom {
+            position: fixed;
+            bottom: 1.5rem;
+            z-index: 20;
+            display: flex;
+            gap: 1rem;
+        }
+        
+        input[type=range] {
+            appearance: none;
+            height: 8px;
+            background: #334155;
+            border-radius: 8px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #10b981;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Upper Stats -->
+    <div id="ui-top">
+        <div class="glass-panel rounded-3xl px-8 py-4 flex gap-12 items-center shadow-2xl scale-110">
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1">Mode</span>
+                <span id="game-mode-display" class="font-black text-xl text-emerald-400">8-Ball</span>
+            </div>
+            <div class="h-10 w-px bg-slate-700"></div>
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1">Turn</span>
+                <span id="turn-display" class="font-black text-xl text-white">Player</span>
+            </div>
+            <div class="h-10 w-px bg-slate-700"></div>
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1">Target</span>
+                <span id="target-display" class="font-black text-xl text-amber-400">Any</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Message -->
+    <div id="message-container" class="fixed top-32 z-30 pointer-events-none">
+        <div id="message-box" class="opacity-0 transition-all duration-500 glass-panel rounded-full px-10 py-3 text-xl font-bold text-white shadow-xl translate-y-4">
+            Welcome to Pro Billiards
+        </div>
+    </div>
+
+    <!-- The Game Table -->
+    <canvas id="poolCanvas" class="rounded-[2rem] border-[16px] border-[#3e1d0a]"></canvas>
+
+    <!-- Lower Controls -->
+    <div id="ui-bottom">
+        <button id="btn-reset" class="glass-panel hover:bg-slate-800 px-8 py-3 rounded-2xl text-base font-bold transition-all hover:scale-105 active:scale-95">Reset Table</button>
+        <button id="btn-settings" class="glass-panel hover:bg-slate-800 px-8 py-3 rounded-2xl text-base font-bold transition-all hover:scale-105 active:scale-95">Settings</button>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+        <div class="glass-panel w-full max-w-lg rounded-[2.5rem] p-10 space-y-8 shadow-2xl border-emerald-500/20">
+            <h2 class="text-3xl font-black tracking-tight">Game Setup</h2>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-4">Game Variant</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="btn-mode-8ball" onclick="setGameType('8ball')" class="variant-btn bg-emerald-600 px-6 py-4 rounded-2xl font-bold text-lg transition-all">8-Ball</button>
+                        <button id="btn-mode-9ball" onclick="setGameType('9ball')" class="variant-btn bg-slate-800 px-6 py-4 rounded-2xl font-bold text-lg transition-all">9-Ball</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-4">Opponent</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="btn-opp-bot" onclick="setOpponent('bot')" class="opp-btn bg-emerald-600 px-6 py-4 rounded-2xl font-bold text-lg transition-all">vs Computer</button>
+                        <button id="btn-opp-solo" onclick="setOpponent('solo')" class="opp-btn bg-slate-800 px-6 py-4 rounded-2xl font-bold text-lg transition-all">Solo Practice</button>
+                    </div>
+                </div>
+
+                <div id="bot-difficulty-container">
+                    <div class="flex justify-between items-center mb-4">
+                        <label class="block text-xs uppercase tracking-widest text-slate-400 font-bold">Bot Intelligence</label>
+                        <span id="diff-val" class="text-emerald-400 font-bold text-sm">Medium</span>
+                    </div>
+                    <input type="range" id="bot-difficulty" min="0" max="2" step="1" value="1" class="w-full accent-emerald-500">
+                </div>
+            </div>
+
+            <button id="close-settings" class="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-5 rounded-2xl text-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95">Start Game</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('poolCanvas');
+        const ctx = canvas.getContext('2d');
+        const msgBox = document.getElementById('message-box');
+        
+        const TABLE_WIDTH = 800;
+        const TABLE_HEIGHT = 400;
+        const BALL_RADIUS = 10;
+        const POCKET_RADIUS = 24;
+        const FRICTION = 0.988;
+        const WALL_BOUNCE = 0.7;
+        const MIN_VELOCITY = 0.12;
+        const HEADSTRING_X = 200;
+
+        let gameMode = '8ball'; 
+        let opponent = 'bot'; 
+        let botDifficulty = 1; 
+        let currentPlayer = 1; 
+        let balls = [];
+        let pockets = [];
+        let isMoving = false;
+        let isCueActive = false;
+        let isPlacingBall = true;
+        let cuePower = 0;
+        let cueAngle = 0;
+        let mousePos = { x: 0, y: 0 };
+        let gameOver = false;
+        let playerType = null; 
+        let turnResult = { pocketed: [], firstHit: null, foul: false };
+        let shotTaken = false;
+        let pulseTime = 0;
+        
+        let isRotated = false;
+        let canvasScale = 1;
+
+        function resize() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const uiPaddingTop = 160;
+            const uiPaddingBottom = 120;
+            const horizontalMargin = 40;
+            isRotated = h > w;
+            if (!isRotated) {
+                canvasScale = Math.min((w - horizontalMargin) / TABLE_WIDTH, (h - uiPaddingTop - uiPaddingBottom) / TABLE_HEIGHT);
+                canvas.style.transform = "rotate(0deg)";
+            } else {
+                canvasScale = Math.min((h - horizontalMargin) / TABLE_WIDTH, (w - 60) / TABLE_HEIGHT);
+                canvas.style.transform = "rotate(90deg)";
+            }
+            canvas.width = TABLE_WIDTH;
+            canvas.height = TABLE_HEIGHT;
+            canvas.style.width = (TABLE_WIDTH * canvasScale) + "px";
+            canvas.style.height = (TABLE_HEIGHT * canvasScale) + "px";
+        }
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            if (isRotated) {
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const relX = clientX - centerX;
+                const relY = clientY - centerY;
+                const internalRelX = relY / canvasScale;
+                const internalRelY = -relX / canvasScale;
+                return { x: internalRelX + TABLE_WIDTH / 2, y: internalRelY + TABLE_HEIGHT / 2 };
+            } else {
+                return { x: (clientX - rect.left) / canvasScale, y: (clientY - rect.top) / canvasScale };
+            }
+        }
+
+        class Ball {
+            constructor(x, y, number, color) {
+                this.x = x; this.y = y; this.number = number; this.color = color;
+                this.vx = 0; this.vy = 0; this.inPocket = false;
+                this.type = this.getType();
+            }
+            getType() {
+                if (this.number === 0) return 'cue';
+                if (this.number === 8) return 'black';
+                return this.number < 8 ? 'solids' : 'stripes';
+            }
+            draw() {
+                if (this.inPocket) return;
+                if (this.number === 0 && isPlacingBall) {
+                    ctx.beginPath(); ctx.arc(this.x, this.y, BALL_RADIUS + 8, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+                }
+                ctx.beginPath(); ctx.arc(this.x + 3, this.y + 3, BALL_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
+                ctx.beginPath(); ctx.arc(this.x, this.y, BALL_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; ctx.fill();
+                if (this.type === 'stripes' && gameMode === '8ball') {
+                    ctx.beginPath(); ctx.rect(this.x - BALL_RADIUS, this.y - BALL_RADIUS/2, BALL_RADIUS*2, BALL_RADIUS);
+                    ctx.fillStyle = 'white'; ctx.fill();
+                }
+                if (this.number !== 0) {
+                    ctx.beginPath(); ctx.arc(this.x, this.y, BALL_RADIUS * 0.5, 0, Math.PI * 2);
+                    ctx.fillStyle = 'white'; ctx.fill();
+                    ctx.fillStyle = 'black'; ctx.font = 'bold 9px Arial';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(this.number, this.x, this.y);
+                }
+                ctx.beginPath(); ctx.arc(this.x - 3, this.y - 3, 2, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fill();
+            }
+            update() {
+                if (this.inPocket || isPlacingBall) return;
+                this.x += this.vx; this.y += this.vy;
+                this.vx *= FRICTION; this.vy *= FRICTION;
+                if (Math.abs(this.vx) < MIN_VELOCITY) this.vx = 0;
+                if (Math.abs(this.vy) < MIN_VELOCITY) this.vy = 0;
+                if (this.x - BALL_RADIUS < 20 || this.x + BALL_RADIUS > TABLE_WIDTH - 20) {
+                    this.vx *= -WALL_BOUNCE;
+                    this.x = (this.x < TABLE_WIDTH/2) ? 20+BALL_RADIUS : TABLE_WIDTH-20-BALL_RADIUS;
+                }
+                if (this.y - BALL_RADIUS < 20 || this.y + BALL_RADIUS > TABLE_HEIGHT - 20) {
+                    this.vy *= -WALL_BOUNCE;
+                    this.y = (this.y < TABLE_HEIGHT/2) ? 20+BALL_RADIUS : TABLE_HEIGHT-20-BALL_RADIUS;
+                }
+                pockets.forEach(p => {
+                    if (Math.hypot(this.x - p.x, this.y - p.y) < POCKET_RADIUS) {
+                        this.inPocket = true; this.vx = 0; this.vy = 0;
+                        turnResult.pocketed.push(this);
+                    }
+                });
+            }
+        }
+
+        function setupTable() {
+            balls = [];
+            pockets = [
+                { x: 20, y: 20 }, { x: TABLE_WIDTH/2, y: 12 }, { x: TABLE_WIDTH-20, y: 20 },
+                { x: 20, y: TABLE_HEIGHT-20 }, { x: TABLE_WIDTH/2, y: TABLE_HEIGHT-12 }, { x: TABLE_WIDTH-20, y: TABLE_HEIGHT-20 }
+            ];
+            balls.push(new Ball(HEADSTRING_X, TABLE_HEIGHT / 2, 0, '#ffffff'));
+            const rackX = 550, rackY = TABLE_HEIGHT / 2;
+            const colors = ['#fbbf24', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#16a34a', '#7f1d1d', '#111827', '#fbbf24', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#16a34a', '#7f1d1d'];
+            
+            if (gameMode === '8ball') {
+                const layout = [[1], [2, 9], [3, 8, 10], [4, 11, 12, 5], [13, 14, 15, 6, 7]];
+                layout.forEach((row, i) => row.forEach((num, j) => {
+                    balls.push(new Ball(rackX + i*18, rackY + (j-i/2)*21, num, colors[num-1]));
+                }));
+            } else {
+                const layout = [[1], [2, 3], [4, 9, 5], [6, 7], [8]];
+                layout.forEach((row, i) => row.forEach((num, j) => {
+                    balls.push(new Ball(rackX + i*18, rackY + (j-(row.length-1)/2)*21, num, colors[num-1]));
+                }));
+            }
+            
+            // Full state reset
+            currentPlayer = 1; 
+            playerType = null; 
+            gameOver = false; 
+            shotTaken = false; 
+            isMoving = false; 
+            isPlacingBall = true;
+            isCueActive = false;
+            cuePower = 0;
+            turnResult = { pocketed: [], firstHit: null, foul: false };
+            pulseTime = 0;
+
+            updateUI(); 
+            showMessage(`Game Set! Place Cue Ball.`);
+        }
+
+        function checkCollisions() {
+            if (isPlacingBall) return;
+            for (let i = 0; i < balls.length; i++) {
+                for (let j = i + 1; j < balls.length; j++) {
+                    const b1 = balls[i], b2 = balls[j];
+                    if (b1.inPocket || b2.inPocket) continue;
+                    const dx = b2.x - b1.x, dy = b2.y - b1.y, dist = Math.hypot(dx, dy);
+                    if (dist < BALL_RADIUS * 2) {
+                        if (b1.number === 0 && !turnResult.firstHit) turnResult.firstHit = b2;
+                        else if (b2.number === 0 && !turnResult.firstHit) turnResult.firstHit = b1;
+                        const overlap = BALL_RADIUS * 2 - dist, nx = dx/dist, ny = dy/dist;
+                        b1.x -= nx*overlap/2; b1.y -= ny*overlap/2;
+                        b2.x += nx*overlap/2; b2.y += ny*overlap/2;
+                        const v1n = b1.vx*nx + b1.vy*ny, v2n = b2.vx*nx + b2.vy*ny;
+                        b1.vx += (v2n-v1n)*nx; b1.vy += (v2n-v1n)*ny;
+                        b2.vx += (v1n-v2n)*nx; b2.vy += (v1n-v2n)*ny;
+                    }
+                }
+            }
+        }
+
+        function getCurrentTargetType() {
+            if (!playerType) return null;
+            if (currentPlayer === 1) return playerType;
+            return playerType === 'solids' ? 'stripes' : 'solids';
+        }
+
+        function resolveTurn() {
+            if (!shotTaken || !balls || balls.length === 0) return;
+            let switchPlayer = true, foul = false;
+            const cueBall = balls[0];
+
+            if (cueBall.inPocket) {
+                foul = true; showMessage("Scratch! Ball in hand.");
+                isPlacingBall = true; cueBall.inPocket = false; cueBall.vx = 0; cueBall.vy = 0;
+                cueBall.x = HEADSTRING_X; cueBall.y = TABLE_HEIGHT / 2;
+            }
+
+            if (gameMode === '8ball') {
+                const currentSet = getCurrentTargetType();
+                const pocketedOwn = turnResult.pocketed.filter(b => b.number !== 0 && b.number !== 8 && (currentSet ? b.type === currentSet : true));
+                const eightBall = turnResult.pocketed.find(b => b.number === 8);
+                
+                if (eightBall) {
+                    const remaining = balls.filter(b => !b.inPocket && b.number !== 0 && b.number !== 8 && (currentSet ? b.type === currentSet : true));
+                    if (remaining.length === 0 && !foul) endGame(`Player ${currentPlayer} Wins!`);
+                    else endGame(`Player ${currentPlayer} fouled on 8-ball.`);
+                    return;
+                }
+
+                if (!turnResult.firstHit) foul = true;
+                else if (currentSet && turnResult.firstHit.type !== currentSet && turnResult.firstHit.number !== 8) foul = true;
+
+                if (!foul && pocketedOwn.length > 0) {
+                    if (!playerType) { 
+                        playerType = (currentPlayer === 1) ? pocketedOwn[0].type : (pocketedOwn[0].type === 'solids' ? 'stripes' : 'solids');
+                        showMessage(`Sets Assigned! P1 is ${playerType}!`);
+                    }
+                    switchPlayer = false;
+                }
+            } else {
+                const activeAtStartOfShot = balls.filter(b => b.number !== 0 && (!b.inPocket || turnResult.pocketed.includes(b)));
+                const lowestAtStart = activeAtStartOfStartOfShot = activeAtStartOfShot.sort((a,b) => a.number - b.number)[0];
+                const nineBall = turnResult.pocketed.find(b => b.number === 9);
+
+                if (!turnResult.firstHit || (lowestAtStart && turnResult.firstHit.number !== lowestAtStart.number)) {
+                    foul = true; showMessage("Foul! Wrong ball hit first.");
+                    if (nineBall) { nineBall.inPocket = false; nineBall.x = 550; nineBall.y = TABLE_HEIGHT / 2; }
+                } else {
+                    if (nineBall) { endGame(`Player ${currentPlayer} Wins!`); return; }
+                    if (turnResult.pocketed.length > 0) switchPlayer = false;
+                }
+            }
+
+            shotTaken = false;
+            if (opponent === 'solo') switchPlayer = false;
+            if (switchPlayer || foul) currentPlayer = currentPlayer === 1 ? 2 : 1;
+            turnResult = { pocketed: [], firstHit: null, foul: false };
+            updateUI();
+            if (currentPlayer === 2 && opponent === 'bot' && !gameOver) setTimeout(botPlay, 1200);
+        }
+
+        function botPlay() {
+            if (gameOver || isMoving || !balls || balls.length === 0) return;
+            const cue = balls[0];
+            if (isPlacingBall) {
+                cue.x = HEADSTRING_X - 10; cue.y = (TABLE_HEIGHT / 2) + (Math.random() * 40 - 20);
+                while(balls.some(b => b !== cue && !b.inPocket && Math.hypot(b.x - cue.x, b.y - cue.y) < BALL_RADIUS * 2.2)) {
+                    cue.y += 25; if (cue.y > TABLE_HEIGHT - 40) cue.y = 40;
+                }
+                isPlacingBall = false;
+            }
+            const active = balls.filter(b => !b.inPocket && b.number !== 0);
+            let target;
+            if (gameMode === '9ball') target = active.sort((a,b) => a.number - b.number)[0];
+            else {
+                const currentSet = getCurrentTargetType();
+                const my = currentSet ? active.filter(b => b.type === currentSet) : active.filter(b => b.number !== 8);
+                target = my.length > 0 ? my[Math.floor(Math.random()*my.length)] : active.find(b => b.number === 8);
+            }
+            if (!target) { currentPlayer = 1; updateUI(); return; }
+            let angle = Math.atan2(target.y - cue.y, target.x - cue.x);
+            angle += (Math.random() - 0.5) * [0.12, 0.05, 0.01][botDifficulty];
+            const power = 14 + Math.random() * 12;
+            cue.vx = Math.cos(angle) * power; cue.vy = Math.sin(angle) * power;
+            shotTaken = true;
+        }
+
+        function updateUI() {
+            if (!balls || balls.length === 0) return;
+            document.getElementById('game-mode-display').innerText = gameMode === '8ball' ? '8-Ball' : '9-Ball';
+            document.getElementById('turn-display').innerText = opponent === 'solo' ? 'Practice' : (currentPlayer === 1 ? 'Player' : 'Bot');
+            const targetEl = document.getElementById('target-display');
+            if (gameMode === '9ball') {
+                const lowest = balls.filter(b => !b.inPocket && b.number !== 0).sort((a,b) => a.number - b.number)[0];
+                targetEl.innerText = lowest ? `Ball ${lowest.number}` : "None";
+            } else {
+                const set = getCurrentTargetType();
+                targetEl.innerText = set ? set.toUpperCase() : "Any Ball";
+            }
+        }
+
+        function showMessage(txt) {
+            msgBox.innerText = txt; msgBox.style.opacity = 1; msgBox.style.transform = "translateY(0)";
+            setTimeout(() => { msgBox.style.opacity = 0; msgBox.style.transform = "translateY(1rem)"; }, 2500);
+        }
+
+        function endGame(txt) {
+            gameOver = true; showMessage(txt); setTimeout(setupTable, 5000);
+        }
+
+        canvas.addEventListener('touchstart', (e) => handleInteractDown(e), {passive: false});
+        canvas.addEventListener('mousedown', (e) => handleInteractDown(e));
+        function handleInteractDown(e) {
+            if (e.cancelable) e.preventDefault();
+            if (isMoving || currentPlayer !== 1 || gameOver || shotTaken || !balls || balls.length === 0) return;
+            const cue = balls[0];
+            if (isPlacingBall) {
+                if (!balls.some(b => b !== cue && !b.inPocket && Math.hypot(b.x - cue.x, b.y - cue.y) < BALL_RADIUS * 2.1)) {
+                    isPlacingBall = false; showMessage("Ball Set.");
+                } else showMessage("Space Blocked!");
+            } else isCueActive = true;
+        }
+        window.addEventListener('mousemove', (e) => handleInteractMove(e));
+        window.addEventListener('touchmove', (e) => handleInteractMove(e), {passive: false});
+        function handleInteractMove(e) {
+            if (!balls || balls.length === 0) return;
+            if (isCueActive || isPlacingBall) {
+                if (e.cancelable) e.preventDefault();
+                const p = getMousePos(e); const cue = balls[0];
+                if (isPlacingBall) {
+                    cue.x = Math.max(30, Math.min(HEADSTRING_X, p.x));
+                    cue.y = Math.max(30, Math.min(TABLE_HEIGHT - 30, p.y));
+                } else {
+                    const dx = cue.x - p.x, dy = cue.y - p.y;
+                    cueAngle = Math.atan2(dy, dx);
+                    cuePower = Math.min(Math.hypot(dx, dy) / 8, 35);
+                }
+            }
+        }
+        window.addEventListener('mouseup', () => handleInteractUp());
+        window.addEventListener('touchend', () => handleInteractUp());
+        function handleInteractUp() {
+            if (isCueActive && balls && balls.length > 0) {
+                if (cuePower > 2) {
+                    balls[0].vx = Math.cos(cueAngle) * cuePower;
+                    balls[0].vy = Math.sin(cueAngle) * cuePower;
+                    shotTaken = true;
+                }
+                isCueActive = false; cuePower = 0;
+            }
+        }
+
+        function drawHighlight() {
+            if (currentPlayer !== 1 || isMoving || gameOver || isPlacingBall || !balls || balls.length === 0) return;
+            const active = balls.filter(b => !b.inPocket && b.number !== 0);
+            let targets = [];
+            if (gameMode === '9ball') {
+                const low = active.sort((a,b) => a.number - b.number)[0];
+                if (low) targets = [low];
+            } else {
+                const currentSet = getCurrentTargetType();
+                if (!currentSet) targets = active.filter(b => b.number !== 8);
+                else {
+                    targets = active.filter(b => b.type === currentSet);
+                    if (targets.length === 0) targets = [active.find(b => b.number === 8)];
+                }
+            }
+            pulseTime += 0.05; const pulse = 5 + Math.sin(pulseTime) * 4;
+            targets.forEach(b => {
+                if (!b) return;
+                ctx.beginPath(); ctx.arc(b.x, b.y, BALL_RADIUS + pulse, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; ctx.lineWidth = 2; ctx.stroke();
+            });
+        }
+
+        function drawTable() {
+            ctx.fillStyle = '#1e3d1a'; ctx.fillRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
+            ctx.strokeStyle = '#3e1d0a'; ctx.lineWidth = 32; ctx.strokeRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
+            ctx.fillStyle = '#0a0a0a';
+            pockets.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, POCKET_RADIUS, 0, Math.PI * 2); ctx.fill(); });
+            ctx.strokeStyle = isPlacingBall ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)';
+            ctx.setLineDash(isPlacingBall ? [5, 5] : []);
+            ctx.lineWidth = isPlacingBall ? 2 : 1;
+            ctx.beginPath(); ctx.moveTo(HEADSTRING_X, 16); ctx.lineTo(HEADSTRING_X, TABLE_HEIGHT-16); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function drawCue() {
+            if (!isCueActive || shotTaken || !balls || balls.length === 0) return;
+            const cue = balls[0];
+            const offset = BALL_RADIUS + 8 + cuePower * 2.5;
+            ctx.save(); ctx.translate(cue.x, cue.y); ctx.rotate(cueAngle);
+            const grad = ctx.createLinearGradient(-offset, 0, -offset - 300, 0);
+            grad.addColorStop(0, '#fef3c7'); grad.addColorStop(0.1, '#d97706'); grad.addColorStop(1, '#451a03');
+            ctx.fillStyle = grad; ctx.fillRect(-offset - 300, -3.5, 300, 7);
+            ctx.setLineDash([8, 8]); ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(BALL_RADIUS + 5, 0); ctx.lineTo(BALL_RADIUS + 300, 0); ctx.stroke();
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
+            drawTable();
+            let moving = false;
+            if (balls && balls.length > 0) {
+                balls.forEach(b => { b.update(); b.draw(); if (Math.abs(b.vx) > 0 || Math.abs(b.vy) > 0) moving = true; });
+                checkCollisions(); drawHighlight(); drawCue();
+            }
+            if (!moving && shotTaken) resolveTurn();
+            isMoving = moving; requestAnimationFrame(gameLoop);
+        }
+
+        window.setGameType = (type) => {
+            gameMode = type; document.querySelectorAll('.variant-btn').forEach(btn => {
+                const match = btn.id === `btn-mode-${type}`;
+                btn.className = `variant-btn px-6 py-4 rounded-2xl font-bold text-lg transition-all ${match ? 'bg-emerald-600' : 'bg-slate-800'}`;
+            });
+        };
+        window.setOpponent = (type) => {
+            opponent = type; document.getElementById('bot-difficulty-container').style.opacity = type === 'bot' ? '1' : '0.3';
+            document.querySelectorAll('.opp-btn').forEach(btn => {
+                const match = btn.id === `btn-opp-${type}`;
+                btn.className = `opp-btn px-6 py-4 rounded-2xl font-bold text-lg transition-all ${match ? 'bg-emerald-600' : 'bg-slate-800'}`;
+            });
+        };
+        document.getElementById('btn-settings').onclick = () => document.getElementById('settings-modal').classList.remove('hidden');
+        document.getElementById('close-settings').onclick = () => { document.getElementById('settings-modal').classList.add('hidden'); setupTable(); };
+        document.getElementById('btn-reset').onclick = setupTable;
+        document.getElementById('bot-difficulty').oninput = (e) => {
+            botDifficulty = parseInt(e.target.value);
+            document.getElementById('diff-val').innerText = ['Easy', 'Medium', 'Hard'][botDifficulty];
+        };
+        window.onload = () => { resize(); setupTable(); gameLoop(); };
+        window.onresize = resize;
+    </script>
+    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

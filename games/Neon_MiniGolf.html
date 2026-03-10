@@ -1,0 +1,592 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Neon MiniGolf Pro is a neon-themed procedural 18-hole minigolf game. It features complex geometry including triangle tiles, dynamic obstacles like spinners and moving walls, and a choice-based powerup system for players who finish under par.
+TAGS: Minigolf, Procedural, Canvas, Physics, Games
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon MiniGolf Pro - Solo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; overflow: hidden; font-family: 'Inter', sans-serif; }
+        canvas { touch-action: none; cursor: crosshair; }
+        .glass { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); }
+        .powerup-card { transition: all 0.2s; cursor: pointer; }
+        .powerup-card:hover { transform: translateY(-4px); background: rgba(255,255,255,0.15); border-color: #fbbf24; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <!-- Menu Overlay -->
+    <div id="menu" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="glass p-8 rounded-2xl max-w-md w-full text-white shadow-2xl text-center">
+            <h1 class="text-4xl font-bold mb-2 text-emerald-400">Neon MiniGolf Pro</h1>
+            <p class="text-slate-400 text-sm mb-6 uppercase tracking-widest">Procedural Solo Journey</p>
+            
+            <div class="grid grid-cols-2 gap-2 text-left mb-8 text-[10px] text-slate-300">
+                <div class="flex items-center gap-2"><div class="w-3 h-3 bg-emerald-700"></div> <span>Standard</span></div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 bg-blue-600"></div> <span>Water Hazard</span></div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 bg-orange-700"></div> <span>Sand Trap</span></div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 border border-purple-500 rounded-full"></div> <span>Gravity Hill</span></div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 bg-yellow-500 rounded-full"></div> <span>Bumper</span></div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 bg-cyan-400/30"></div> <span>Wind Zone</span></div>
+            </div>
+
+            <button id="startGameBtn" class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg shadow-emerald-500/20">
+                START 18 HOLES
+            </button>
+        </div>
+    </div>
+
+    <!-- Powerup Selection Overlay -->
+    <div id="powerupMenu" class="fixed inset-0 z-[70] flex items-center justify-center p-4 hidden bg-slate-900/60 backdrop-blur-sm">
+        <div class="glass p-8 rounded-2xl max-w-lg w-full text-white text-center">
+            <h2 class="text-2xl font-bold mb-2 text-yellow-400">UNDER PAR!</h2>
+            <p class="text-slate-300 text-sm mb-6 uppercase tracking-widest">Choose Your Powerup for the Next Hole</p>
+            <div id="powerupOptions" class="grid grid-cols-2 gap-4">
+                <!-- Powerup buttons will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="fixed top-0 left-0 right-0 p-4 flex justify-between items-start pointer-events-none text-white opacity-0 transition-opacity duration-500">
+        <div class="glass px-6 py-2 rounded-lg text-center">
+            <div class="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">Hole</div>
+            <div id="holeDisplay" class="text-2xl font-black">1 / 18</div>
+            <div id="parDisplay" class="text-[10px] text-slate-400 uppercase font-bold">PAR 3</div>
+        </div>
+        
+        <div class="glass px-8 py-2 rounded-lg text-center min-w-[160px] relative">
+            <div id="strokeDisplay" class="text-3xl font-black leading-none my-1">0</div>
+            <div class="text-[10px] text-slate-400 uppercase font-bold">Strokes</div>
+            <div id="statusNotice" class="text-[10px] text-red-400 font-bold hidden absolute -bottom-6 left-0 right-0 text-center uppercase tracking-wider"></div>
+            <div id="activePowerupDisplay" class="text-[9px] text-yellow-400 font-bold mt-1 uppercase tracking-tighter"></div>
+        </div>
+
+        <div class="glass px-6 py-2 rounded-lg text-right">
+            <div class="text-[10px] text-blue-400 uppercase tracking-widest font-bold">Total Score</div>
+            <div id="totalScoreDisplay" class="text-2xl font-black">0</div>
+        </div>
+    </div>
+
+    <!-- Scorecard -->
+    <div id="scorecard" class="fixed inset-0 z-[60] flex items-center justify-center p-4 hidden bg-slate-950/90 backdrop-blur-md">
+        <div class="glass p-8 rounded-2xl w-full max-md text-white text-center">
+            <h2 class="text-3xl font-bold mb-2">COURSE COMPLETE</h2>
+            <div id="finalScore" class="text-6xl font-black text-emerald-400 my-6">0</div>
+            <p class="text-slate-400 mb-8 uppercase tracking-widest text-sm">Final 18-Hole Score</p>
+            <button onclick="location.reload()" class="w-full py-4 bg-emerald-500 rounded-xl font-bold">REPLAY JOURNEY</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" class="rounded-xl shadow-2xl"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const WIDTH = 800, HEIGHT = 600, TILE_SIZE = 48; 
+        const FRICTION_GRASS = 0.985, FRICTION_SAND = 0.90, BALL_RADIUS = 6, HOLE_RADIUS = 13, DEFAULT_MAX_POWER = 15;
+
+        let player = { scores: Array(18).fill(0), totalScore: 0, ball: { x: 0, y: 0, vx: 0, vy: 0, isSunk: false, strokes: 0 } };
+        let currentHole = 1, gameState = 'MENU', level = null;
+        let input = { isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
+        let activePowerup = null; 
+        let currentBrakeUsed = false;
+
+        const POWERUPS = {
+            magnetic: { name: 'Magnetic Core', icon: '🧲', desc: 'Powerful hole suction' },
+            ice: { name: 'Ice Ball', icon: '🧊', desc: 'Near-zero friction' },
+            shield: { name: 'Heavy Ball', icon: '🛡️', desc: 'Ignore wind and gravity' },
+            float: { name: 'Floating Ball', icon: '🛟', desc: 'Immune to water reset' },
+            precision: { name: 'Precision Putter', icon: '🎯', desc: 'Shows bounce trajectory' },
+            nitro: { name: 'Nitro Shot', icon: '🚀', desc: 'Increased max power (25)' },
+            ghost: { name: 'Ghost Ball', icon: '👻', desc: 'Pass through moving walls' },
+            brake: { name: 'Air Brake', icon: '🛑', desc: 'Click moving ball to stop' }
+        };
+
+        function init() {
+            canvas.width = WIDTH; canvas.height = HEIGHT;
+            animate();
+        }
+
+        document.getElementById('startGameBtn').addEventListener('click', () => {
+            gameState = 'PLAYING';
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('hud').style.opacity = '1';
+            loadHole(1);
+        });
+
+        function loadHole(num) {
+            currentHole = num;
+            level = generateProceduralHole(num);
+            player.ball.x = level.tee.x; player.ball.y = level.tee.y;
+            player.ball.vx = 0; player.ball.vy = 0; player.ball.isSunk = false; player.ball.strokes = 0;
+            currentBrakeUsed = false;
+            gameState = 'PLAYING';
+            updateHUD();
+        }
+
+        function generateProceduralHole(num) {
+            const gridW = Math.floor(WIDTH / TILE_SIZE), gridH = Math.floor(HEIGHT / TILE_SIZE);
+            let tiles = [];
+            let cx = Math.floor(gridW/2), cy = Math.floor(gridH/2);
+            const walkLen = 14 + num * 2;
+            const visitedSet = new Set();
+            const walkPath = [];
+
+            for (let i = 0; i < walkLen; i++) {
+                if (!visitedSet.has(`${cx},${cy}`)) { 
+                    walkPath.push({x:cx, y:cy, type: 'grass', shape: 'square'});
+                    visitedSet.add(`${cx},${cy}`); 
+                }
+                const dir = Math.floor(Math.random() * 4);
+                if (dir === 0 && cx > 1) cx--; else if (dir === 1 && cx < gridW-2) cx++;
+                else if (dir === 2 && cy > 1) cy--; else if (dir === 3 && cy < gridH-2) cy++;
+            }
+
+            tiles = [...walkPath];
+            const decorationSet = new Set(visitedSet);
+            walkPath.forEach(p => {
+                const neighbors = [[-1,0],[1,0],[0,-1],[0,1]];
+                neighbors.forEach(([dx, dy]) => {
+                    const nx = p.x + dx, ny = p.y + dy;
+                    if (nx > 0 && nx < gridW - 1 && ny > 0 && ny < gridH - 1 && !decorationSet.has(`${nx},${ny}`) && Math.random() > 0.6) {
+                        let type = Math.random() < 0.2 ? 'water' : (Math.random() < 0.3 ? 'sand' : 'grass');
+                        let shape = Math.random() < 0.3 ? 'tri-' + ['tl','tr','bl','br'][Math.floor(Math.random()*4)] : 'square';
+                        tiles.push({x: nx, y: ny, type, shape});
+                        decorationSet.add(`${nx},${ny}`);
+                    }
+                });
+            });
+
+            const minX = Math.min(...tiles.map(t => t.x)), maxX = Math.max(...tiles.map(t => t.x));
+            const minY = Math.min(...tiles.map(t => t.y)), maxY = Math.max(...tiles.map(t => t.y));
+            const offX = Math.floor((gridW - (maxX-minX+1))/2) - minX, offY = Math.floor((gridH - (maxY-minY+1))/2) - minY;
+            tiles = tiles.map(t => ({...t, x: t.x+offX, y: t.y+offY}));
+
+            const tee = {x: tiles[0].x*TILE_SIZE+TILE_SIZE/2, y: tiles[0].y*TILE_SIZE+TILE_SIZE/2};
+            const hole = {x: walkPath[walkPath.length-1].x*TILE_SIZE+offX*TILE_SIZE+TILE_SIZE/2, y: walkPath[walkPath.length-1].y*TILE_SIZE+offY*TILE_SIZE+TILE_SIZE/2};
+            
+            const obstacles = [];
+            if (Math.random() < 0.5) {
+                const midTile = tiles[Math.floor(tiles.length/2)];
+                obstacles.push({ type: 'hill', x: midTile.x*TILE_SIZE+TILE_SIZE/2, y: midTile.y*TILE_SIZE+TILE_SIZE/2, radius: 70, force: 0.28 });
+            }
+            if (num > 3 && Math.random() < 0.5) {
+                const midTile = tiles[Math.floor(tiles.length * 0.7)];
+                obstacles.push({ type: 'movingWall', x: midTile.x*TILE_SIZE, y: midTile.y*TILE_SIZE, length: TILE_SIZE, vertical: Math.random() < 0.5, speed: 0.03 + Math.random() * 0.05, range: TILE_SIZE * 1.5 });
+            }
+            if (num > 6 && Math.random() < 0.4) {
+                const midTile = tiles[Math.floor(tiles.length * 0.4)];
+                // Reduced speed from 0.04 to 0.012 for smoother timing
+                obstacles.push({ type: 'spinner', x: midTile.x*TILE_SIZE+TILE_SIZE/2, y: midTile.y*TILE_SIZE+TILE_SIZE/2, length: TILE_SIZE * 0.8, angle: 0, speed: 0.012 });
+            }
+            if (num > 2 && Math.random() < 0.6) {
+                const midTile = tiles[Math.floor(Math.random() * tiles.length)];
+                obstacles.push({ type: 'bumper', x: midTile.x*TILE_SIZE+TILE_SIZE/2, y: midTile.y*TILE_SIZE+TILE_SIZE/2, radius: 12 });
+            }
+            if (num > 8 && Math.random() < 0.4) {
+                const midTile = tiles[Math.floor(tiles.length * 0.5)];
+                obstacles.push({ type: 'wind', x: midTile.x*TILE_SIZE, y: midTile.y*TILE_SIZE, w: TILE_SIZE*2, h: TILE_SIZE*2, fx: (Math.random()-0.5)*0.4, fy: (Math.random()-0.5)*0.4 });
+            }
+
+            const walls = [];
+            const tileMap = new Map();
+            tiles.forEach(t => tileMap.set(`${t.x},${t.y}`, t));
+
+            const hasEdge = (x, y, side) => {
+                const t = tileMap.get(`${x},${y}`);
+                if (!t) return false;
+                if (t.shape === 'square') return true;
+                if (side === 'top' && (t.shape === 'tri-tl' || t.shape === 'tri-tr')) return true;
+                if (side === 'bottom' && (t.shape === 'tri-bl' || t.shape === 'tri-br')) return true;
+                if (side === 'left' && (t.shape === 'tri-tl' || t.shape === 'tri-bl')) return true;
+                if (side === 'right' && (t.shape === 'tri-tr' || t.shape === 'tri-br')) return true;
+                return false;
+            };
+
+            tiles.forEach(t => {
+                const ts = TILE_SIZE, tx = t.x * ts, ty = t.y * ts;
+                if (t.shape === 'square' || t.shape === 'tri-tl' || t.shape === 'tri-tr') {
+                    if (!hasEdge(t.x, t.y-1, 'bottom')) walls.push({x1: tx, y1: ty, x2: tx+ts, y2: ty});
+                }
+                if (t.shape === 'square' || t.shape === 'tri-bl' || t.shape === 'tri-br') {
+                    if (!hasEdge(t.x, t.y+1, 'top')) walls.push({x1: tx, y1: ty+ts, x2: tx+ts, y2: ty+ts});
+                }
+                if (t.shape === 'square' || t.shape === 'tri-tl' || t.shape === 'tri-bl') {
+                    if (!hasEdge(t.x-1, t.y, 'right')) walls.push({x1: tx, y1: ty, x2: tx, y2: ty+ts});
+                }
+                if (t.shape === 'square' || t.shape === 'tri-tr' || t.shape === 'tri-br') {
+                    if (!hasEdge(t.x+1, t.y, 'left')) walls.push({x1: tx+ts, y1: ty, x2: tx+ts, y2: ty+ts});
+                }
+                if (t.shape === 'tri-tl') walls.push({x1: tx+ts, y1: ty, x2: tx, y2: ty+ts});
+                if (t.shape === 'tri-tr') walls.push({x1: tx, y1: ty, x2: tx+ts, y2: ty+ts});
+                if (t.shape === 'tri-bl') walls.push({x1: tx, y1: ty, x2: tx+ts, y2: ty+ts});
+                if (t.shape === 'tri-br') walls.push({x1: tx+ts, y1: ty, x2: tx, y2: ty+ts});
+            });
+
+            return { tiles, walls, tee, hole, obstacles, par: Math.max(2, Math.floor(walkLen/7)) };
+        }
+
+        function closestPointOnSegment(px, py, x1, y1, x2, y2) {
+            const l2 = (x1-x2)**2 + (y1-y2)**2;
+            if (l2 === 0) return {x: x1, y: y1};
+            let t = ((px-x1)*(x2-x1) + (py-y1)*(y2-y1)) / l2;
+            return {x: x1 + Math.max(0, Math.min(1, t))*(x2-x1), y: y1 + Math.max(0, Math.min(1, t))*(y2-y1)};
+        }
+
+        function updatePhysics() {
+            const b = player.ball; if (b.isSunk) return;
+            let speed = Math.hypot(b.vx, b.vy);
+            
+            if (speed > 0.05) {
+                const subSteps = 10;
+                for(let s=0; s<subSteps; s++) {
+                    b.x += b.vx/subSteps; b.y += b.vy/subSteps;
+                    
+                    level.walls.forEach(w => resolveWallCollision(b, w));
+
+                    level.obstacles.forEach(o => {
+                        if (activePowerup === 'ghost' && (o.type === 'movingWall' || o.type === 'spinner')) return;
+
+                        if (o.type === 'movingWall') {
+                            const shift = Math.sin(Date.now() * o.speed * 0.05) * o.range;
+                            const w = o.vertical ? 
+                                {x1: o.x + shift, y1: o.y, x2: o.x + shift, y2: o.y + o.length} :
+                                {x1: o.x, y1: o.y + shift, x2: o.x + o.length, y2: o.y + shift};
+                            resolveWallCollision(b, w);
+                        }
+                        if (o.type === 'spinner') {
+                            o.angle += o.speed;
+                            const x1 = o.x - Math.cos(o.angle) * o.length, y1 = o.y - Math.sin(o.angle) * o.length;
+                            const x2 = o.x + Math.cos(o.angle) * o.length, y2 = o.y + Math.sin(o.angle) * o.length;
+                            resolveWallCollision(b, {x1, y1, x2, y2});
+                        }
+                        if (o.type === 'bumper') {
+                            const d = Math.hypot(b.x - o.x, b.y - o.y);
+                            if (d < o.radius + BALL_RADIUS) {
+                                const ang = Math.atan2(b.y - o.y, b.x - o.x);
+                                b.vx = Math.cos(ang) * 8; b.vy = Math.sin(ang) * 8;
+                            }
+                        }
+                    });
+                }
+
+                if (activePowerup !== 'shield') {
+                    level.obstacles.forEach(o => {
+                        if (o.type === 'hill') {
+                            const d = Math.hypot(b.x - o.x, b.y - o.y);
+                            if (d < o.radius) {
+                                const ang = Math.atan2(b.y - o.y, b.x - o.x);
+                                b.vx += Math.cos(ang) * o.force; b.vy += Math.sin(ang) * o.force;
+                            }
+                        }
+                        if (o.type === 'wind') {
+                            if (b.x > o.x && b.x < o.x + o.w && b.y > o.y && b.y < o.y + o.h) {
+                                b.vx += o.fx; b.vy += o.fy;
+                            }
+                        }
+                    });
+                }
+
+                const gx = Math.floor(b.x / TILE_SIZE), gy = Math.floor(b.y / TILE_SIZE);
+                const tile = level.tiles.find(t => t.x === gx && t.y === gy);
+                
+                let currentFriction = (activePowerup === 'ice') ? 0.997 : FRICTION_GRASS;
+                if (tile) {
+                    if (tile.type === 'sand') currentFriction = FRICTION_SAND;
+                    if (tile.type === 'water') {
+                        if (activePowerup !== 'float') {
+                            b.vx = 0; b.vy = 0; b.x = level.tee.x; b.y = level.tee.y;
+                            player.ball.strokes++; updateHUD(); showNotice('Water Hazard +1');
+                            return;
+                        }
+                    }
+                } else {
+                    b.vx = 0; b.vy = 0; b.x = level.tee.x; b.y = level.tee.y;
+                    player.ball.strokes++; updateHUD();
+                    return;
+                }
+
+                b.vx *= currentFriction; b.vy *= currentFriction;
+                speed = Math.hypot(b.vx, b.vy);
+
+                const dH = Math.hypot(b.x - level.hole.x, b.y - level.hole.y);
+                const suctionRadius = activePowerup === 'magnetic' ? HOLE_RADIUS * 4 : HOLE_RADIUS * 2;
+                const suctionForce = activePowerup === 'magnetic' ? 0.6 : 0.2;
+
+                if (dH < suctionRadius && speed < (activePowerup === 'magnetic' ? 10 : 5)) {
+                    const angle = Math.atan2(level.hole.y-b.y, level.hole.x-b.x);
+                    b.vx += Math.cos(angle)*suctionForce; b.vy += Math.sin(angle)*suctionForce;
+                }
+                if (dH < HOLE_RADIUS && speed < 6) {
+                    finishHole(player.ball.strokes);
+                }
+            } else { 
+                b.vx = 0; b.vy = 0; 
+                if (player.ball.strokes >= 10 && !b.isSunk && gameState === 'PLAYING') {
+                    showNotice('Max Strokes Reached');
+                    finishHole(10);
+                }
+            }
+        }
+
+        function resolveWallCollision(ball, w) {
+            const cp = closestPointOnSegment(ball.x, ball.y, w.x1, w.y1, w.x2, w.y2);
+            const dist = Math.hypot(ball.x - cp.x, ball.y - cp.y);
+            if (dist < BALL_RADIUS) {
+                const nx = (ball.x - cp.x) / dist, ny = (ball.y - cp.y) / dist;
+                const dot = ball.vx * nx + ball.vy * ny;
+                if (dot < 0) { ball.vx -= 1.8 * dot * nx; ball.vy -= 1.8 * dot * ny; }
+                ball.x = cp.x + nx * BALL_RADIUS; ball.y = cp.y + ny * BALL_RADIUS;
+            }
+        }
+
+        function finishHole(score) {
+            if (player.ball.isSunk) return;
+            player.ball.isSunk = true;
+            player.ball.vx = 0; player.ball.vy = 0;
+            if (score < 10) { player.ball.x = level.hole.x; player.ball.y = level.hole.y; }
+
+            const wasUnderPar = score < level.par;
+            player.scores[currentHole-1] = Math.min(10, score);
+            player.totalScore = player.scores.reduce((a,v)=>a+v,0);
+            updateHUD();
+
+            setTimeout(() => {
+                if (wasUnderPar && currentHole < 18) {
+                    showPowerupSelection();
+                } else if (currentHole < 18) {
+                    activePowerup = null;
+                    loadHole(currentHole+1);
+                } else {
+                    showScorecard();
+                }
+            }, 1500);
+        }
+
+        function showPowerupSelection() {
+            gameState = 'SELECTING_POWERUP';
+            const menu = document.getElementById('powerupMenu');
+            const optionsDiv = document.getElementById('powerupOptions');
+            optionsDiv.innerHTML = '';
+            
+            const keys = Object.keys(POWERUPS);
+            const shuffled = keys.sort(() => 0.5 - Math.random());
+            const selection = shuffled.slice(0, 2);
+
+            selection.forEach(key => {
+                const p = POWERUPS[key];
+                const btn = document.createElement('div');
+                btn.className = 'glass p-4 rounded-xl powerup-card border-2 border-transparent';
+                btn.innerHTML = `
+                    <div class="text-3xl mb-2">${p.icon}</div>
+                    <div class="font-bold text-sm">${p.name}</div>
+                    <div class="text-[9px] text-slate-400 mt-1">${p.desc}</div>
+                `;
+                btn.onclick = () => {
+                    activePowerup = key;
+                    menu.classList.add('hidden');
+                    loadHole(currentHole + 1);
+                };
+                optionsDiv.appendChild(btn);
+            });
+
+            menu.classList.remove('hidden');
+        }
+
+        function showNotice(text) {
+            const el = document.getElementById('statusNotice'); 
+            el.innerText = text; el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 2000);
+        }
+
+        function updateHUD() {
+            document.getElementById('holeDisplay').innerText = `${currentHole} / 18`;
+            document.getElementById('parDisplay').innerText = `PAR ${level.par}`;
+            document.getElementById('strokeDisplay').innerText = player.ball.strokes;
+            document.getElementById('totalScoreDisplay').innerText = player.totalScore;
+            
+            const puDisplay = document.getElementById('activePowerupDisplay');
+            if (activePowerup) {
+                puDisplay.innerText = POWERUPS[activePowerup].icon + ' ' + POWERUPS[activePowerup].name;
+            } else {
+                puDisplay.innerText = '';
+            }
+        }
+
+        function showScorecard() {
+            gameState = 'FINISHED';
+            document.getElementById('finalScore').innerText = player.totalScore;
+            document.getElementById('scorecard').classList.remove('hidden');
+        }
+
+        function drawTrajectory(b, dx, dy, maxP) {
+            const d = Math.min(Math.hypot(dx, dy), 150);
+            const a = Math.atan2(dy, dx);
+            const pwr = (d / 150) * maxP;
+            let vx = -Math.cos(a) * pwr;
+            let vy = -Math.sin(a) * pwr;
+            
+            let tx = b.x;
+            let ty = b.y;
+            
+            // Power Meter Drawing
+            const barWidth = 40;
+            const barHeight = 6;
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(b.x - barWidth/2, b.y + 15, barWidth, barHeight);
+            ctx.fillStyle = (pwr > maxP * 0.8) ? '#ef4444' : (pwr > maxP * 0.4 ? '#fbbf24' : '#10b981');
+            ctx.fillRect(b.x - barWidth/2, b.y + 15, (d / 150) * barWidth, barHeight);
+
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.setLineDash([2, 4]);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+
+            // Aiming line
+            const aimDist = activePowerup === 'precision' ? 300 : 150;
+            ctx.lineTo(tx - Math.cos(a) * aimDist, ty - Math.sin(a) * aimDist);
+            ctx.stroke();
+
+            // Precision Bounce Prediction
+            if (activePowerup === 'precision' && pwr > 1) {
+                ctx.beginPath();
+                ctx.setLineDash([]);
+                ctx.strokeStyle = '#fbbf24';
+                ctx.moveTo(tx, ty);
+                
+                // Simulate simple path until first wall hit
+                for(let i=0; i<60; i++) {
+                    tx += vx; ty += vy;
+                    vx *= 0.985; vy *= 0.985;
+                    
+                    let hit = false;
+                    for(let w of level.walls) {
+                        const cp = closestPointOnSegment(tx, ty, w.x1, w.y1, w.x2, w.y2);
+                        if(Math.hypot(tx-cp.x, ty-cp.y) < BALL_RADIUS) {
+                            hit = true; break;
+                        }
+                    }
+                    ctx.lineTo(tx, ty);
+                    if (hit || Math.hypot(vx, vy) < 0.5) break;
+                }
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, WIDTH, HEIGHT); if (!level) return;
+            
+            level.tiles.forEach(t => { 
+                const ts = TILE_SIZE, tx = t.x*ts, ty = t.y*ts;
+                ctx.fillStyle = (t.type === 'grass') ? '#064e3b' : (t.type === 'sand' ? '#b45309' : '#1d4ed8');
+                if (t.shape === 'square') {
+                    ctx.fillRect(tx, ty, ts, ts);
+                } else {
+                    ctx.beginPath();
+                    if (t.shape === 'tri-tl') { ctx.moveTo(tx, ty); ctx.lineTo(tx+ts, ty); ctx.lineTo(tx, ty+ts); }
+                    if (t.shape === 'tri-tr') { ctx.moveTo(tx, ty); ctx.lineTo(tx+ts, ty); ctx.lineTo(tx+ts, ty+ts); }
+                    if (t.shape === 'tri-bl') { ctx.moveTo(tx, ty); ctx.lineTo(tx, ty+ts); ctx.lineTo(tx+ts, ty+ts); }
+                    if (t.shape === 'tri-br') { ctx.moveTo(tx+ts, ty); ctx.lineTo(tx+ts, ty+ts); ctx.lineTo(tx, ty+ts); }
+                    ctx.closePath(); ctx.fill();
+                }
+                ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.strokeRect(tx, ty, ts, ts);
+            });
+
+            level.obstacles.forEach(o => {
+                if (o.type === 'hill') {
+                    ctx.beginPath(); ctx.arc(o.x, o.y, o.radius, 0, 7);
+                    ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)'; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+                }
+                if (o.type === 'wind') {
+                    ctx.fillStyle = 'rgba(34, 211, 238, 0.1)'; ctx.fillRect(o.x, o.y, o.w, o.h);
+                    ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)'; ctx.strokeRect(o.x, o.y, o.w, o.h);
+                }
+                if (o.type === 'bumper') {
+                    ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(o.x, o.y, o.radius, 0, 7); ctx.fill();
+                }
+                if (o.type === 'movingWall') {
+                    const shift = Math.sin(Date.now() * o.speed * 0.05) * o.range;
+                    ctx.strokeStyle = (activePowerup === 'ghost' ? 'rgba(239, 68, 68, 0.3)' : '#ef4444'); 
+                    ctx.lineWidth = 6; ctx.beginPath();
+                    if(o.vertical) { ctx.moveTo(o.x+shift, o.y); ctx.lineTo(o.x+shift, o.y+o.length); }
+                    else { ctx.moveTo(o.x, o.y+shift); ctx.lineTo(o.x+o.length, o.y+shift); }
+                    ctx.stroke();
+                }
+                if (o.type === 'spinner') {
+                    const x1 = o.x - Math.cos(o.angle) * o.length, y1 = o.y - Math.sin(o.angle) * o.length;
+                    const x2 = o.x + Math.cos(o.angle) * o.length, y2 = o.y + Math.sin(o.angle) * o.length;
+                    ctx.strokeStyle = (activePowerup === 'ghost' ? 'rgba(244, 63, 94, 0.3)' : '#f43f5e');
+                    ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+                }
+            });
+
+            ctx.beginPath(); ctx.arc(level.hole.x, level.hole.y, HOLE_RADIUS, 0, 7); ctx.fillStyle = '#000'; ctx.fill();
+            ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(level.tee.x-10, level.tee.y-10, 20, 20);
+            
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+            level.walls.forEach(w => { ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); ctx.stroke(); });
+            
+            if (!player.ball.isSunk) {
+                ctx.beginPath(); ctx.arc(player.ball.x, player.ball.y, BALL_RADIUS + 5, 0, 7);
+                ctx.strokeStyle = (activePowerup) ? '#facc15' : '#10b981'; ctx.lineWidth = 1.5; ctx.stroke();
+                ctx.beginPath(); ctx.arc(player.ball.x, player.ball.y, BALL_RADIUS, 0, 7); 
+                ctx.fillStyle = activePowerup === 'ice' ? '#bae6fd' : '#fff'; 
+                ctx.fill();
+                ctx.strokeStyle = '#059669'; ctx.lineWidth = 2; ctx.stroke();
+            }
+
+            if (input.isDragging) {
+                const maxP = activePowerup === 'nitro' ? 25 : DEFAULT_MAX_POWER;
+                drawTrajectory(player.ball, input.currentX - input.startX, input.currentY - input.startY, maxP);
+            }
+        }
+
+        function animate() { if (gameState === 'PLAYING') updatePhysics(); draw(); requestAnimationFrame(animate); }
+
+        canvas.addEventListener('mousedown', e => {
+            if (gameState !== 'PLAYING') return;
+            const b = player.ball;
+            const isMoving = Math.hypot(b.vx, b.vy) > 0.1;
+            
+            if (activePowerup === 'brake' && isMoving && !currentBrakeUsed) {
+                b.vx = 0; b.vy = 0;
+                currentBrakeUsed = true;
+                showNotice('Braked!');
+                return;
+            }
+
+            if (isMoving) return;
+            input.isDragging = true; input.startX = e.offsetX; input.startY = e.offsetY;
+            input.currentX = e.offsetX; input.currentY = e.offsetY;
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (!input.isDragging) return;
+            const r = canvas.getBoundingClientRect(); input.currentX = e.clientX-r.left; input.currentY = e.clientY-r.top;
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (!input.isDragging) return; input.isDragging = false;
+            const dx = input.currentX - input.startX, dy = input.currentY - input.startY;
+            const d = Math.min(Math.hypot(dx, dy), 150), a = Math.atan2(dy, dx);
+            if (d > 10) { 
+                const maxP = activePowerup === 'nitro' ? 25 : DEFAULT_MAX_POWER;
+                player.ball.vx = -Math.cos(a)*(d/150*maxP); 
+                player.ball.vy = -Math.sin(a)*(d/150*maxP); 
+                player.ball.strokes++; updateHUD();
+            }
+        });
+
+        init();
+    </script>
+    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

@@ -1,0 +1,568 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Colour Critter Factory is a logic-based puzzle game where players transform "fuzzy" critters using various lab tools. Players must match a target design by layering paints, patterns, and accessories while navigating complex masking logic and grid-based dipping directions. Includes a local save system.
+TAGS: Logic, Puzzle, Educational, Sequential Reasoning, Canadian spelling
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colour Critter Lab Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@400;700&display=swap');
+
+        :root {
+            --fuzzy-filter: url(#fuzz);
+        }
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: #f0f4f8;
+            touch-action: manipulation;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        h1, h2, .font-kids { font-family: 'Fredoka One', cursive; }
+
+        /* The Fuzzy Critter */
+        .critter-container {
+            width: 150px;
+            height: 150px;
+            position: relative;
+            filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15));
+            transition: transform 0.5s ease-in-out, left 2.5s ease-in-out;
+        }
+
+        .critter-body {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: absolute;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            border: 2px solid rgba(255,255,255,0.4);
+            filter: var(--fuzzy-filter);
+            z-index: 5;
+            background-color: #e2e8f0; /* Fallback base colour */
+        }
+
+        .cell {
+            transition: background-color 0.3s ease;
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .cell.stripes::after {
+            content: ''; position: absolute; inset: 0;
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.2) 10px);
+        }
+
+        .cell.dots::after {
+            content: ''; position: absolute; inset: 0;
+            background-image: radial-gradient(rgba(0,0,0,0.1) 20%, transparent 20%);
+            background-size: 8px 8px;
+        }
+
+        /* Limbs */
+        .limb {
+            position: absolute;
+            background: #475569;
+            border-radius: 10px;
+            z-index: 2;
+        }
+        .arm { width: 40px; height: 12px; top: 55%; margin-top: -6px; transition: transform 0.3s; }
+        .arm-l { left: -30px; transform-origin: right; transform: rotate(-20deg); }
+        .arm-r { right: -30px; transform-origin: left; transform: rotate(20deg); }
+        
+        .leg { width: 12px; height: 35px; bottom: -20px; transition: transform 0.2s; }
+        .leg-l { left: 35px; }
+        .leg-r { right: 35px; }
+
+        /* Accessories */
+        .acc {
+            position: absolute;
+            z-index: 20;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            display: none;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+        }
+
+        .has-hat .acc-hat { display: block; top: -25px; left: -5%; width: 110%; height: 50px; background: #334155; border-radius: 50px 50px 10px 10px; }
+        .has-belt .acc-belt { display: block; top: 85px; left: -5%; width: 110%; height: 20px; background: #1e293b; border-radius: 4px; }
+        .has-boots .acc-boots { display: block; bottom: -30px; left: 10px; right: 10px; height: 20px; display: flex; justify-content: space-around; }
+        .boot-unit { width: 35px; height: 20px; background: #1e293b; border-radius: 5px; }
+        
+        .has-glasses .acc-glasses { display: flex; top: 35px; left: 15px; right: 15px; justify-content: space-between; }
+        .glass-rim { width: 45px; height: 35px; border: 4px solid #000; border-radius: 10px; background: rgba(255,255,255,0.2); }
+        
+        .has-bag .acc-bag { display: block; right: -50px; top: 45px; width: 40px; height: 40px; background: #92400e; border-radius: 5px; border-top: 15px solid #78350f; }
+        .has-earrings .acc-earrings { display: flex; width: 130%; left: -15%; top: 45px; justify-content: space-between; }
+        .earring { width: 10px; height: 10px; background: #facc15; border-radius: 50%; }
+
+        /* Face */
+        .face { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: 20px; }
+        .eyes-row { display: flex; justify-content: center; margin-bottom: 5px; }
+        .eye { width: 16px; height: 16px; background: #000; border-radius: 50%; margin: 0 12px; position: relative; }
+        .eye::after { content: ''; width: 5px; height: 5px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; }
+
+        /* Tools */
+        .tool-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .tool-card.active { border-color: #3b82f6; background: #eff6ff; }
+        .tool-card:hover { border-color: #3b82f6; transform: translateY(-2px); }
+
+        /* Animations */
+        @keyframes walkCycle {
+            0%, 100% { transform: translateY(0) rotate(0); }
+            25% { transform: translateY(-12px) rotate(1.5deg); }
+            75% { transform: translateY(-12px) rotate(-1.5deg); }
+        }
+        
+        @keyframes legWalk {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes wavingArm {
+            0%, 100% { transform: rotate(20deg); }
+            50% { transform: rotate(100deg); }
+        }
+
+        /* Waving state */
+        .waving .arm-r {
+            animation: wavingArm 0.3s ease-in-out infinite;
+            z-index: 30; /* Bring arm to front for waving */
+        }
+
+        /* Walking state (slower cycle) */
+        .walking {
+            animation: walkCycle 0.7s infinite;
+        }
+        .walking .leg-l { animation: legWalk 0.7s infinite; }
+        .walking .leg-r { animation: legWalk 0.7s infinite 0.35s; }
+
+        .exit-right {
+            left: 150vw !important;
+        }
+
+        /* Switch UI */
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #3b82f6; }
+        input:checked + .slider:before { transform: translateX(20px); }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <svg style="position: absolute; width: 0; height: 0;">
+        <filter id="fuzz">
+            <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="4" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" />
+        </filter>
+    </svg>
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <div class="flex flex-wrap justify-between items-end mb-8 gap-4 bg-white p-6 rounded-3xl shadow-sm">
+            <div>
+                <h1 class="text-3xl text-blue-600">Colour Critter Factory</h1>
+                <div class="flex items-center gap-4 mt-2">
+                    <span class="bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-bold">Level <span id="lvl-display">1</span></span>
+                    <span class="text-slate-500 font-bold">Orders: <span id="order-count">0/3</span></span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-2xl">
+                    <span class="text-xs font-bold text-slate-500">SOUND</span>
+                    <label class="switch">
+                        <input type="checkbox" id="sound-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <button onclick="clearSaveAndReset()" class="text-xs text-slate-400 hover:text-red-500 underline uppercase font-bold">Reset Game</button>
+                <button onclick="resetCritter()" class="bg-red-50 text-red-500 border-2 border-red-100 px-6 py-2 rounded-2xl font-bold hover:bg-red-500 hover:text-white transition-all">🗑️ Trash</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Target Area -->
+            <div class="lg:col-span-3">
+                <div class="bg-white p-6 rounded-[2rem] shadow-lg border-4 border-dashed border-blue-100 flex flex-col items-center">
+                    <h2 class="text-slate-400 uppercase text-xs font-black tracking-widest mb-6">Order Target</h2>
+                    <div id="target-critter" class="critter-container scale-75">
+                        <div class="limb arm arm-l"></div><div class="limb arm arm-r"></div>
+                        <div class="limb leg leg-l"></div><div class="limb leg leg-r"></div>
+                        <div class="acc acc-hat"></div>
+                        <div class="acc acc-belt"></div>
+                        <div class="acc acc-boots"><div class="boot-unit"></div><div class="boot-unit"></div></div>
+                        <div class="acc acc-glasses"><div class="glass-rim"></div><div class="glass-rim"></div></div>
+                        <div class="acc acc-bag"></div>
+                        <div class="acc acc-earrings"><div class="earring"></div><div class="earring"></div></div>
+                        <div class="critter-body" id="target-body-grid">
+                            <!-- 9 cells generated by JS -->
+                        </div>
+                        <div class="face">
+                            <div class="eyes-row"><div class="eye"></div><div class="eye"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workshop -->
+            <div id="workshop-area" class="lg:col-span-5 flex flex-col items-center justify-center min-h-[450px] relative overflow-hidden bg-slate-100/30 rounded-3xl">
+                <div id="active-critter-wrap" class="critter-container scale-125 md:scale-150 relative">
+                    <div class="limb arm arm-l"></div><div class="limb arm arm-r"></div>
+                    <div class="limb leg leg-l"></div><div class="limb leg leg-r"></div>
+                    <div class="acc acc-hat"></div>
+                    <div class="acc acc-belt"></div>
+                    <div class="acc acc-boots"><div class="boot-unit"></div><div class="boot-unit"></div></div>
+                    <div class="acc acc-glasses"><div class="glass-rim"></div><div class="glass-rim"></div></div>
+                    <div class="acc acc-bag"></div>
+                    <div class="acc acc-earrings"><div class="earring"></div><div class="earring"></div></div>
+                    <div class="critter-body" id="active-body-grid">
+                         <!-- 9 cells generated by JS -->
+                    </div>
+                    <div class="face">
+                        <div class="eyes-row"><div class="eye"></div><div class="eye"></div></div>
+                    </div>
+                </div>
+                <div id="status-msg" class="absolute bottom-4 text-blue-500 font-bold text-lg h-8"></div>
+            </div>
+
+            <!-- Tool Panel -->
+            <div class="lg:col-span-4 space-y-4">
+                <div class="bg-slate-200/50 p-6 rounded-[2.5rem] border-2 border-slate-200">
+                    <p class="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest text-center">Colour Vats</p>
+                    <div class="grid grid-cols-3 gap-2 mb-6">
+                        <div class="tool-card border-b-4 border-red-400" onclick="applyColour('#ef4444')">
+                            <div class="h-6 bg-red-500 rounded-md mb-1"></div>RED
+                        </div>
+                        <div class="tool-card border-b-4 border-blue-400" onclick="applyColour('#3b82f6')">
+                            <div class="h-6 bg-blue-500 rounded-md mb-1"></div>BLUE
+                        </div>
+                        <div class="tool-card border-b-4 border-yellow-400" onclick="applyColour('#eab308')">
+                            <div class="h-6 bg-yellow-500 rounded-md mb-1"></div>YEL
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-4 mb-6">
+                         <div class="flex-1">
+                             <p class="text-[9px] font-black text-slate-400 mb-2 uppercase tracking-tight">Dip Direction</p>
+                             <div class="grid grid-cols-2 gap-2">
+                                 <div id="mode-row" class="tool-card active" onclick="setMode('row')">ROWS</div>
+                                 <div id="mode-col" class="tool-card" onclick="setMode('col')">COLS</div>
+                             </div>
+                         </div>
+                         <div class="flex-1">
+                            <p class="text-[9px] font-black text-slate-400 mb-2 uppercase tracking-tight">Pattern</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="tool-card" onclick="applyPattern('stripes')">STRIPE</div>
+                                <div class="tool-card" onclick="applyPattern('dots')">DOTS</div>
+                            </div>
+                         </div>
+                    </div>
+
+                    <p class="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest text-center">Accessory Masking</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="tool-card" onclick="toggleAcc('hat')">🎓 HAT</div>
+                        <div class="tool-card" onclick="toggleAcc('belt')">🎫 BELT</div>
+                        <div class="tool-card" onclick="toggleAcc('boots')">👞 BOOT</div>
+                        <div class="tool-card" onclick="toggleAcc('glasses')">👓 GLAS</div>
+                        <div class="tool-card" onclick="toggleAcc('bag')">👜 BAG</div>
+                        <div class="tool-card" onclick="toggleAcc('earrings')">💎 EAR</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="win-modal" class="fixed inset-0 bg-blue-600/95 z-[100] hidden items-center justify-center flex-col text-white text-center p-6">
+        <h2 class="text-7xl font-kids mb-4">BATCH READY!</h2>
+        <p class="text-2xl mb-10 opacity-80">You've reached the end of this factory run.</p>
+        <button onclick="startNextLevel()" class="bg-yellow-400 text-blue-900 px-16 py-5 rounded-full text-3xl font-bold hover:scale-110 transition-transform shadow-2xl">NEXT LEVEL</button>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, duration) {
+            if (!document.getElementById('sound-toggle').checked) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const COLOUR_MIX = {
+            '#ef4444+#eab308': '#f97316', '#eab308+#ef4444': '#f97316',
+            '#ef4444+#3b82f6': '#a855f7', '#3b82f6+#ef4444': '#a855f7',
+            '#3b82f6+#eab308': '#22c55e', '#eab308+#3b82f6': '#22c55e'
+        };
+
+        const INITIAL_COLOUR = '#e2e8f0';
+
+        let state = {
+            level: 1,
+            completed: 0,
+            required: 3,
+            dipMode: 'row', // 'row' or 'col'
+            current: { 
+                cells: Array(9).fill(INITIAL_COLOUR), 
+                patterns: Array(9).fill('none'), 
+                acc: {} 
+            },
+            target: null,
+            isExiting: false
+        };
+
+        function init() {
+            const savedLevel = localStorage.getItem('critter_factory_level');
+            if (savedLevel) state.level = parseInt(savedLevel);
+            
+            setupGrids();
+            generateTarget();
+            render();
+        }
+
+        function setupGrids() {
+            const targetGrid = document.getElementById('target-body-grid');
+            const activeGrid = document.getElementById('active-body-grid');
+            targetGrid.innerHTML = '';
+            activeGrid.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                targetGrid.innerHTML += `<div class="cell" id="target-cell-${i}"></div>`;
+                activeGrid.innerHTML += `<div class="cell" id="active-cell-${i}"></div>`;
+            }
+        }
+
+        function generateTarget() {
+            const colours = ['#ef4444', '#3b82f6', '#eab308'];
+            if (state.level > 2) colours.push('#f97316', '#a855f7', '#22c55e');
+            const patterns = ['none', 'stripes', 'dots'];
+            
+            const targetCells = Array(9).fill(INITIAL_COLOUR);
+            const targetPats = Array(9).fill('none');
+
+            const dips = 2 + Math.floor(state.level / 2);
+            for (let d = 0; d < dips; d++) {
+                const colour = colours[Math.floor(Math.random() * colours.length)];
+                const pat = Math.random() > 0.7 ? patterns[Math.floor(Math.random() * patterns.length)] : 'none';
+                const mask = {
+                    hat: Math.random() > 0.8,
+                    belt: Math.random() > 0.8,
+                    boots: Math.random() > 0.8,
+                    bag: Math.random() > 0.8
+                };
+
+                for (let i = 0; i < 9; i++) {
+                    if (isCellProtected(i, mask)) continue;
+                    targetCells[i] = mix(targetCells[i], colour);
+                    if (pat !== 'none') targetPats[i] = pat;
+                }
+            }
+
+            state.target = {
+                cells: targetCells,
+                patterns: targetPats,
+                acc: {
+                    hat: state.level > 2 && Math.random() > 0.6,
+                    belt: state.level > 3 && Math.random() > 0.6,
+                    boots: state.level > 3 && Math.random() > 0.6,
+                    glasses: state.level > 4 && Math.random() > 0.7,
+                    bag: state.level > 4 && Math.random() > 0.7,
+                    earrings: state.level > 5 && Math.random() > 0.8
+                }
+            };
+            renderTarget();
+            saveProgress();
+        }
+
+        function saveProgress() {
+            localStorage.setItem('critter_factory_level', state.level);
+        }
+
+        function clearSaveAndReset() {
+            localStorage.removeItem('critter_factory_level');
+            location.reload();
+        }
+
+        function renderTarget() {
+            const t = state.target;
+            const root = document.getElementById('target-critter');
+            for (let i = 0; i < 9; i++) {
+                const el = document.getElementById(`target-cell-${i}`);
+                el.style.backgroundColor = t.cells[i];
+                el.className = `cell ${t.patterns[i]}`;
+            }
+            root.className = `critter-container scale-75 ${Object.keys(t.acc).filter(k => t.acc[k]).map(k => 'has-'+k).join(' ')}`;
+        }
+
+        function isCellProtected(index, acc) {
+            if ((acc.hat || acc.glasses || acc.earrings) && index < 3) return true;
+            if (acc.belt && index >= 3 && index < 6) return true;
+            if (acc.boots && index >= 6) return true;
+            if (acc.bag && (index === 2 || index === 5 || index === 8)) return true;
+            return false;
+        }
+
+        function applyColour(newColour) {
+            if (state.isExiting) return;
+            playTone(440, 'sine', 0.1);
+            const cur = state.current;
+            for (let i = 0; i < 9; i++) {
+                if (isCellProtected(i, cur.acc)) continue;
+                cur.cells[i] = mix(cur.cells[i], newColour);
+            }
+            render();
+            checkMatch();
+        }
+
+        function mix(old, next) {
+            if (old === INITIAL_COLOUR) return next;
+            return COLOUR_MIX[`${old}+${next}`] || next;
+        }
+
+        function applyPattern(p) {
+            if (state.isExiting) return;
+            playTone(660, 'square', 0.05);
+            const cur = state.current;
+            for (let i = 0; i < 9; i++) {
+                if (isCellProtected(i, cur.acc)) continue;
+                cur.patterns[i] = p;
+            }
+            render();
+            checkMatch();
+        }
+
+        function setMode(mode) {
+            state.dipMode = mode;
+            document.getElementById('mode-row').classList.toggle('active', mode === 'row');
+            document.getElementById('mode-col').classList.toggle('active', mode === 'col');
+            playTone(300, 'triangle', 0.05);
+        }
+
+        function toggleAcc(type) {
+            if (state.isExiting) return;
+            playTone(880, 'triangle', 0.1);
+            state.current.acc[type] = !state.current.acc[type];
+            render();
+            checkMatch();
+        }
+
+        function render() {
+            const cur = state.current;
+            for (let i = 0; i < 9; i++) {
+                const el = document.getElementById(`active-cell-${i}`);
+                el.style.backgroundColor = cur.cells[i];
+                el.className = `cell ${cur.patterns[i]}`;
+            }
+            
+            const root = document.getElementById('active-critter-wrap');
+            root.className = `critter-container scale-125 md:scale-150 ${Object.keys(cur.acc).filter(k => cur.acc[k]).map(k => 'has-'+k).join(' ')}`;
+            
+            document.getElementById('lvl-display').innerText = state.level;
+            document.getElementById('order-count').innerText = `${state.completed}/${state.required}`;
+        }
+
+        function checkMatch() {
+            const cur = state.current, tar = state.target;
+            const isMatch = cur.cells.every((c, i) => c === tar.cells[i]) &&
+                            cur.patterns.every((p, i) => p === tar.patterns[i]) &&
+                            Object.keys(tar.acc).every(k => !!cur.acc[k] === !!tar.acc[k]);
+            if (isMatch) ship();
+        }
+
+        function ship() {
+            if (state.isExiting) return;
+            state.isExiting = true;
+            
+            playTone(1200, 'sine', 0.3);
+            document.getElementById('status-msg').innerText = "ORDER COMPLETE!";
+            
+            const root = document.getElementById('active-critter-wrap');
+            
+            // 1. Wave first
+            root.classList.add('waving');
+            playTone(800, 'sine', 0.1);
+            
+            setTimeout(() => {
+                // 2. Stop waving and start walking slower
+                root.classList.remove('waving');
+                root.classList.add('walking');
+                
+                setTimeout(() => {
+                    root.classList.add('exit-right');
+                }, 400);
+
+                state.completed++;
+                
+                setTimeout(() => {
+                    if (state.completed >= state.required) {
+                        document.getElementById('win-modal').style.display = 'flex';
+                    } else {
+                        document.getElementById('status-msg').innerText = "";
+                        resetCritter();
+                        generateTarget();
+                        root.style.transition = 'none';
+                        root.classList.remove('walking', 'exit-right');
+                        root.style.left = '-100vw';
+                        setTimeout(() => {
+                            root.style.transition = 'transform 0.5s ease-in-out, left 2.5s ease-in-out';
+                            root.style.left = '0';
+                            state.isExiting = false;
+                        }, 50);
+                    }
+                }, 3000); // Wait longer for the slower walk to finish
+            }, 1000); // Wave for 1 second
+        }
+
+        function resetCritter() {
+            state.current = { cells: Array(9).fill(INITIAL_COLOUR), patterns: Array(9).fill('none'), acc: {} };
+            render();
+        }
+
+        function startNextLevel() {
+            state.level++; 
+            state.completed = 0; 
+            state.required = 3 + Math.floor(state.level/2);
+            document.getElementById('win-modal').style.display = 'none';
+            document.getElementById('status-msg').innerText = "";
+            const root = document.getElementById('active-critter-wrap');
+            root.classList.remove('walking', 'exit-right', 'waving');
+            root.style.left = '0';
+            state.isExiting = false;
+            resetCritter();
+            generateTarget();
+        }
+
+        window.onload = init;
+    </script>
+    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

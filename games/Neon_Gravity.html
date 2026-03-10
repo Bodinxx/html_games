@@ -1,0 +1,879 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Neon Gravity is a sleek, futuristic strategy game where you must connect four cyan pieces in a row while battling a calculated Magenta AI. Set against a high-contrast neon grid, the game features gravity-driven mechanics, multiple difficulty levels ranging from Beginner to Hard, and immersive synthesized sound effects.
+TAGS: Strategy, Board, Puzzle, Multiplayer, Old School
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Gravity Grid</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --board-color: #1e293b;
+            --slot-empty: #334155;
+            --p1-color: #00f3ff; /* Cyan */
+            --p1-glow: rgba(0, 243, 255, 0.6);
+            --p2-color: #ff00ff; /* Magenta */
+            --p2-glow: rgba(255, 0, 255, 0.6);
+            --text-color: #e2e8f0;
+            --accent-color: #64748b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            touch-action: manipulation; /* Improves touch response */
+        }
+
+        header {
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 450px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        .player-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            opacity: 0.5;
+            transition: opacity 0.3s, text-shadow 0.3s;
+        }
+
+        .player-indicator.active {
+            opacity: 1;
+            font-weight: bold;
+        }
+
+        .indicator-dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+        }
+
+        .p1-dot { background: var(--p1-color); box-shadow: 0 0 10px var(--p1-glow); }
+        .p2-dot { background: var(--p2-color); box-shadow: 0 0 10px var(--p2-glow); }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            padding: 15px;
+            background-color: var(--board-color);
+            border: 2px solid var(--accent-color);
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 450px;
+            aspect-ratio: 7/6;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            cursor: pointer;
+            position: relative;
+            z-index: 10;
+        }
+
+        .column:hover .slot.empty {
+            background-color: #475569; /* Highlight column on hover */
+        }
+
+        .slot {
+            flex: 1;
+            background-color: var(--slot-empty);
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.3);
+        }
+
+        /* The actual piece is a separate div inside the slot to allow for animation */
+        .piece {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            transform: translateY(-600%); /* Start above */
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .piece.dropped {
+            transform: translateY(0);
+        }
+
+        .piece.p1 {
+            background: radial-gradient(circle at 30% 30%, #fff, var(--p1-color));
+            box-shadow: 0 0 15px var(--p1-glow);
+        }
+
+        .piece.p2 {
+            background: radial-gradient(circle at 30% 30%, #fff, var(--p2-color));
+            box-shadow: 0 0 15px var(--p2-glow);
+        }
+
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: var(--accent-color);
+            color: white;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 1rem;
+        }
+
+        button:hover {
+            background: #94a3b8;
+        }
+
+        button.primary {
+            background: var(--p1-color);
+            color: #000;
+            font-weight: bold;
+        }
+
+        button.primary:hover {
+            background: #67e8f9;
+        }
+
+        #message-area {
+            margin-top: 15px;
+            height: 24px;
+            font-weight: bold;
+            color: var(--p1-color);
+            text-align: center;
+        }
+
+        /* Win Animation Pulse */
+        @keyframes winPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); filter: brightness(1.5); }
+            100% { transform: scale(1); }
+        }
+
+        .winning-piece {
+            animation: winPulse 1s infinite;
+            z-index: 20;
+        }
+        
+        /* Add a line for winning connection */
+        .win-line {
+            position: absolute;
+            background-color: #fff;
+            height: 4px;
+            transform-origin: center left;
+            z-index: 30;
+            box-shadow: 0 0 10px #fff;
+        }
+
+        /* Help Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: var(--board-color);
+            border: 2px solid var(--p1-color);
+            box-shadow: 0 0 30px var(--p1-glow);
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 90%;
+            width: 400px;
+            text-align: center;
+            color: var(--text-color);
+            position: relative;
+            animation: modalPop 0.3s ease-out;
+        }
+
+        @keyframes modalPop {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--p1-color); text-transform: uppercase; letter-spacing: 2px; }
+        .modal-content ul { text-align: left; margin: 20px 0; padding-left: 20px; line-height: 1.6; }
+        .modal-content li { margin-bottom: 10px; }
+        .close-x { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 1.5rem; color: #fff; cursor: pointer; padding: 0; }
+        .close-x:hover { color: var(--p1-color); background: none; }
+
+        /* Mobile Adjustments */
+        @media (max-width: 500px) {
+            #game-board {
+                gap: 4px;
+                padding: 10px;
+            }
+            .column {
+                gap: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Neon Gravity</h1>
+    </header>
+
+    <div class="status-bar">
+        <div id="p1-indicator" class="player-indicator active">
+            <div class="indicator-dot p1-dot"></div>
+            <span>YOU</span>
+        </div>
+        <div id="ai-status" style="font-size: 0.8rem; display: flex; align-items: center; color: #94a3b8;">
+            <!-- AI thinking text will go here -->
+        </div>
+        <div id="p2-indicator" class="player-indicator">
+            <span>AI CORE</span>
+            <div class="indicator-dot p2-dot"></div>
+        </div>
+    </div>
+
+    <div id="game-board">
+        <!-- Grid generated by JS -->
+    </div>
+
+    <div id="message-area">Your Turn</div>
+
+    <div class="controls">
+        <button id="reset-btn" class="primary">New Game</button>
+        <button onclick="changeDifficulty()">Level: <span id="diff-label">Normal</span></button>
+        <button id="sound-btn" onclick="toggleSound()">Sound: OFF</button>
+        <button onclick="toggleHelp()">Help</button>
+    </div>
+
+    <!-- Help Modal Structure -->
+    <div id="help-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-x" onclick="toggleHelp()">×</button>
+            <h2>How to Play</h2>
+            <ul>
+                <li><strong>Goal:</strong> Connect 4 of your cyan pieces in a straight line.</li>
+                <li><strong>Directions:</strong> You can win horizontally, vertically, or diagonally.</li>
+                <li><strong>Gravity:</strong> Pieces always fall to the lowest empty slot in the column you click.</li>
+                <li><strong>The AI:</strong> The Magenta AI will try to block you. Think ahead!</li>
+            </ul>
+            <button class="primary" onclick="toggleHelp()">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * NEON GRAVITY GRID
+         * A copyright-distinct strategy game.
+         */
+
+        // --- Sound Engine ---
+        const SoundEngine = {
+            ctx: null,
+            enabled: false,
+
+            init: function() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+
+            play: function(type, variation = 0) {
+                if (!this.enabled || !this.ctx) return;
+                
+                // Resume context if suspended (browser policy)
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                if (type === 'drop') {
+                    // Futuristic drop sound
+                    // P1 (variation 1) = higher pitch, AI (variation 2) = lower pitch
+                    const baseFreq = variation === 1 ? 600 : 400;
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(baseFreq, now);
+                    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.5, now + 0.15);
+                    
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                    
+                } else if (type === 'win') {
+                    // Victory Arpeggio (C Major)
+                    this.playNote(523.25, now, 0.1);       // C5
+                    this.playNote(659.25, now + 0.1, 0.1); // E5
+                    this.playNote(783.99, now + 0.2, 0.1); // G5
+                    this.playNote(1046.50, now + 0.3, 0.6);// C6
+                    
+                } else if (type === 'lose') {
+                    // Defeat Drone
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.linearRampToValueAtTime(50, now + 0.8);
+                    
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.8);
+                    
+                    osc.start(now);
+                    osc.stop(now + 0.8);
+                    
+                } else if (type === 'ui') {
+                    // Toggle Click
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                }
+            },
+
+            playNote: function(freq, time, dur) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, time);
+                
+                gain.gain.setValueAtTime(0.15, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + dur);
+                
+                osc.start(time);
+                osc.stop(time + dur);
+            }
+        };
+
+        function toggleSound() {
+            SoundEngine.enabled = !SoundEngine.enabled;
+            const btn = document.getElementById('sound-btn');
+            
+            if (SoundEngine.enabled) {
+                SoundEngine.init();
+                btn.innerText = "Sound: ON";
+                SoundEngine.play('ui');
+            } else {
+                btn.innerText = "Sound: OFF";
+            }
+        }
+
+        function toggleHelp() {
+            const modal = document.getElementById('help-modal');
+            const isHidden = getComputedStyle(modal).display === 'none';
+            
+            modal.style.display = isHidden ? 'flex' : 'none';
+            
+            if (isHidden && SoundEngine.enabled) {
+                SoundEngine.play('ui');
+            }
+        }
+
+        // --- Configuration ---
+        const ROWS = 6;
+        const COLS = 7;
+        const EMPTY = 0;
+        const PLAYER = 1;
+        const AI = 2;
+        
+        // --- State ---
+        let board = [];
+        let currPlayer = PLAYER;
+        let gameOver = false;
+        let difficulty = 4; // Search depth (1=Beginner, 2=Easy, 4=Normal, 6=Hard)
+        
+        // --- DOM Elements ---
+        const boardEl = document.getElementById('game-board');
+        const messageEl = document.getElementById('message-area');
+        const p1Ind = document.getElementById('p1-indicator');
+        const p2Ind = document.getElementById('p2-indicator');
+        const aiStatus = document.getElementById('ai-status');
+        const diffLabel = document.getElementById('diff-label');
+
+        // --- Initialization ---
+        function initGame() {
+            board = Array(ROWS).fill().map(() => Array(COLS).fill(EMPTY));
+            currPlayer = PLAYER;
+            gameOver = false;
+            messageEl.innerText = "Your Turn";
+            messageEl.style.color = "var(--p1-color)";
+            aiStatus.innerText = "";
+            renderBoard();
+            updateIndicators();
+        }
+
+        // --- Rendering ---
+        function renderBoard() {
+            boardEl.innerHTML = '';
+            
+            // Create columns (hitboxes)
+            for (let c = 0; c < COLS; c++) {
+                const colDiv = document.createElement('div');
+                colDiv.className = 'column';
+                colDiv.dataset.col = c;
+                colDiv.onclick = () => handleColumnClick(c);
+
+                // Create slots within columns (visuals)
+                // We render from top (row 0) to bottom (row 5) visually
+                for (let r = 0; r < ROWS; r++) {
+                    const slotDiv = document.createElement('div');
+                    slotDiv.className = 'slot';
+                    if (board[r][c] === EMPTY) {
+                        slotDiv.classList.add('empty');
+                    } else {
+                        const piece = document.createElement('div');
+                        piece.className = `piece ${board[r][c] === PLAYER ? 'p1' : 'p2'} dropped`;
+                        slotDiv.appendChild(piece);
+                    }
+                    // ID for targeted animations
+                    slotDiv.id = `slot-${r}-${c}`; 
+                    colDiv.appendChild(slotDiv);
+                }
+                boardEl.appendChild(colDiv);
+            }
+        }
+
+        function updateIndicators() {
+            if (currPlayer === PLAYER) {
+                p1Ind.classList.add('active');
+                p2Ind.classList.remove('active');
+            } else {
+                p1Ind.classList.remove('active');
+                p2Ind.classList.add('active');
+            }
+        }
+
+        function animateDrop(r, c, player) {
+            const slot = document.getElementById(`slot-${r}-${c}`);
+            slot.classList.remove('empty');
+            
+            const piece = document.createElement('div');
+            piece.className = `piece ${player === PLAYER ? 'p1' : 'p2'}`;
+            slot.appendChild(piece);
+
+            // Trigger reflow to ensure transition happens
+            void piece.offsetWidth; 
+            
+            piece.classList.add('dropped');
+        }
+
+        // --- Game Logic ---
+
+        function getFirstOpenRow(colIndex) {
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (board[r][colIndex] === EMPTY) {
+                    return r;
+                }
+            }
+            return -1;
+        }
+
+        function handleColumnClick(col) {
+            if (gameOver || currPlayer !== PLAYER) return;
+
+            const row = getFirstOpenRow(col);
+            if (row === -1) return; // Column full
+
+            makeMove(row, col, PLAYER);
+        }
+
+        function makeMove(r, c, player) {
+            board[r][c] = player;
+            animateDrop(r, c, player);
+            SoundEngine.play('drop', player); // Play drop sound
+
+            if (checkWin(board, player)) {
+                endGame(player);
+                return;
+            }
+
+            if (checkDraw()) {
+                endGame(0);
+                return;
+            }
+
+            currPlayer = (player === PLAYER) ? AI : PLAYER;
+            updateIndicators();
+
+            if (currPlayer === AI) {
+                messageEl.innerText = "AI is thinking...";
+                messageEl.style.color = "var(--p2-color)";
+                // Small delay for realism and to let UI update
+                setTimeout(() => {
+                    makeAIMove();
+                }, 100); // 100ms is enough for UI to catch up, actual thinking takes time
+            } else {
+                messageEl.innerText = "Your Turn";
+                messageEl.style.color = "var(--p1-color)";
+            }
+        }
+
+        function checkDraw() {
+            return board[0].every(cell => cell !== EMPTY);
+        }
+
+        function endGame(winner) {
+            gameOver = true;
+            if (winner === PLAYER) {
+                messageEl.innerText = "VICTORY!";
+                messageEl.style.color = "var(--p1-color)";
+                highlightWin(PLAYER);
+                SoundEngine.play('win'); // Play win sound
+            } else if (winner === AI) {
+                messageEl.innerText = "DEFEAT";
+                messageEl.style.color = "var(--p2-color)";
+                highlightWin(AI);
+                SoundEngine.play('lose'); // Play lose sound
+            } else {
+                messageEl.innerText = "GRID LOCKED (DRAW)";
+                messageEl.style.color = "#fff";
+            }
+        }
+
+        function highlightWin(player) {
+            // Horizontal
+            for (let c = 0; c < COLS - 3; c++) {
+                for (let r = 0; r < ROWS; r++) {
+                    if (board[r][c] == player && board[r][c+1] == player && board[r][c+2] == player && board[r][c+3] == player) {
+                        applyHighlight(r, c, 0, 1); return;
+                    }
+                }
+            }
+            // Vertical
+            for (let c = 0; c < COLS; c++) {
+                for (let r = 0; r < ROWS - 3; r++) {
+                    if (board[r][c] == player && board[r+1][c] == player && board[r+2][c] == player && board[r+3][c] == player) {
+                        applyHighlight(r, c, 1, 0); return;
+                    }
+                }
+            }
+            // Diagonals (top-left to bottom-right)
+            for (let c = 0; c < COLS - 3; c++) {
+                for (let r = 0; r < ROWS - 3; r++) {
+                    if (board[r][c] == player && board[r+1][c+1] == player && board[r+2][c+2] == player && board[r+3][c+3] == player) {
+                        applyHighlight(r, c, 1, 1); return;
+                    }
+                }
+            }
+            // Diagonals (bottom-left to top-right)
+            for (let c = 0; c < COLS - 3; c++) {
+                for (let r = 3; r < ROWS; r++) {
+                    if (board[r][c] == player && board[r-1][c+1] == player && board[r-2][c+2] == player && board[r-3][c+3] == player) {
+                        applyHighlight(r, c, -1, 1); return;
+                    }
+                }
+            }
+        }
+
+        function applyHighlight(r, c, dr, dc) {
+            const startSlot = document.getElementById(`slot-${r}-${c}`);
+            const endSlot = document.getElementById(`slot-${r + 3*dr}-${c + 3*dc}`);
+            
+            // Add pulsing class to pieces
+            for (let i = 0; i < 4; i++) {
+                const slot = document.getElementById(`slot-${r + i*dr}-${c + i*dc}`);
+                const piece = slot.querySelector('.piece');
+                if (piece) piece.classList.add('winning-piece');
+            }
+
+            // Draw a line
+            const line = document.createElement('div');
+            line.className = 'win-line';
+            boardEl.appendChild(line);
+
+            const startRect = startSlot.getBoundingClientRect();
+            const endRect = endSlot.getBoundingClientRect();
+            const boardRect = boardEl.getBoundingClientRect();
+
+            const x1 = startRect.left + startRect.width / 2 - boardRect.left;
+            const y1 = startRect.top + startRect.height / 2 - boardRect.top;
+            const x2 = endRect.left + endRect.width / 2 - boardRect.left;
+            const y2 = endRect.top + endRect.height / 2 - boardRect.top;
+
+            const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+            line.style.width = `${length}px`;
+            line.style.left = `${x1}px`;
+            line.style.top = `${y1}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+        }
+
+        // --- AI Logic (Minimax) ---
+
+        function makeAIMove() {
+            aiStatus.innerText = `Calculating (Depth ${difficulty})...`;
+            
+            // Use setTimeout to allow the browser to render the "Thinking" text before blocking
+            setTimeout(() => {
+                const [col, score] = minimax(board, difficulty, -Infinity, Infinity, true);
+                aiStatus.innerText = "";
+                
+                if (col !== null && col !== -1) {
+                    const row = getFirstOpenRow(col);
+                    makeMove(row, col, AI);
+                } else {
+                    // Fallback if something weird happens (e.g. board full but not detected)
+                    console.error("AI has no valid moves");
+                }
+            }, 20);
+        }
+
+        // Check window of 4 cells
+        function evaluateWindow(window, piece) {
+            let score = 0;
+            const oppPiece = (piece === PLAYER) ? AI : PLAYER;
+            const pieceCount = window.filter(c => c === piece).length;
+            const emptyCount = window.filter(c => c === EMPTY).length;
+            const oppCount = window.filter(c => c === oppPiece).length;
+
+            if (pieceCount === 4) {
+                score += 100;
+            } else if (pieceCount === 3 && emptyCount === 1) {
+                score += 5;
+            } else if (pieceCount === 2 && emptyCount === 2) {
+                score += 2;
+            }
+
+            if (oppCount === 3 && emptyCount === 1) {
+                score -= 4; // Block opponent
+            }
+
+            return score;
+        }
+
+        function scorePosition(tempBoard, piece) {
+            let score = 0;
+
+            // Center column preference
+            const centerArray = [];
+            for(let r=0; r<ROWS; r++) centerArray.push(tempBoard[r][Math.floor(COLS/2)]);
+            const centerCount = centerArray.filter(c => c === piece).length;
+            score += centerCount * 3;
+
+            // Horizontal
+            for (let r = 0; r < ROWS; r++) {
+                const rowArray = tempBoard[r];
+                for (let c = 0; c < COLS - 3; c++) {
+                    const window = rowArray.slice(c, c + 4);
+                    score += evaluateWindow(window, piece);
+                }
+            }
+
+            // Vertical
+            for (let c = 0; c < COLS; c++) {
+                const colArray = [];
+                for(let r=0; r<ROWS; r++) colArray.push(tempBoard[r][c]);
+                for (let r = 0; r < ROWS - 3; r++) {
+                    const window = colArray.slice(r, r + 4);
+                    score += evaluateWindow(window, piece);
+                }
+            }
+
+            // Diagonal /
+            for (let r = 0; r < ROWS - 3; r++) {
+                for (let c = 0; c < COLS - 3; c++) {
+                    const window = [tempBoard[r][c], tempBoard[r+1][c+1], tempBoard[r+2][c+2], tempBoard[r+3][c+3]];
+                    score += evaluateWindow(window, piece);
+                }
+            }
+
+            // Diagonal \ (Fixed loop boundary)
+            for (let r = 3; r < ROWS; r++) {
+                for (let c = 0; c < COLS - 3; c++) {
+                    const window = [tempBoard[r][c], tempBoard[r-1][c+1], tempBoard[r-2][c+2], tempBoard[r-3][c+3]];
+                    score += evaluateWindow(window, piece);
+                }
+            }
+
+            return score;
+        }
+
+        function isTerminalNode(nodeBoard) {
+            return checkWin(nodeBoard, PLAYER) || checkWin(nodeBoard, AI) || nodeBoard[0].every(cell => cell !== EMPTY);
+        }
+
+        function checkWin(b, p) {
+            // Horizontal
+            for (let c = 0; c < COLS - 3; c++) {
+                for (let r = 0; r < ROWS; r++) {
+                    if (b[r][c] == p && b[r][c+1] == p && b[r][c+2] == p && b[r][c+3] == p) return true;
+                }
+            }
+            // Vertical
+            for (let c = 0; c < COLS; c++) {
+                for (let r = 0; r < ROWS - 3; r++) {
+                    if (b[r][c] == p && b[r+1][c] == p && b[r+2][c] == p && b[r+3][c] == p) return true;
+                }
+            }
+            // Diagonals (top-left to bottom-right)
+            for (let c = 0; c < COLS - 3; c++) {
+                for (let r = 0; r < ROWS - 3; r++) {
+                    if (b[r][c] == p && b[r+1][c+1] == p && b[r+2][c+2] == p && b[r+3][c+3] == p) return true;
+                }
+            }
+            // Diagonals (bottom-left to top-right) (Fixed loop boundary)
+            for (let c = 0; c < COLS - 3; c++) {
+                for (let r = 3; r < ROWS; r++) {
+                    if (b[r][c] == p && b[r-1][c+1] == p && b[r-2][c+2] == p && b[r-3][c+3] == p) return true;
+                }
+            }
+            return false;
+        }
+
+        function getValidLocations(b) {
+            const validLocations = [];
+            for (let c = 0; c < COLS; c++) {
+                if (b[0][c] === EMPTY) {
+                    validLocations.push(c);
+                }
+            }
+            // Optimization: Explore center columns first
+            validLocations.sort((a, b) => Math.abs(a - 3) - Math.abs(b - 3));
+            return validLocations;
+        }
+
+        // Deep copy board helper
+        function copyBoard(b) {
+            return b.map(row => [...row]);
+        }
+
+        // Minimax Algorithm
+        function minimax(nodeBoard, depth, alpha, beta, maximizingPlayer) {
+            const validLocations = getValidLocations(nodeBoard);
+            const isTerminal = isTerminalNode(nodeBoard);
+
+            if (depth === 0 || isTerminal) {
+                if (isTerminal) {
+                    if (checkWin(nodeBoard, AI)) return [null, 1000000];
+                    if (checkWin(nodeBoard, PLAYER)) return [null, -1000000];
+                    return [null, 0]; // Draw
+                } else {
+                    return [null, scorePosition(nodeBoard, AI)];
+                }
+            }
+
+            if (maximizingPlayer) {
+                let value = -Infinity;
+                let column = validLocations[Math.floor(Math.random() * validLocations.length)];
+                
+                for (let col of validLocations) {
+                    const row = getFirstOpenRowRow(nodeBoard, col);
+                    const bCopy = copyBoard(nodeBoard);
+                    bCopy[row][col] = AI;
+                    const newScore = minimax(bCopy, depth - 1, alpha, beta, false)[1];
+                    
+                    if (newScore > value) {
+                        value = newScore;
+                        column = col;
+                    }
+                    alpha = Math.max(alpha, value);
+                    if (alpha >= beta) break;
+                }
+                return [column, value];
+            } else {
+                let value = Infinity;
+                let column = validLocations[Math.floor(Math.random() * validLocations.length)];
+                
+                for (let col of validLocations) {
+                    const row = getFirstOpenRowRow(nodeBoard, col);
+                    const bCopy = copyBoard(nodeBoard);
+                    bCopy[row][col] = PLAYER;
+                    const newScore = minimax(bCopy, depth - 1, alpha, beta, true)[1];
+                    
+                    if (newScore < value) {
+                        value = newScore;
+                        column = col;
+                    }
+                    beta = Math.min(beta, value);
+                    if (alpha >= beta) break;
+                }
+                return [column, value];
+            }
+        }
+
+        // Helper for Minimax (simulated board)
+        function getFirstOpenRowRow(b, col) {
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (b[r][col] === EMPTY) return r;
+            }
+            return -1;
+        }
+
+        // --- Controls ---
+        document.getElementById('reset-btn').addEventListener('click', initGame);
+
+        function changeDifficulty() {
+            if (difficulty === 1) {
+                difficulty = 2;
+                diffLabel.innerText = "Easy";
+            } else if (difficulty === 2) {
+                difficulty = 4;
+                diffLabel.innerText = "Normal";
+            } else if (difficulty === 4) {
+                difficulty = 6;
+                diffLabel.innerText = "Hard";
+            } else {
+                difficulty = 1;
+                diffLabel.innerText = "Beginner";
+            }
+        }
+
+        // Start
+        initGame();
+
+    </script>
+    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>
