@@ -1295,51 +1295,71 @@ Triggered by PRNG rolls at port arrival:
 
 | Event | Description | Effect |
 |---|---|---|
-| Skill Increase | Tribble trainer, etc. | +1 to random skill |
-| Tribbles | Merchant sells tribbles | Tribbles infest cargo |
-| Pirate Attack (planet) | Ground raid | Cargo stolen |
-| Good Prices Tip | Insider info | Highlight good on market |
-| Weird Gas | Warp mishap | Random system damage |
-| Gambling | Space casino | Win/lose credits |
+| Skill Increase | Tribble trainer, lucky encounter | +1 to random skill |
+| Tribbles | Merchant sells tribbles cheap | Tribbles infest cargo hold |
+| Pirate Raid (docked) | Ground raid while docked | Random cargo stolen |
+| Market Tip | Insider info from a dockworker | Highlight one good on market (price anomaly) |
+| Weird Gas Cloud | Warp mishap en route | Random system component damaged |
+| Space Casino | Gambling den at port | Win or lose up to 2,000 credits |
+| Fuel Leak | Engineer notices slow leak | −2 fuel on arrival; free repair if engineer skill ≥ 5 |
+| Hull Microcrack | Debris impact en route | −5 hull HP; reduced repair cost |
+| Crew Bonus | Crew member finds contraband stash | +random(200, 800) credits |
+| Beggar's Plea | Desperate drifter at docking bay | Donate credits for small police record boost, or ignore |
 
-### 18.2 The Kelvari Reactor Quest
+---
 
-- Available at specific system: `KELVARI_SYSTEM`
-- Deliver radioactive reactor to `DRACOS_SYSTEM` within 20 days
-- Reactor occupies 5 cargo bays and slowly damages hull (1 HP/day)
-- Reward: 500,000 credits (scaled to difficulty)
-- Failure: reactor explodes (ship destroyed, game over if no escape pod)
+### 18.2 Quest Catalogue
 
-### 18.3 The Leviathan Quest (Space Monster)
+All 30 quests below are one-per-game (with noted exceptions). Quest availability is seeded — not every quest appears in every playthrough. Most require specific system visits or trigger conditions. Columns:
 
-- Unique encounter: Leviathan-class creature guarding valuable salvage
-- Leviathan has extreme hull, no shields, powerful attack
-- Reward: Leviathan hull plating (permanent hull upgrade)
-- Only available once per game
+- **Trigger** — how the quest starts
+- **Objective** — what the player must do
+- **Complication** — the twist or risk
+- **Reward** — on success
+- **Failure** — on timeout or wrong choice
 
-### 18.4 The Phantom Quest
+| # | Name | Type | Trigger | Objective | Complication | Reward | Failure Consequence |
+|---|---|---|---|---|---|---|---|
+| Q01 | **The Kelvari Reactor** | Timed Delivery | Visit `KELVARI_SYSTEM`; offered by port authority | Deliver radioactive reactor (5 bays) to `DRACOS_SYSTEM` within 20 days | Reactor deals 1 HP hull damage per day in cargo; cannot be jettisoned | 500,000 cr (difficulty-scaled) | Reactor detonates on day 21 — ship destroyed; escape pod if equipped |
+| Q02 | **The Leviathan** | Boss Combat | Random deep-space encounter (triggered once per game, mid-to-late game) | Defeat the Leviathan creature in combat | Extreme hull, no shields, devastating attack; flees after 60% damage then returns stronger | Leviathan hull plating (permanent +20 HP), salvage credits | Creature escapes; cannot be re-triggered |
+| Q03 | **The Phantom** | Multi-Stage Combat | Rumour heard at any tech-7 system | Track and destroy the stolen experimental ship Phantom across 3 systems | Phantom has military laser, reflective shields, and attempts to flee each round | Military pulse laser + 80,000 cr | Phantom escapes permanently; bounty uncollected |
+| Q04 | **The Princess** | Timed Rescue | Distress beacon near mid-game system | Transport the kidnapped Princess Vael to her home system within 30 days | Pirates actively intercept (increased encounter rate while she is aboard) | +3 randomly distributed skill points + 25,000 cr | Princess taken by pirates; police record −5 |
+| Q05 | **The Sanctuary Moon** | Retirement / Win | Purchase offered at `ELYSARA_SYSTEM` (requires `MOON_PRICE` credits) | Buy the private moon and retire | None — this is the primary win condition | Game won; retirement score calculated | N/A — quest persists until bought or game ends |
+| Q06 | **Bottles of Fortune** | Random Loot | Found aboard Ghost Ship event or sold by wandering merchant | Identify the bottle contents | Bottle of Skill (+1 random skill) or Bottle of Good (500–2,000 cr); 10% chance of Bottle of Poison (−10 hull) | +1 skill or credits | −10 hull if poisoned |
+| Q07 | **Ghost Ship** | Exploration / Loot | Random warp event (low probability, deep-space only) | Board the abandoned vessel and salvage its cargo | Cargo may include illegal goods (police risk); 20% chance of automated defence drone combat | Random cargo (4–12 bays worth) + possible rare equipment | Drone destroys ship if combat failed; no salvage |
+| Q08 | **The Plague Shipment** | Moral Choice | Port authority at system under PLAGUE condition | Carry experimental medpacks (3 bays) to afflicted system within 15 days | Medpacks are flagged as controlled substances — police scanners will trigger stops | 40,000 cr + police record +3 if delivered | Patients die; police record −2 for abandonment |
+| Q09 | **War Profiteer** | Trade / Ethics | Arms dealer at any DICTATORSHIP system | Buy munitions cheap and deliver to a system at WAR | Police record −3 on delivery regardless (supplying a war zone); chance of pirate ambush en route | 3× munitions sale price | Ambush may destroy cargo; police record loss still applies |
+| Q10 | **The Defector** | Escort | Intelligence contact at CORPORATE STATE system | Escort defector's ship to a DEMOCRACY system within 20 days | Corporate bounty hunters (3 encounters guaranteed) pursue both ships; defector's ship has weak hull | 60,000 cr + Pilot +1 | Defector destroyed; police record −1 |
+| Q11 | **Rael's Ransom** | Timed Payment | Captain Rael captured; message received at any port | Gather 75,000 cr ransom and deliver to pirate station within 25 days | Pirate station only appears on map after quest starts; no other services there | Captain Rael joins as a free crew member (Fighter +2) | Rael executed; crew slot lost permanently |
+| Q12 | **The Okoro Artefact** | Investigation | Antiquities dealer at tech-6+ system | Collect 3 artefact fragments from 3 separate systems | Each fragment is mildly illegal; fragments cannot be in cargo during police scans | Ancient navigation device: reveals all system names on map permanently | Fragments confiscated; no reward |
+| Q13 | **The Fuel Cache** | Exploration | Decoded star chart sold by merchant at Renaissance-level system | Navigate to hidden cache coordinates in deep space | Cache is in a system with no port — no repairs or services; pirates guard it | 30 free fuel units + 15,000 cr in salvage | Pirates destroy player if combat lost |
+| Q14 | **The Void Cannon** | Quest Weapon | Offer appears at a remote ANARCHY system after player reaches 50+ kills | Retrieve the experimental Void Cannon from a derelict military station | Station guarded by two military-class ships; Void Cannon takes 2 weapon slots | Void Cannon (triple damage, 2-slot weapon) | Guards permanently hostile if fled; station sealed |
+| Q15 | **The Colonist Uprising** | Crisis Response | Triggered if player has delivered 5+ colonist groups | Emergency broadcast: colonists have revolted on a remote frontier world | Player must choose: deliver suppression forces (police record +5, trader rep −3) or deliver aid supplies (police record +2, trader rep +2) | Credits + reputation shift based on choice | No consequence if ignored except −1 reputation with Colonial Registry |
+| Q16 | **The Wormhole Cartographer** | Multi-System Exploration | Professor at a tech-7 system offers a research contract | Visit all 6 wormhole exit systems and return sensor readings | Each wormhole visit is a timed window (10 days from previous); player must chain them | Wormhole Finder gadget (free, fully functional) + 30,000 cr | Incomplete data; partial reward (15,000 cr) |
+| Q17 | **The Debt Collector** | Moral Choice | Loan shark's representative appears at any port if player has debt > 20,000 cr | Pay off debt in full within 10 days OR refuse | Refusing triggers two guaranteed bounty hunter encounters; paying gives clean record | Debt cleared + police record +1 | Bounty hunters attack; debt doubles if both defeated |
+| Q18 | **Tribble Zero** | Pest Control | Triggered when tribbles exceed 5,000 aboard ship | Find the Tribble Exterminator at a specific tech-5 system within 20 days | Cannot sell or jettison tribbles; they breed faster the longer the quest is active | Tribbles eliminated; receive Anti-Tribble Spray (prevents future infestation) | Tribbles consume 10% of all cargo per day until exterminated |
+| Q19 | **The Insurance Fraud Ring** | Investigation | Insurance broker at any CONFEDERACY system tips off the player | Collect evidence from 2 systems, then report to police HQ system | Evidence flagged as stolen property by the fraud ring; they send one enforcer ship | 50,000 cr bounty + police record +4 | Enforcers destroy evidence; ring continues operating (insurance costs +5% permanently) |
+| Q20 | **The Lost Expedition** | Rescue | Distress signal from deep-space system with no port | Rescue 8 stranded scientists (requires Life Support upgrade) and return them within 10 days | Scientists take 8 cargo bays; no Registry contract — strictly quest cargo | 45,000 cr + Engineer +1 | Scientists die; police record −3 |
+| Q21 | **The Pirate King** | Boss Combat | Reputation among pirates deteriorates past −60 OR high kill count (20+ pirates) | Defeat the Pirate King in his flagship in his home system | Pirate King has a full crew (2 extra combat rounds of support fire per round); ship is the strongest in the game short of military | Pirate King's ship (upgrade current ship hull by 50 HP) + 100,000 cr | Pirate King survives; pirate encounter rate increases by 25% permanently |
+| Q22 | **The Smuggler's Favour** | Contraband Delivery | Shady contact in ANARCHY or FEUDAL system | Deliver unmarked cargo (3 bays, contents unknown) to named contact at target system | If scanned by police, cargo reveals illegal weapons — record −5 and confiscation; no quest cancel | 35,000 cr (no record change if unscanned) | Cargo confiscated; no payment; possible arrest |
+| Q23 | **The Clone Scandal** | Story / Moral Choice | News headline triggers investigation at a tech-6 system | Investigate a black-market cloning lab and choose: expose it (newscast reward) or sell the data to the lab | Exposure: police record +5, lab sends one assassin ship; sale: 60,000 cr, police record −2 | Depends on choice (see Complication) | Ignored after 30 days; no consequence |
+| Q24 | **Engine of Ruin** | Timed Sabotage | Black ops contact at a COMMUNIST system | Plant a device on a corporate freighter within 15 days (requires intercepting it in deep space) | Intercepting the freighter may be read as piracy (police record −2 on intercept); device must be installed via cargo transfer, not combat | 90,000 cr + Void Veil gadget (free) | Freighter warps out; contact disappears; no reward |
+| Q25 | **The Stranded Merchant** | Rescue / Trade | Random encounter: merchant drifting with no fuel | Donate fuel (minimum 5 units) to stranded merchant | None | Merchant gives discount coupon: one item at 50% off at their home system's Equipment Dock | Merchant drifts; no consequence |
+| Q26 | **The Neural Heist** | Stealth Delivery | Black market contact at tech-5+ system | Smuggle a crate of Neuralware (3 bays) past a police blockade system | Blockade system has 100% scan rate for this journey leg only | 3× Neuralware value + Engineer +1 | Cargo confiscated; police record −4; contact unfindable |
+| Q27 | **The Mercenary Contract** | Combat Bounty | Mercenary Guild board at MERCENARY ENCLAVE resource system | Hunt and destroy 5 marked pirate ships within 30 days | Marked pirates are tougher than normal (buffed hull × 1.5); last target is a Corvette-class | 70,000 cr + Fighter +1 | Incomplete; partial payment (10,000 cr per confirmed kill) |
+| Q28 | **The Dying Admiral** | Moral Choice / Escort | Random encounter: crippled military vessel hailing for help | Escort the Admiral's ship to a DEMOCRACY system OR ignore | If escorted: 2 guaranteed police encounters (they verify identity); if ignored: no immediate consequence | Escort reward: permanent police encounter rate −15% for rest of game | Ignored: no penalty; Admiral's ship destroyed eventually (no further effect) |
+| Q29 | **The Ore Cartel** | Trade Disruption | Mining syndicate contact at MINERAL RICH system | Purchase 20 units of ore from independent miners across 3 systems and deliver to cartel headquarters | Cartel's rivals intercept once per system (guaranteed combat or bribe); ore price fluctuates mid-quest | 2× market value for all 20 units + Trader +1 | Rivals steal cargo; partial delivery accepted at 1× value |
+| Q30 | **The Final Broadcast** | Story Climax | Triggered on day 100+ OR after completing any 10 other quests | Transmit a recovered signal from a derelict probe to the galactic beacon at `ELYSARA_SYSTEM` | Signal is contested — a military ship and a pirate ship both intercept (sequential encounters) | Unlock secret epilogue text on retirement screen + 50,000 cr + police record +5 | Signal lost; epilogue text not unlocked; no other penalty |
 
-- Series of encounters tracking the stolen experimental ship "Phantom"
-- Phantom has military laser, cloaking device, reflective shields
-- Capturing it requires defeating it in combat
-- Reward: military equipment + credits
+---
 
-### 18.5 The Princess Quest
+### 18.3 Quest Design Notes
 
-- Deliver the kidnapped princess to her home planet
-- Timed: must arrive within 30 days
-- Reward: skill points distributed randomly, plus credits
-
-### 18.6 The Sanctuary Retirement
-
-- Player can purchase a retirement property (a private moon) for `MOON_PRICE = 500,000` credits
-- Moon purchased at `ELYSARA_SYSTEM`
-- Triggers the retirement win condition
-
-### 18.7 Bottle of Skill / Bottle of Good
-
-- `BOTTLE_OLD`: ancient bottle — +1 random skill
-- `BOTTLE_GOOD`: full bottle — credits reward (`random(500, 2000)`)
+- **Seeded availability:** At new game creation, `Universe.generate(seed)` assigns a subset of Q07–Q30 to the playthrough. Q01–Q06 and Q25 (Stranded Merchant) are always present. Q07–Q30 have a 70% chance each of being active in any given game, ensuring variety across playthroughs.
+- **Quest state tracking:** Each quest is tracked in `GameState.quests` as `{ id, status, progress, dayStarted, flagData }` where `status` is one of `UNAVAILABLE | AVAILABLE | ACTIVE | COMPLETE | FAILED`.
+- **Mutual exclusions:** Q09 (War Profiteer) and Q28 (Dying Admiral) cannot both be active simultaneously — the Admiral quest blocks the profiteer offer if already accepted.
+- **Moral choice quests** (Q08, Q09, Q15, Q23, Q28) have no "wrong" answer — both paths give rewards of different types. Police record and reputation shifts are the trade-off.
+- **Skill rewards** (+1 Pilot, +1 Fighter, etc.) are capped by the normal skill maximum of 10 and silently ignored if already at cap.
 
 ---
 
