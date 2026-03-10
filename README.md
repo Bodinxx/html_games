@@ -1,6 +1,7 @@
 # HTML Games
 
 A collection of browser-based games and tools built with HTML5 Canvas and vanilla JavaScript. No dependencies, no installs — just open and play.
+http://web-mage.ca/games/
 
 ---
 
