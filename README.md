@@ -8,7 +8,7 @@ A collection of browser-based games and tools built with HTML5 Canvas and vanill
 
 ### Cosmic Brick Breaker
 
-<img src="games/Cosmic_Brick_Breaker.webp" alt="Cosmic Brick Breaker" style="max-width:300px">
+<img src="games/Cosmic_Brick_Breaker.webp" alt="Cosmic Brick Breaker" style="max-width:300px;">
 
 A cosmic-themed browser-based Brick Breaker game featuring procedural level generation and a robust power-up system. Includes advanced mechanics like indestructible blocks, dual laser cannons, safety nets, and varying difficulty hazards, all rendered with smooth canvas animations and retro-futuristic sound effects.
 
