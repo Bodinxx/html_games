@@ -8,7 +8,7 @@ A collection of browser-based games and tools built with HTML5 Canvas and vanill
 
 ### Cosmic Brick Breaker
 
-![Cosmic Brick Breaker](games/Cosmic_Brick_Breaker.webp)
+<img src="games/Cosmic_Brick_Breaker.webp" alt="Cosmic Brick Breaker" style="max-width:300px">
 
 A cosmic-themed browser-based Brick Breaker game featuring procedural level generation and a robust power-up system. Includes advanced mechanics like indestructible blocks, dual laser cannons, safety nets, and varying difficulty hazards, all rendered with smooth canvas animations and retro-futuristic sound effects.
 
@@ -18,7 +18,7 @@ A cosmic-themed browser-based Brick Breaker game featuring procedural level gene
 
 ### Cribbage Master
 
-![Cribbage Master](games/Cribbage_Master.webp)
+<img src="games/Cribbage_Master.webp" alt="Cribbage Master" style="max-width:300px">
 
 A feature-rich Cribbage game featuring an authentic S-track board, animated leapfrog pegging, and a statistical advisor. Play against a professional AI in a tournament-style environment with automatic scoring, synthesized sound effects, and celebratory fireworks.
 
@@ -28,7 +28,7 @@ A feature-rich Cribbage game featuring an authentic S-track board, animated leap
 
 ### Critter Lab
 
-![Critter Lab](games/Critter_Lab.webp)
+<img src="games/Critter_Lab.webp" alt="Critter Lab" style="max-width:300px">
 
 Colour Critter Factory is a logic-based puzzle game where players transform "fuzzy" critters using various lab tools. Match a target design by layering paints, patterns, and accessories while navigating complex masking logic and grid-based dipping directions. Includes a local save system.
 
@@ -38,7 +38,7 @@ Colour Critter Factory is a logic-based puzzle game where players transform "fuz
 
 ### Cross Sums
 
-![Cross Sums](games/crosssums.webp)
+<img src="games/crosssums.webp" alt="Cross Sums" style="max-width:300px">
 
 An addictive math puzzle game where you must remove numbers from a grid to make each row and column match a specific target sum. Features procedural level generation across multiple difficulties, a life system to punish incorrect deletions, and helpful tools like auto-locking solved rows.
 
@@ -48,7 +48,7 @@ An addictive math puzzle game where you must remove numbers from a grid to make 
 
 ### Cyber Serpent
 
-![Cyber Serpent](games/cyber_serpent.webp)
+<img src="games/cyber_serpent.webp" alt="Cyber Serpent" style="max-width:300px">
 
 A neon-styled browser-based arcade shooter inspired by Centipede, featuring progressive difficulty and procedural level layouts. Includes classic mechanics like splitting serpents, regenerating obstacles, unique enemy behaviors like the Virus Drone and Corruptor, and user-friendly features like sound toggles and in-game help.
 
@@ -58,7 +58,7 @@ A neon-styled browser-based arcade shooter inspired by Centipede, featuring prog
 
 ### Cyber Squeeze
 
-![Cyber Squeeze](games/cyber_squeeze.webp)
+<img src="games/cyber_squeeze.webp" alt="Cyber Squeeze" style="max-width:300px">
 
 A high-speed arcade action game inspired by the classic Tapper. Serve energy batteries to thirsty androids across multiple lanes, catch empty casings to maintain station integrity, and survive increasingly fast levels in a neon-lit cyberpunk environment.
 
@@ -68,7 +68,7 @@ A high-speed arcade action game inspired by the classic Tapper. Serve energy bat
 
 ### Deep Digger
 
-![Deep Digger](games/Deep_Digger.webp)
+<img src="games/Deep_Digger.webp" alt="Deep Digger" style="max-width:300px">
 
 An arcade-style subterranean action game featuring tile-based digging mechanics and a retro pixel-art aesthetic. Manages player movement, enemy AI that tracks the player through tunnels, harpoon physics for inflating foes, and environmental hazards like falling rocks.
 
@@ -78,7 +78,7 @@ An arcade-style subterranean action game featuring tile-based digging mechanics 
 
 ### Dungeon Generator
 
-![Dungeon Generator](games/dungeon_generator.webp)
+<img src="games/dungeon_generator.webp" alt="Dungeon Generator" style="max-width:300px">
 
 A robust browser-based Dungeon Generator for tabletop RPGs. Features procedural map creation with multiple layout algorithms (Standard, Mine, Labyrinth), customizable themes, difficulty scaling, and interactive canvas rendering. Generates room descriptions with monsters, traps, and treasure based on D&D 5e mechanics, with export options for maps and keys.
 
@@ -88,7 +88,7 @@ A robust browser-based Dungeon Generator for tabletop RPGs. Features procedural 
 
 ### Entomologist's Expedition
 
-![Entomologist's Expedition](games/Entomologists_Expedition.webp)
+<img src="games/Entomologists_Expedition.webp" alt="Entomologist's Expedition" style="max-width:300px">
 
 A browser-based arcade game utilizing procedural maze generation to create unique levels for every playthrough. Features a sophisticated Recursive Backtracker algorithm with mirroring logic to build balanced labyrinths, complex entity interactions, a Web Audio API sound manager, swipe-based mobile controls, and AI-driven Bug behaviors.
 
@@ -98,7 +98,7 @@ A browser-based arcade game utilizing procedural maze generation to create uniqu
 
 ### Gem Pillars
 
-![Gem Pillars](games/Gem_Pillars.webp)
+<img src="games/Gem_Pillars.webp" alt="Gem Pillars" style="max-width:300px">
 
 A vibrant, neon-infused puzzle game where you must strategically arrange falling vertical columns of three sparkling gems. Align three or more identical gems horizontally, vertically, or diagonally to clear them from the board, triggering explosive chain reactions that become increasingly challenging as the game speeds up.
 
@@ -108,7 +108,7 @@ A vibrant, neon-infused puzzle game where you must strategically arrange falling
 
 ### GrooveGen
 
-![GrooveGen](games/groovegen.webp)
+<img src="games/groovegen.webp" alt="GrooveGen" style="max-width:300px">
 
 An audio visualizer and video generator that creates dynamic visuals for uploaded MP3 files. Features 28 visualization modes, custom cover art, lyric integration, video export (MP4/WebM), variable playback speed, timestamp tools, and advanced color customization (Solid / Gradient / Rainbow).
 
@@ -118,7 +118,7 @@ An audio visualizer and video generator that creates dynamic visuals for uploade
 
 ### Hangman
 
-![Hangman](games/Hangman.webp)
+<img src="games/Hangman.webp" alt="Hangman" style="max-width:300px">
 
 A high-stakes word puzzle where you must guess hidden phrases across 60 levels of increasing difficulty to prevent the gallows from being completed. Choose between Timer Mode for a high-pressure, rapid-fire experience or Relaxed Mode to solve linguistic mysteries at your own pace.
 
@@ -128,7 +128,7 @@ A high-stakes word puzzle where you must guess hidden phrases across 60 levels o
 
 ### ICON Maker
 
-![ICON Maker](games/ICON_Maker.webp)
+<img src="games/ICON_Maker.webp" alt="ICON Maker" style="max-width:300px">
 
 A client-side tool that converts common image formats into multi-size ICO files and Apple Touch icons directly in the browser. Features customizable fit modes, background color options, and real-time previews with legibility warnings for small icon resolutions.
 
@@ -138,7 +138,7 @@ A client-side tool that converts common image formats into multi-size ICO files 
 
 ### Lexi-Launch Defender
 
-![Lexi-Launch Defender](games/lexi-launch_defender.webp)
+<img src="games/lexi-launch_defender.webp" alt="Lexi-Launch Defender" style="max-width:300px">
 
 A high-octane "Y2K" aesthetic typing defense game where players protect ground-based shields by intercepting falling word-missiles. Features dynamic theme loading from external JSON, a ground-to-air laser interception system, scaling difficulty phases, and a custom Web Audio API synthesizer for retro sound effects.
 
@@ -148,7 +148,7 @@ A high-octane "Y2K" aesthetic typing defense game where players protect ground-b
 
 ### Neon Gravity
 
-![Neon Gravity](games/Neon_Gravity.webp)
+<img src="games/Neon_Gravity.webp" alt="Neon Gravity" style="max-width:300px">
 
 A sleek, futuristic strategy game where you must connect four cyan pieces in a row while battling a calculated Magenta AI. Set against a high-contrast neon grid, featuring gravity-driven mechanics, multiple difficulty levels ranging from Beginner to Hard, and immersive synthesized sound effects.
 
@@ -158,7 +158,7 @@ A sleek, futuristic strategy game where you must connect four cyan pieces in a r
 
 ### Neon MiniGolf
 
-![Neon MiniGolf](games/Neon_MiniGolf.webp)
+<img src="games/Neon_MiniGolf.webp" alt="Neon MiniGolf" style="max-width:300px">
 
 A neon-themed procedural 18-hole minigolf game featuring complex geometry including triangle tiles, dynamic obstacles like spinners and moving walls, and a choice-based powerup system for players who finish under par.
 
@@ -168,7 +168,7 @@ A neon-themed procedural 18-hole minigolf game featuring complex geometry includ
 
 ### Neon Stack
 
-![Neon Stack](games/Neon_Stack.webp)
+<img src="games/Neon_Stack.webp" alt="Neon Stack" style="max-width:300px">
 
 A sleek, futuristic block-stacking puzzle where you must strategically arrange falling neon shapes to clear horizontal lines and rack up high scores. Features a "ghost piece" for precision placement and a responsive interface designed for both desktop play and mobile touch controls.
 
@@ -178,7 +178,7 @@ A sleek, futuristic block-stacking puzzle where you must strategically arrange f
 
 ### Pro Billiards
 
-![Pro Billiards](games/Pro_Billiards.webp)
+<img src="games/Pro_Billiards.webp" alt="Pro Billiards" style="max-width:300px">
 
 A high-fidelity physics-based pool simulator featuring authentic 8-Ball and 9-Ball modes. Play against an adjustable intelligent AI or practice solo in a responsive, mobile-optimized environment that automatically adapts to portrait and landscape orientations.
 
@@ -188,7 +188,7 @@ A high-fidelity physics-based pool simulator featuring authentic 8-Ball and 9-Ba
 
 ### Silk and Silver
 
-![Silk and Silver](games/Silk_and_Silver.webp)
+<img src="games/Silk_and_Silver.webp" alt="Silk and Silver" style="max-width:300px">
 
 A deep maritime strategy game set in the Mediterranean. Navigate historical ports to buy low and sell high on commodities ranging from grain to illicit hashish. Manage compounding debt, bank profits in Venice, and upgrade your ship's hull and arsenal. Balance cargo space with cannons to survive turn-based naval battles against the Borgia Syndicate in this high-stakes quest for fortune.
 
@@ -198,7 +198,7 @@ A deep maritime strategy game set in the Mediterranean. Navigate historical port
 
 ### Spin-a-Word
 
-![Spin-a-Word](games/Spin-a-Word.webp)
+<img src="games/Spin-a-Word.webp" alt="Spin-a-Word" style="max-width:300px">
 
 A cosmic-themed word puzzle where you spin a high-contrast neon wheel to earn cash and reveal hidden phrases. Strategically buy vowels and outsmart clever AI bots to solve the mystery and claim your accumulated fortune.
 
@@ -208,7 +208,7 @@ A cosmic-themed word puzzle where you spin a high-contrast neon wheel to earn ca
 
 ### Steel Beam Climber
 
-![Steel Beam Climber](games/Steel_Beam_Climber.webp)
+<img src="games/Steel_Beam_Climber.webp" alt="Steel Beam Climber" style="max-width:300px">
 
 An action-packed arcade platformer where you guide Jack the Carpenter through a dangerous construction gauntlet to confront a Giant Ape. Navigate a zigzagging maze of girders and ladders while leaping over rolling barrels or smashing them with a golden hammer to reach the top.
 
@@ -218,7 +218,7 @@ An action-packed arcade platformer where you guide Jack the Carpenter through a 
 
 ### Styler QR Pro
 
-![Styler QR Pro](games/Styler_QR_Pro.webp)
+<img src="games/Styler_QR_Pro.webp" alt="Styler QR Pro" style="max-width:300px">
 
 A sophisticated web-based tool for creating highly customizable, brand-aligned QR codes with support for linear/radial gradients and unique corner shapes. Features a robust logo integration system with adjustable clearance to ensure maximum scannability and professional aesthetics.
 
@@ -228,7 +228,7 @@ A sophisticated web-based tool for creating highly customizable, brand-aligned Q
 
 ### Swamp Hopper
 
-![Swamp Hopper](games/swamp_hopper.webp)
+<img src="games/swamp_hopper.webp" alt="Swamp Hopper" style="max-width:300px">
 
 An arcade-style survival game where you navigate a treacherous swamp to rescue baby hoppers. Avoid predatory Mud Snakes that dive to hide, dodge exploding toxic bubbles, and master the timing of moving logs across increasingly difficult levels.
 
@@ -238,7 +238,7 @@ An arcade-style survival game where you navigate a treacherous swamp to rescue b
 
 ### Tank Wars
 
-![Tank Wars](games/tank_wars.webp)
+<img src="games/tank_wars.webp" alt="Tank Wars" style="max-width:300px">
 
 A strategic combat game where you control powerful tanks to destroy opponents across fully destructible, physics-based terrain. Command an arsenal of over 30 unique weapons — from standard shells to orbital strikes — while accounting for shifting wind speeds and limited fuel.
 
