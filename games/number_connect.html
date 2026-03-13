@@ -1,0 +1,1025 @@
+<!-- 
+  CATEGORY: Games
+  DESCRIPTION: Number Connect is a satisfying number-chaining puzzle where you drag to connect adjacent tiles that share the same value or double it. Build long chains across a 5×5 to 7×7 grid, score multiplier bonuses, and watch tiles cascade down with smooth animations as you clear your way to a high score.
+  TAGS: Puzzle, Math, Skill-based, Strategy
+  -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Number Connect</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;600&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f1b2d;
+      --panel: #162032;
+      --panel2: #1a2740;
+      --accent: #f0b429;
+      --text: #e8f0fe;
+      --radius: 12px;
+
+      --c2: #5bbfea;
+      --c4: #4caf6f;
+      --c8: #f0a500;
+      --c16: #c0392b;
+      --c32: #8e44ad;
+      --c64: #2980b9;
+      --c128: #27ae60;
+      --c256: #e91e8c;
+      --c512: #e74c3c;
+      --c1024: #1abc9c;
+      --c2048: #ff6b35;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: 'Nunito', sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* Stars background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 30% 60%, rgba(255, 255, 255, 0.2) 0%, transparent 100%),
+        radial-gradient(1px 1px at 50% 10%, rgba(255, 255, 255, 0.25) 0%, transparent 100%),
+        radial-gradient(1px 1px at 70% 80%, rgba(255, 255, 255, 0.2) 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 40%, rgba(255, 255, 255, 0.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 20% 90%, rgba(255, 255, 255, 0.15) 0%, transparent 100%),
+        radial-gradient(1px 1px at 80% 5%, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 520px;
+      padding: 18px 20px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .game-title {
+      font-size: 1.6rem;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      color: var(--accent);
+      text-shadow: 0 0 20px rgba(240, 180, 41, 0.4);
+    }
+
+    .score-area {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .score-box {
+      background: var(--panel2);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 6px 14px;
+      text-align: center;
+    }
+
+    .score-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.4);
+      font-family: 'Nunito Sans', sans-serif;
+    }
+
+    .score-value {
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .controls {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .btn {
+      background: var(--panel2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.3px;
+    }
+
+    .btn:hover {
+      background: rgba(240, 180, 41, 0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #0f1b2d;
+      border-color: var(--accent);
+    }
+
+    .btn.primary:hover {
+      background: #f7c94b;
+      color: #0f1b2d;
+      transform: translateY(-1px);
+    }
+
+    .instructions {
+      position: relative;
+      z-index: 1;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 10px 18px;
+      font-size: 0.78rem;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: 'Nunito Sans', sans-serif;
+      margin-bottom: 14px;
+      text-align: center;
+      max-width: 460px;
+    }
+
+    .instructions strong {
+      color: var(--accent);
+      font-family: 'Nunito', sans-serif;
+    }
+
+    /* Grid */
+    #grid-container {
+      position: relative;
+      z-index: 1;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      user-select: none;
+      touch-action: none;
+    }
+
+    #grid {
+      display: grid;
+      gap: 7px;
+      position: relative;
+    }
+
+    .cell {
+      width: 64px;
+      height: 64px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      font-weight: 900;
+      color: #fff;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.1s, box-shadow 0.1s;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      border: 2px solid transparent;
+    }
+
+    .cell::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 9px;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .cell.selected {
+      border-color: rgba(255, 255, 255, 0.8);
+      transform: scale(1.08);
+      box-shadow: 0 0 16px rgba(255, 255, 255, 0.4);
+      z-index: 2;
+    }
+
+    .cell.in-chain {
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: scale(1.04);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
+      z-index: 1;
+    }
+
+    .cell.valid-next {
+      animation: pulse-valid 0.7s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse-valid {
+      from {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.1);
+      }
+
+      to {
+        box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.2);
+      }
+    }
+
+    .cell.pop {
+      animation: pop 0.35s ease-out forwards;
+    }
+
+    @keyframes pop {
+      0% {
+        transform: scale(1);
+      }
+
+      40% {
+        transform: scale(1.25);
+      }
+
+      70% {
+        transform: scale(0.92);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    /* Fall & drop-in animations */
+    .cell {
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+
+    .cell.falling {
+      animation: cell-fall var(--fall-dur, 0.32s) cubic-bezier(0.4, 0, 0.2, 1) var(--fall-delay, 0s) both;
+    }
+
+    @keyframes cell-fall {
+      from {
+        transform: translateY(var(--fall-from, 0px)) scale(1);
+      }
+
+      to {
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .cell.drop-in {
+      animation: cell-drop-in var(--drop-dur, 0.38s) cubic-bezier(0.34, 1.4, 0.64, 1) var(--drop-delay, 0s) both;
+    }
+
+    @keyframes cell-drop-in {
+      from {
+        transform: translateY(var(--drop-from, -120px)) scale(0.8);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    .cell.removing {
+      animation: cell-remove 0.18s ease-in both;
+      pointer-events: none;
+    }
+
+    @keyframes cell-remove {
+      0% {
+        transform: scale(1.1);
+        opacity: 1;
+      }
+
+      100% {
+        transform: scale(0);
+        opacity: 0;
+      }
+    }
+
+    .cell.merge-pop {
+      animation: merge-pop 0.4s ease-out forwards;
+    }
+
+    @keyframes merge-pop {
+      0% {
+        transform: scale(1.08);
+      }
+
+      50% {
+        transform: scale(1.35);
+        filter: brightness(1.4);
+      }
+
+      100% {
+        transform: scale(1);
+        filter: brightness(1);
+      }
+    }
+
+    /* SVG lines overlay */
+    #svg-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+      border-radius: 18px;
+      overflow: visible;
+    }
+
+    .chain-line {
+      stroke: rgba(255, 255, 255, 0.6);
+      stroke-width: 4;
+      stroke-linecap: round;
+      fill: none;
+      filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4));
+    }
+
+    /* Floating score */
+    .float-score {
+      position: absolute;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: 1.2rem;
+      color: var(--accent);
+      text-shadow: 0 0 10px rgba(240, 180, 41, 0.6);
+      pointer-events: none;
+      z-index: 10;
+      animation: float-up 1s ease-out forwards;
+    }
+
+    @keyframes float-up {
+      0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateY(-60px) scale(1.3);
+      }
+    }
+
+    /* Difficulty selector */
+    .difficulty {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .difficulty span {
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.4);
+      font-family: 'Nunito Sans', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-right: 4px;
+    }
+
+    .diff-btn {
+      background: var(--panel2);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .diff-btn.active {
+      background: rgba(240, 180, 41, 0.2);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Combo display */
+    #combo-display {
+      position: relative;
+      z-index: 1;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 10px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 1px;
+      transition: opacity 0.3s;
+    }
+
+    /* Best score */
+    #best-display {
+      position: relative;
+      z-index: 1;
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.3);
+      font-family: 'Nunito Sans', sans-serif;
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    #best-display span {
+      color: var(--accent);
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+    }
+
+    /* Tooltip for rules */
+    #rules-panel {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #rules-panel.show {
+      display: flex;
+    }
+
+    .rules-box {
+      background: #1a2a40;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 360px;
+      width: 90%;
+      text-align: center;
+    }
+
+    .rules-box h2 {
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .rules-box p {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.7);
+      font-family: 'Nunito Sans', sans-serif;
+      line-height: 1.7;
+      margin-bottom: 10px;
+    }
+
+    .rules-box .rule-highlight {
+      background: rgba(240, 180, 41, 0.1);
+      border: 1px solid rgba(240, 180, 41, 0.2);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: rgba(255, 255, 255, 0.8);
+      font-family: 'Nunito Sans', sans-serif;
+      line-height: 1.6;
+      margin: 12px 0;
+    }
+
+    .rules-box .close-btn {
+      margin-top: 16px;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="game-title">✦ Number Connect</div>
+    <div class="score-area">
+      <div class="score-box">
+        <div class="score-label">Score</div>
+        <div class="score-value" id="score-display">0</div>
+      </div>
+      <div class="score-box">
+        <div class="score-label">Chain</div>
+        <div class="score-value" id="chain-display">0</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="difficulty">
+    <span>Grid:</span>
+    <button class="diff-btn" data-size="5" onclick="setSize(5)">5×5</button>
+    <button class="diff-btn active" data-size="6" onclick="setSize(6)">6×6</button>
+    <button class="diff-btn" data-size="7" onclick="setSize(7)">7×7</button>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" onclick="newGame()">New Game</button>
+    <button class="btn" onclick="undoLast()">Undo</button>
+    <button class="btn" onclick="showRules()">Rules</button>
+  </div>
+
+  <div class="instructions">
+    <strong>Drag</strong> to connect matching numbers · Each next tile must be the <strong>same</strong> or
+    <strong>×2</strong>
+  </div>
+
+  <div id="grid-container">
+    <svg id="svg-overlay"></svg>
+    <div id="grid"></div>
+  </div>
+
+  <div id="combo-display"></div>
+  <div id="best-display">Best: <span id="best-val">0</span></div>
+
+  <div id="rules-panel">
+    <div class="rules-box">
+      <h2>How to Play</h2>
+      <p>Connect tiles by dragging across adjacent cells (including diagonals).</p>
+      <div class="rule-highlight">
+        🟡 Start with any tile.<br>
+        🔗 Each next tile must be the <strong>same number</strong> OR <strong>double</strong> the previous.<br>
+        ✨ Need at least <strong>2 tiles</strong> to score.<br>
+        💥 All connected tiles are cleared and you score their sum!
+      </div>
+      <p>Build longer chains for bigger combos. Try to chain multiples: 4 → 4 → 8 → 16…</p>
+      <button class="btn primary close-btn" onclick="hideRules()">Got it!</button>
+    </div>
+  </div>
+
+  <script>
+    const TILE_VALUES = [2, 4, 8, 16, 32, 64, 128, 256, 512];
+    const VALUE_WEIGHTS = [30, 28, 20, 12, 6, 2, 1, 0.5, 0.5];
+    const COLORS = {
+      2: '#38c0f5',  // sky blue
+      4: '#f5a623',  // warm amber
+      8: '#e8394d',  // vivid red
+      16: '#9b59b6',  // violet
+      32: '#1dd1a1',  // mint green
+      64: '#ff6b35',  // burnt orange
+      128: '#3d5af1',  // electric blue
+      256: '#e91e8c',  // hot pink
+      512: '#f9ca24',  // bright yellow
+      1024: '#00b894',  // teal
+      2048: '#6c5ce7',  // deep purple
+    };
+
+    const DARK_COLORS = new Set([32, 64]);
+
+    let GRID_SIZE = 6;
+    let grid = [];
+    let score = 0;
+    let bestScore = parseInt(localStorage.getItem('nc_best') || '0');
+    let chain = [];
+    let isDragging = false;
+    let history = [];
+
+    const gridEl = document.getElementById('grid');
+    const svgEl = document.getElementById('svg-overlay');
+    const scoreEl = document.getElementById('score-display');
+    const chainEl = document.getElementById('chain-display');
+    const comboEl = document.getElementById('combo-display');
+    const bestEl = document.getElementById('best-val');
+
+    bestEl.textContent = bestScore;
+
+    function setSize(s) {
+      GRID_SIZE = s;
+      document.querySelectorAll('.diff-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === s));
+      newGame();
+    }
+
+    function weightedRandom() {
+      const total = VALUE_WEIGHTS.reduce((a, b) => a + b, 0);
+      let r = Math.random() * total;
+      for (let i = 0; i < TILE_VALUES.length; i++) {
+        r -= VALUE_WEIGHTS[i];
+        if (r <= 0) return TILE_VALUES[i];
+      }
+      return TILE_VALUES[0];
+    }
+
+    function newGame() {
+      score = 0;
+      chain = [];
+      history = [];
+      isDragging = false;
+      grid = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        grid.push([]);
+        for (let c = 0; c < GRID_SIZE; c++) {
+          grid[r].push(weightedRandom());
+        }
+      }
+      render();
+      updateScore();
+      comboEl.textContent = '';
+    }
+
+    // Full DOM rebuild — only call when grid data changes (new game, undo, after clearing tiles)
+    function render() {
+      gridEl.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 64px)`;
+      gridEl.innerHTML = '';
+
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const val = grid[r][c];
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+          cell.textContent = val;
+
+          const color = COLORS[val] || '#888';
+          cell.style.background = `linear-gradient(145deg, ${color}ee, ${color}99)`;
+          cell.style.boxShadow = `0 4px 12px ${color}55, inset 0 1px 0 rgba(255,255,255,0.15)`;
+
+          if (val >= 1024) cell.style.fontSize = '0.95rem';
+          else if (val >= 256) cell.style.fontSize = '1.1rem';
+
+          cell.addEventListener('mousedown', onCellDown);
+          cell.addEventListener('touchstart', onTouchStart, { passive: false });
+
+          gridEl.appendChild(cell);
+        }
+      }
+
+      updateChainVisuals();
+    }
+
+    // Lightweight update — only touches CSS classes, never rebuilds DOM
+    function updateChainVisuals() {
+      // Clear all chain-related classes
+      gridEl.querySelectorAll('.cell').forEach(cell => {
+        cell.classList.remove('selected', 'in-chain', 'valid-next');
+      });
+
+      // Mark chain members
+      chain.forEach((p, i) => {
+        const cell = getCell(p.r, p.c);
+        if (!cell) return;
+        if (i === chain.length - 1) {
+          cell.classList.add('selected');
+        } else {
+          cell.classList.add('in-chain');
+        }
+      });
+
+      // Highlight valid next cells
+      if (chain.length > 0) {
+        const last = chain[chain.length - 1];
+        const lastVal = grid[last.r][last.c];
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            if (isAdjacent(last.r, last.c, r, c) && !inChain(r, c)) {
+              const v = grid[r][c];
+              if (v === lastVal || v === lastVal * 2) {
+                getCell(r, c)?.classList.add('valid-next');
+              }
+            }
+          }
+        }
+      }
+
+      drawLines();
+    }
+
+    function getCell(r, c) {
+      return gridEl.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+    }
+
+    function inChain(r, c) {
+      return chain.some(p => p.r === r && p.c === c);
+    }
+
+    function isAdjacent(r1, c1, r2, c2) {
+      return Math.abs(r1 - r2) <= 1 && Math.abs(c1 - c2) <= 1 && !(r1 === r2 && c1 === c2);
+    }
+
+    function cellCenter(r, c) {
+      // Cell size 64, gap 7, padding 14
+      const cellStep = 64 + 7;
+      const pad = 14;
+      return {
+        x: pad + c * cellStep + 32,
+        y: pad + r * cellStep + 32
+      };
+    }
+
+    function drawLines() {
+      svgEl.innerHTML = '';
+      // Sync SVG size
+      const rect = gridEl.getBoundingClientRect();
+      const cont = document.getElementById('grid-container').getBoundingClientRect();
+
+      if (chain.length < 2) return;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      let d = '';
+      chain.forEach((p, i) => {
+        const { x, y } = cellCenter(p.r, p.c);
+        d += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+      });
+      path.setAttribute('d', d);
+      path.setAttribute('class', 'chain-line');
+      svgEl.appendChild(path);
+    }
+
+    function getCellFromPoint(x, y) {
+      const els = document.elementsFromPoint(x, y);
+      for (const el of els) {
+        if (el.classList.contains('cell')) {
+          return { r: +el.dataset.r, c: +el.dataset.c };
+        }
+      }
+      return null;
+    }
+
+    // Mouse drag — listeners on window so mouseup/mousemove always fire
+    function onCellDown(e) {
+      e.preventDefault();
+      isDragging = true;
+      const r = +e.currentTarget.dataset.r, c = +e.currentTarget.dataset.c;
+      chain = [{ r, c }];
+      updateChainVisuals();
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const pos = getCellFromPoint(e.clientX, e.clientY);
+      if (pos) handleCellVisit(pos.r, pos.c);
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      finishChain();
+    });
+
+    // Touch drag
+    function onTouchStart(e) {
+      e.preventDefault();
+      isDragging = true;
+      const t = e.touches[0];
+      const pos = getCellFromPoint(t.clientX, t.clientY);
+      if (pos) { chain = [pos]; updateChainVisuals(); }
+    }
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      const pos = getCellFromPoint(t.clientX, t.clientY);
+      if (pos) handleCellVisit(pos.r, pos.c);
+    }, { passive: false });
+
+    window.addEventListener('touchend', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      finishChain();
+    });
+
+    window.addEventListener('touchcancel', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      chain = [];
+      render();
+    });
+
+    function handleCellVisit(r, c) {
+      if (chain.length === 0) return;
+
+      // Allow backtracking
+      if (chain.length >= 2) {
+        const prev = chain[chain.length - 2];
+        if (prev.r === r && prev.c === c) {
+          chain.pop();
+          updateChainVisuals();
+          return;
+        }
+      }
+
+      if (inChain(r, c)) return;
+
+      const last = chain[chain.length - 1];
+      if (!isAdjacent(last.r, last.c, r, c)) return;
+
+      const lastVal = grid[last.r][last.c];
+      const thisVal = grid[r][c];
+
+      if (thisVal === lastVal || thisVal === lastVal * 2) {
+        chain.push({ r, c });
+        updateChainVisuals();
+      }
+    }
+
+    function finishChain() {
+      if (chain.length < 2) {
+        chain = [];
+        updateChainVisuals();
+        return;
+      }
+
+      // Save state for undo
+      history.push({ grid: grid.map(row => [...row]), score });
+
+      // Calculate score
+      let sum = 0;
+      chain.forEach(p => sum += grid[p.r][p.c]);
+      const bonus = chain.length >= 5 ? chain.length : 1;
+      const gained = sum * bonus;
+
+      score += gained;
+      if (score > bestScore) {
+        bestScore = score;
+        localStorage.setItem('nc_best', bestScore);
+        bestEl.textContent = bestScore;
+      }
+
+      showFloatingScore(chain[chain.length - 1], gained);
+
+      const cl = chain.length;
+      const CELL_STEP = 64 + 7;
+      const removedSet = new Set(chain.map(p => p.r + ',' + p.c));
+
+      // Phase 1: shrink-remove the chained cells
+      chain.forEach(p => {
+        const cell = getCell(p.r, p.c);
+        if (cell) cell.classList.add('removing');
+      });
+
+      setTimeout(() => {
+        // --- Compute per-column fall info BEFORE mutating grid ---
+        // fallSlots[oldR][c] = how many slots this cell will fall (0 = new cell)
+        // newCount[c] = how many new cells fill from top
+        const newCount = {};
+        // For each column, track how many removed cells are BELOW each surviving cell
+        const survivorFall = {}; // "oldR,c" -> slots fallen
+
+        for (let c = 0; c < GRID_SIZE; c++) {
+          let removedBelow = 0;
+          newCount[c] = 0;
+          for (let r = GRID_SIZE - 1; r >= 0; r--) {
+            if (removedSet.has(r + ',' + c)) {
+              newCount[c]++;
+            } else {
+              // This survivor will fall by however many removed cells are below it
+              survivorFall[r + ',' + c] = removedBelow;
+              removedBelow++;  // wait — we need removed BELOW, so count as we go up
+            }
+          }
+          // Recompute: scan top-to-bottom, count removed cells encountered so far above
+          // Actually easier: scan bottom-up, count removed below
+          let rb = 0;
+          for (let r = GRID_SIZE - 1; r >= 0; r--) {
+            if (removedSet.has(r + ',' + c)) {
+              rb++;
+            } else {
+              survivorFall[r + ',' + c] = rb;
+            }
+          }
+        }
+
+        // --- Mutate grid ---
+        chain.forEach(p => { grid[p.r][p.c] = null; });
+        for (let c = 0; c < GRID_SIZE; c++) {
+          let writeRow = GRID_SIZE - 1;
+          for (let r = GRID_SIZE - 1; r >= 0; r--) {
+            if (grid[r][c] !== null) {
+              grid[writeRow][c] = grid[r][c];
+              if (writeRow !== r) grid[r][c] = null;
+              writeRow--;
+            }
+          }
+          for (let r = writeRow; r >= 0; r--) {
+            grid[r][c] = weightedRandom();
+          }
+        }
+
+        chain = [];
+        updateScore();
+        render(); // rebuild DOM with new values
+
+        // --- Phase 2: animate each cell ---
+        // After render(), cell at [r][c] is either:
+        //   - a survivor that fell: it was at [r - slots][c], animate from -slots*CELL_STEP
+        //   - a new cell: animate dropping in from above the grid
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const nc = newCount[c];
+          if (nc === 0) continue;
+
+          for (let r = 0; r < GRID_SIZE; r++) {
+            const cell = getCell(r, c);
+            if (!cell) continue;
+
+            if (r < nc) {
+              // New cell — drop from above. Stagger so row 0 arrives last (feels natural)
+              const dropFrom = -((nc - r) * CELL_STEP + 40);
+              const delay = r * 0.045;
+              cell.style.setProperty('--drop-from', dropFrom + 'px');
+              cell.style.setProperty('--drop-dur', '0.38s');
+              cell.style.setProperty('--drop-delay', delay + 's');
+              cell.classList.add('drop-in');
+            } else {
+              // Survivor that fell — was at original row (r - nc), so it fell nc slots
+              const fallFrom = -(nc * CELL_STEP);
+              cell.style.setProperty('--fall-from', fallFrom + 'px');
+              cell.style.setProperty('--fall-dur', '0.3s');
+              cell.style.setProperty('--fall-delay', '0s');
+              cell.classList.add('falling');
+            }
+          }
+        }
+
+        if (cl >= 4) showCombo(cl);
+      }, 200);
+
+      chainEl.textContent = '0';
+    }
+
+    function showCombo(len) {
+      const msgs = { 4: 'Nice!', 5: 'Great!', 6: 'Amazing!', 7: 'Incredible!', 8: 'Unstoppable!', 9: 'LEGENDARY!' };
+      const msg = msgs[Math.min(len, 9)] || (len >= 9 ? 'LEGENDARY!' : '');
+      if (!msg) return;
+      comboEl.textContent = `${msg} ${len}× chain!`;
+      comboEl.style.opacity = '1';
+      setTimeout(() => { comboEl.style.opacity = '0'; }, 1800);
+    }
+
+    function showFloatingScore(pos, val) {
+      const { x, y } = cellCenter(pos.r, pos.c);
+      const cont = document.getElementById('grid-container');
+      const contRect = cont.getBoundingClientRect();
+      const span = document.createElement('div');
+      span.className = 'float-score';
+      span.textContent = `+${val}`;
+      span.style.left = (x - 20) + 'px';
+      span.style.top = (y - 20) + 'px';
+      cont.style.position = 'relative';
+      cont.appendChild(span);
+      setTimeout(() => span.remove(), 1000);
+    }
+
+    function updateScore() {
+      scoreEl.textContent = score;
+      chainEl.textContent = chain.length;
+      bestEl.textContent = bestScore;
+    }
+
+    function undoLast() {
+      if (history.length === 0) return;
+      const prev = history.pop();
+      grid = prev.grid;
+      score = prev.score;
+      chain = [];
+      render();
+      updateScore();
+    }
+
+    function showRules() {
+      document.getElementById('rules-panel').classList.add('show');
+    }
+
+    function hideRules() {
+      document.getElementById('rules-panel').classList.remove('show');
+    }
+
+    // Update chain counter during dragging
+    setInterval(() => {
+      if (isDragging && chain.length > 0) {
+        chainEl.textContent = chain.length;
+      }
+    }, 50);
+
+    newGame();
+  </script>
+</body>
+</html>
