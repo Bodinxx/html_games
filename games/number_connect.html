@@ -1,6 +1,6 @@
 <!-- 
   CATEGORY: Games
-  DESCRIPTION: Number Connect is a satisfying number-chaining puzzle where you drag to connect adjacent tiles that share the same value or double it. Build long chains across a 5×5 to 7×7 grid, score multiplier bonuses, and watch tiles cascade down with smooth animations as you clear your way to a high score.
+  DESCRIPTION: Number Connect is a satisfying number-chaining puzzle where you drag to connect adjacent tiles that share the same value or double it. Build long chains across a 5×5 to 8×8 grid, score multiplier bonuses, advance through levels with bigger tiles, and watch tiles cascade down with smooth animations as you clear your way to a high score.
   TAGS: Puzzle, Math, Skill-based, Strategy
   -->
 <!DOCTYPE html>
@@ -20,19 +20,6 @@
       --panel2: #1a2740;
       --accent: #f0b429;
       --text: #e8f0fe;
-      --radius: 12px;
-
-      --c2: #5bbfea;
-      --c4: #4caf6f;
-      --c8: #f0a500;
-      --c16: #c0392b;
-      --c32: #8e44ad;
-      --c64: #2980b9;
-      --c128: #27ae60;
-      --c256: #e91e8c;
-      --c512: #e74c3c;
-      --c1024: #1abc9c;
-      --c2048: #ff6b35;
     }
 
     * {
@@ -41,18 +28,24 @@
       padding: 0;
     }
 
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+    }
+
     body {
       background: var(--bg);
       font-family: 'Nunito', sans-serif;
       color: var(--text);
-      min-height: 100vh;
+      height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      overflow-x: hidden;
+      justify-content: center;
+      overflow: hidden;
     }
 
-    /* Stars background */
     body::before {
       content: '';
       position: fixed;
@@ -69,28 +62,41 @@
       z-index: 0;
     }
 
-    header {
+    /* ── 95vh wrapper ─────────────────────────────────────── */
+    #game-wrapper {
       position: relative;
       z-index: 1;
+      height: 95vh;
       width: 100%;
-      max-width: 520px;
-      padding: 18px 20px 10px;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────*/
+    header {
+      width: 100%;
+      padding: 10px 2px 4px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-shrink: 0;
     }
 
     .game-title {
-      font-size: 1.6rem;
+      font-size: clamp(1.1rem, 3vw, 1.55rem);
       font-weight: 900;
-      letter-spacing: -0.5px;
       color: var(--accent);
       text-shadow: 0 0 20px rgba(240, 180, 41, 0.4);
+      letter-spacing: -0.5px;
     }
 
     .score-area {
       display: flex;
-      gap: 12px;
+      gap: 6px;
       align-items: center;
     }
 
@@ -98,12 +104,13 @@
       background: var(--panel2);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 10px;
-      padding: 6px 14px;
+      padding: 4px 10px;
       text-align: center;
+      min-width: 52px;
     }
 
     .score-label {
-      font-size: 0.6rem;
+      font-size: 0.52rem;
       text-transform: uppercase;
       letter-spacing: 1px;
       color: rgba(255, 255, 255, 0.4);
@@ -111,32 +118,78 @@
     }
 
     .score-value {
-      font-size: 1.2rem;
+      font-size: clamp(0.85rem, 2.5vw, 1.15rem);
       font-weight: 900;
       color: var(--accent);
-      line-height: 1;
+      line-height: 1.1;
     }
 
-    .controls {
-      position: relative;
-      z-index: 1;
+    /* ── Toolbar ─────────────────────────────────────────── */
+    .toolbar {
+      width: 100%;
       display: flex;
-      gap: 10px;
-      margin-bottom: 12px;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      padding: 2px 2px;
+      flex-wrap: nowrap;
+    }
+
+    .toolbar-label {
+      font-size: 0.68rem;
+      color: rgba(255, 255, 255, 0.4);
+      font-family: 'Nunito Sans', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .grid-select {
+      background: var(--panel2);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      color: var(--accent);
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 5px 22px 5px 8px;
+      cursor: pointer;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23f0b429'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 7px center;
+      flex-shrink: 0;
+    }
+
+    .grid-select option {
+      background: #1a2740;
+      color: #e8f0fe;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      flex-shrink: 0;
     }
 
     .btn {
       background: var(--panel2);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
+      border-radius: 8px;
       color: var(--text);
       font-family: 'Nunito', sans-serif;
-      font-size: 0.8rem;
+      font-size: 0.76rem;
       font-weight: 700;
-      padding: 8px 16px;
+      padding: 5px 11px;
       cursor: pointer;
       transition: all 0.15s;
       letter-spacing: 0.3px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .btn:hover {
@@ -158,59 +211,70 @@
       transform: translateY(-1px);
     }
 
-    .instructions {
-      position: relative;
-      z-index: 1;
-      background: var(--panel);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 12px;
-      padding: 10px 18px;
-      font-size: 0.78rem;
-      color: rgba(255, 255, 255, 0.5);
-      font-family: 'Nunito Sans', sans-serif;
-      margin-bottom: 14px;
-      text-align: center;
-      max-width: 460px;
-    }
-
-    .instructions strong {
+    #level-badge {
+      margin-left: auto;
+      background: rgba(240, 180, 41, 0.12);
+      border: 1px solid rgba(240, 180, 41, 0.3);
+      border-radius: 8px;
+      padding: 3px 10px;
+      font-size: 0.7rem;
+      font-weight: 800;
       color: var(--accent);
-      font-family: 'Nunito', sans-serif;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
-    /* Grid */
+    .sound-btn {
+      background: var(--panel2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 0.95rem;
+      padding: 4px 7px;
+      cursor: pointer;
+      transition: all 0.15s;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .sound-btn.on {
+      color: var(--accent);
+      border-color: rgba(240, 180, 41, 0.4);
+    }
+
+    /* ── Grid container ─────────────────────────────────── */
     #grid-container {
       position: relative;
       z-index: 1;
       background: var(--panel);
       border: 1px solid rgba(255, 255, 255, 0.07);
       border-radius: 18px;
-      padding: 14px;
+      padding: 10px;
       box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
       user-select: none;
       touch-action: none;
+      flex-shrink: 1;
+      overflow: hidden;
     }
 
     #grid {
       display: grid;
-      gap: 7px;
       position: relative;
     }
 
+    /* ── Cell ──────────────────────────────────────────── */
     .cell {
-      width: 64px;
-      height: 64px;
-      border-radius: 11px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.25rem;
       font-weight: 900;
       color: #fff;
       cursor: pointer;
       position: relative;
-      transition: transform 0.1s, box-shadow 0.1s;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      transition: background 0.2s, box-shadow 0.2s;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
       border: 2px solid transparent;
     }
 
@@ -218,15 +282,15 @@
       content: '';
       position: absolute;
       inset: 0;
-      border-radius: 9px;
+      border-radius: 8px;
       background: linear-gradient(145deg, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
       pointer-events: none;
     }
 
     .cell.selected {
-      border-color: rgba(255, 255, 255, 0.8);
+      border-color: rgba(255, 255, 255, 0.85);
       transform: scale(1.08);
-      box-shadow: 0 0 16px rgba(255, 255, 255, 0.4);
+      box-shadow: 0 0 16px rgba(255, 255, 255, 0.45);
       z-index: 2;
     }
 
@@ -247,39 +311,12 @@
       }
 
       to {
-        box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.22);
       }
-    }
-
-    .cell.pop {
-      animation: pop 0.35s ease-out forwards;
-    }
-
-    @keyframes pop {
-      0% {
-        transform: scale(1);
-      }
-
-      40% {
-        transform: scale(1.25);
-      }
-
-      70% {
-        transform: scale(0.92);
-      }
-
-      100% {
-        transform: scale(1);
-      }
-    }
-
-    /* Fall & drop-in animations */
-    .cell {
-      transition: background 0.2s, box-shadow 0.2s;
     }
 
     .cell.falling {
-      animation: cell-fall var(--fall-dur, 0.32s) cubic-bezier(0.4, 0, 0.2, 1) var(--fall-delay, 0s) both;
+      animation: cell-fall var(--fall-dur, 0.3s) cubic-bezier(0.4, 0, 0.2, 1) var(--fall-delay, 0s) both;
     }
 
     @keyframes cell-fall {
@@ -325,33 +362,12 @@
       }
     }
 
-    .cell.merge-pop {
-      animation: merge-pop 0.4s ease-out forwards;
-    }
-
-    @keyframes merge-pop {
-      0% {
-        transform: scale(1.08);
-      }
-
-      50% {
-        transform: scale(1.35);
-        filter: brightness(1.4);
-      }
-
-      100% {
-        transform: scale(1);
-        filter: brightness(1);
-      }
-    }
-
-    /* SVG lines overlay */
+    /* ── SVG overlay ────────────────────────────────────── */
     #svg-overlay {
       position: absolute;
       inset: 0;
       pointer-events: none;
       z-index: 3;
-      border-radius: 18px;
       overflow: visible;
     }
 
@@ -363,12 +379,12 @@
       filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4));
     }
 
-    /* Floating score */
+    /* ── Floating score ─────────────────────────────────── */
     .float-score {
       position: absolute;
       font-family: 'Nunito', sans-serif;
       font-weight: 900;
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       color: var(--accent);
       text-shadow: 0 0 10px rgba(240, 180, 41, 0.6);
       pointer-events: none;
@@ -384,73 +400,34 @@
 
       100% {
         opacity: 0;
-        transform: translateY(-60px) scale(1.3);
+        transform: translateY(-55px) scale(1.3);
       }
     }
 
-    /* Difficulty selector */
-    .difficulty {
-      position: relative;
-      z-index: 1;
+    /* ── Bottom row ─────────────────────────────────────── */
+    .bottom-row {
+      width: 100%;
       display: flex;
-      gap: 6px;
-      margin-bottom: 10px;
       align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      padding: 2px 2px 6px;
+      gap: 8px;
     }
 
-    .difficulty span {
-      font-size: 0.72rem;
-      color: rgba(255, 255, 255, 0.4);
-      font-family: 'Nunito Sans', sans-serif;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-right: 4px;
-    }
-
-    .diff-btn {
-      background: var(--panel2);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
-      color: rgba(255, 255, 255, 0.5);
-      font-family: 'Nunito', sans-serif;
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 5px 12px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .diff-btn.active {
-      background: rgba(240, 180, 41, 0.2);
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    /* Combo display */
     #combo-display {
-      position: relative;
-      z-index: 1;
-      height: 30px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-top: 10px;
-      font-size: 0.9rem;
+      font-size: 0.83rem;
       font-weight: 800;
       color: var(--accent);
       letter-spacing: 1px;
       transition: opacity 0.3s;
+      min-height: 20px;
     }
 
-    /* Best score */
     #best-display {
-      position: relative;
-      z-index: 1;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       color: rgba(255, 255, 255, 0.3);
       font-family: 'Nunito Sans', sans-serif;
-      margin-top: 8px;
-      text-align: center;
     }
 
     #best-display span {
@@ -459,7 +436,71 @@
       font-weight: 800;
     }
 
-    /* Tooltip for rules */
+    /* ── Level-up overlay ───────────────────────────────── */
+    #levelup-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #levelup-overlay.show {
+      display: flex;
+      animation: fade-in 0.3s ease;
+    }
+
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .levelup-box {
+      background: #1a2a40;
+      border: 2px solid var(--accent);
+      border-radius: 20px;
+      padding: 30px 40px;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(240, 180, 41, 0.3);
+      animation: levelup-pop 0.4s cubic-bezier(0.34, 1.5, 0.64, 1);
+    }
+
+    @keyframes levelup-pop {
+      from {
+        transform: scale(0.7);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .levelup-box h2 {
+      font-size: 1.9rem;
+      font-weight: 900;
+      color: var(--accent);
+      margin-bottom: 8px;
+      text-shadow: 0 0 20px rgba(240, 180, 41, 0.5);
+    }
+
+    .levelup-box p {
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.7);
+      font-family: 'Nunito Sans', sans-serif;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    /* ── Rules panel ────────────────────────────────────── */
     #rules-panel {
       display: none;
       position: fixed;
@@ -478,41 +519,42 @@
       background: #1a2a40;
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 20px;
-      padding: 30px;
+      padding: 26px;
       max-width: 360px;
       width: 90%;
       text-align: center;
     }
 
     .rules-box h2 {
-      font-size: 1.4rem;
+      font-size: 1.35rem;
       font-weight: 900;
       color: var(--accent);
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
 
     .rules-box p {
-      font-size: 0.85rem;
-      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.65);
       font-family: 'Nunito Sans', sans-serif;
       line-height: 1.7;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
 
     .rules-box .rule-highlight {
-      background: rgba(240, 180, 41, 0.1);
+      background: rgba(240, 180, 41, 0.08);
       border: 1px solid rgba(240, 180, 41, 0.2);
       border-radius: 10px;
       padding: 10px 14px;
-      font-size: 0.82rem;
+      font-size: 0.78rem;
       color: rgba(255, 255, 255, 0.8);
       font-family: 'Nunito Sans', sans-serif;
-      line-height: 1.6;
-      margin: 12px 0;
+      line-height: 1.8;
+      margin: 10px 0;
+      text-align: left;
     }
 
     .rules-box .close-btn {
-      margin-top: 16px;
+      margin-top: 14px;
       width: 100%;
     }
   </style>
@@ -520,80 +562,208 @@
 
 <body>
 
-  <header>
-    <div class="game-title">✦ Number Connect</div>
-    <div class="score-area">
-      <div class="score-box">
-        <div class="score-label">Score</div>
-        <div class="score-value" id="score-display">0</div>
+  <div id="game-wrapper">
+
+    <header>
+      <div class="game-title">✦ Number Connect</div>
+      <div class="score-area">
+        <div class="score-box">
+          <div class="score-label">Score</div>
+          <div class="score-value" id="score-display">0</div>
+        </div>
+        <div class="score-box">
+          <div class="score-label">Chain</div>
+          <div class="score-value" id="chain-display">0</div>
+        </div>
+        <button class="sound-btn on" id="sound-toggle" title="Toggle sound" onclick="toggleSound()">🔊</button>
       </div>
-      <div class="score-box">
-        <div class="score-label">Chain</div>
-        <div class="score-value" id="chain-display">0</div>
-      </div>
+    </header>
+
+    <div class="toolbar">
+      <span class="toolbar-label">Grid:</span>
+      <select class="grid-select" id="grid-select" onchange="setSize(+this.value)">
+        <option value="5">5 × 5</option>
+        <option value="6" selected>6 × 6</option>
+        <option value="7">7 × 7</option>
+        <option value="8">8 × 8</option>
+      </select>
+      <div class="toolbar-divider"></div>
+      <button class="btn primary" onclick="newGame()">New Game</button>
+      <button class="btn" onclick="undoLast()">Undo</button>
+      <button class="btn" id="save-btn" onclick="saveGame(this)">Save</button>
+      <button class="btn" style="padding:5px 8px;font-size:1rem" onclick="showRules()" title="Rules">❓</button>
+      <div id="level-badge">Level 1</div>
     </div>
-  </header>
 
-  <div class="difficulty">
-    <span>Grid:</span>
-    <button class="diff-btn" data-size="5" onclick="setSize(5)">5×5</button>
-    <button class="diff-btn active" data-size="6" onclick="setSize(6)">6×6</button>
-    <button class="diff-btn" data-size="7" onclick="setSize(7)">7×7</button>
+    <div id="grid-container">
+      <svg id="svg-overlay"></svg>
+      <div id="grid"></div>
+    </div>
+
+    <div class="bottom-row">
+      <div id="combo-display"></div>
+      <div id="best-display">Best: <span id="best-val">0</span></div>
+    </div>
+
   </div>
 
-  <div class="controls">
-    <button class="btn primary" onclick="newGame()">New Game</button>
-    <button class="btn" onclick="undoLast()">Undo</button>
-    <button class="btn" onclick="showRules()">Rules</button>
+  <!-- Level-up overlay -->
+  <div id="levelup-overlay">
+    <div class="levelup-box">
+      <h2 id="levelup-title">⬆ Level 2!</h2>
+      <p id="levelup-desc">Higher values are now in play.<br>Keep building those chains!</p>
+      <button class="btn primary" onclick="document.getElementById('levelup-overlay').classList.remove('show')"
+        style="min-width:120px">Let's go!</button>
+    </div>
   </div>
 
-  <div class="instructions">
-    <strong>Drag</strong> to connect matching numbers · Each next tile must be the <strong>same</strong> or
-    <strong>×2</strong>
-  </div>
-
-  <div id="grid-container">
-    <svg id="svg-overlay"></svg>
-    <div id="grid"></div>
-  </div>
-
-  <div id="combo-display"></div>
-  <div id="best-display">Best: <span id="best-val">0</span></div>
-
+  <!-- Rules panel -->
   <div id="rules-panel">
     <div class="rules-box">
       <h2>How to Play</h2>
-      <p>Connect tiles by dragging across adjacent cells (including diagonals).</p>
+      <p>Connect tiles by dragging across adjacent cells — including diagonals.</p>
       <div class="rule-highlight">
-        🟡 Start with any tile.<br>
-        🔗 Each next tile must be the <strong>same number</strong> OR <strong>double</strong> the previous.<br>
-        ✨ Need at least <strong>2 tiles</strong> to score.<br>
-        💥 All connected tiles are cleared and you score their sum!
+        🟡 Start on any tile.<br>
+        🔗 Each next tile must be the <strong>same</strong> or <strong>double</strong> the previous.<br>
+        ✨ You need at least <strong>2 tiles</strong> to score.<br>
+        💥 All connected tiles are cleared — you score their sum!<br>
+        🏆 Chains of <strong>5+</strong> earn a length multiplier bonus.<br>
+        📈 Advance levels as your score grows — bigger tiles appear!<br>
+        🗑️ At levels 3, 6, 12, 24, 48 &amp; 96 the lowest tile is purged from the board!<br>
+        💾 Hit <strong>Save</strong> to store your progress in this browser.
       </div>
-      <p>Build longer chains for bigger combos. Try to chain multiples: 4 → 4 → 8 → 16…</p>
+      <p>Try to chain multiples: 4 → 4 → 8 → 16 → 32…</p>
       <button class="btn primary close-btn" onclick="hideRules()">Got it!</button>
     </div>
   </div>
 
   <script>
-    const TILE_VALUES = [2, 4, 8, 16, 32, 64, 128, 256, 512];
-    const VALUE_WEIGHTS = [30, 28, 20, 12, 6, 2, 1, 0.5, 0.5];
+    // ─── Colours ──────────────────────────────────────────────────────────────────
     const COLORS = {
-      2: '#38c0f5',  // sky blue
-      4: '#f5a623',  // warm amber
-      8: '#e8394d',  // vivid red
-      16: '#9b59b6',  // violet
-      32: '#1dd1a1',  // mint green
-      64: '#ff6b35',  // burnt orange
-      128: '#3d5af1',  // electric blue
-      256: '#e91e8c',  // hot pink
-      512: '#f9ca24',  // bright yellow
-      1024: '#00b894',  // teal
-      2048: '#6c5ce7',  // deep purple
+      2: '#38c0f5',
+      4: '#f5a623',
+      8: '#e8394d',
+      16: '#9b59b6',
+      32: '#1dd1a1',
+      64: '#ff6b35',
+      128: '#3d5af1',
+      256: '#e91e8c',
+      512: '#f9ca24',
+      1024: '#00b894',
+      2048: '#6c5ce7',
     };
 
-    const DARK_COLORS = new Set([32, 64]);
+    // ─── Levels ───────────────────────────────────────────────────────────────────
+    // 100 levels. score threshold, tile pool, spawn weights.
+    // +tile = new high tile added this level. -tile = lowest tile purged from pool AND board.
+    const LEVELS = [
+      { threshold: 0, values: [2, 4, 8, 16, 32], weights: [30, 25, 20, 15, 10] },
+      { threshold: 800, values: [2, 4, 8, 16, 32, 64], weights: [30, 26, 22, 18, 14, 10] },  // +64
+      { threshold: 4525, values: [4, 8, 16, 32, 64], weights: [30, 25, 20, 15, 10] },  // -2
+      { threshold: 12470, values: [4, 8, 16, 32, 64, 128], weights: [30, 26, 22, 18, 14, 11] },  // +128
+      { threshold: 25600, values: [4, 8, 16, 32, 64, 128], weights: [30, 26, 22, 18, 14, 11] },
+      { threshold: 44721, values: [8, 16, 32, 64, 128, 256], weights: [30, 26, 22, 18, 15, 11] },  // +256, -4
+      { threshold: 70545, values: [8, 16, 32, 64, 128, 256], weights: [30, 26, 22, 18, 15, 11] },
+      { threshold: 103713, values: [8, 16, 32, 64, 128, 256, 512], weights: [29, 26, 23, 20, 17, 14, 11] },  // +512
+      { threshold: 144815, values: [8, 16, 32, 64, 128, 256, 512], weights: [29, 26, 23, 20, 17, 14, 11] },
+      { threshold: 194400, values: [8, 16, 32, 64, 128, 256, 512, 1024], weights: [29, 27, 24, 22, 19, 17, 14, 12] },  // +1024
+      { threshold: 252982, values: [8, 16, 32, 64, 128, 256, 512, 1024], weights: [29, 27, 24, 22, 19, 17, 14, 12] },
+      { threshold: 321049, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [29, 27, 24, 22, 19, 17, 14, 12] },  // +2048, -8
+      { threshold: 399064, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [29, 27, 24, 22, 19, 17, 14, 12] },
+      { threshold: 487470, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [29, 27, 24, 22, 19, 17, 15, 12] },
+      { threshold: 586691, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [29, 27, 24, 22, 19, 17, 15, 12] },
+      { threshold: 697137, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [29, 26, 24, 22, 20, 17, 15, 13] },
+      { threshold: 819200, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [29, 26, 24, 22, 20, 17, 15, 13] },
+      { threshold: 953262, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [29, 26, 24, 22, 20, 17, 15, 13] },
+      { threshold: 1099692, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [29, 26, 24, 22, 20, 18, 15, 13] },
+      { threshold: 1258850, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 24, 22, 20, 18, 15, 13] },
+      { threshold: 1431083, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 24, 22, 20, 18, 16, 13] },
+      { threshold: 1616732, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 24, 22, 20, 18, 16, 14] },
+      { threshold: 1816128, values: [16, 32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 24, 22, 20, 18, 16, 14] },
+      { threshold: 2029595, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 23, 21, 19, 16, 14] },  // -16
+      { threshold: 2257449, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 23, 21, 19, 16, 14] },
+      { threshold: 2500000, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 23, 21, 19, 17, 14] },
+      { threshold: 2757549, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 23, 21, 19, 17, 14] },
+      { threshold: 3030396, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 23, 21, 19, 17, 15] },
+      { threshold: 3318830, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 23, 21, 19, 17, 15] },
+      { threshold: 3623138, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 23, 21, 19, 17, 15] },
+      { threshold: 3943602, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [28, 26, 23, 21, 19, 17, 15] },
+      { threshold: 4280497, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 21, 19, 17, 15] },
+      { threshold: 4634095, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 21, 19, 17, 15] },
+      { threshold: 5004662, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 22, 20, 18, 16] },
+      { threshold: 5392464, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 22, 20, 18, 16] },
+      { threshold: 5797758, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 22, 20, 18, 16] },
+      { threshold: 6220800, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 22, 20, 18, 16] },
+      { threshold: 6661841, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 22, 20, 18, 16] },
+      { threshold: 7121131, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 22, 20, 18, 17] },
+      { threshold: 7598913, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 22, 20, 18, 17] },
+      { threshold: 8095430, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 22, 20, 19, 17] },
+      { threshold: 8610921, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 22, 20, 19, 17] },
+      { threshold: 9145621, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 22, 20, 19, 17] },
+      { threshold: 9699763, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [27, 25, 23, 22, 20, 19, 17] },
+      { threshold: 10273576, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [26, 25, 23, 22, 21, 19, 18] },
+      { threshold: 10867290, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [26, 25, 23, 22, 21, 19, 18] },
+      { threshold: 11481128, values: [32, 64, 128, 256, 512, 1024, 2048], weights: [26, 25, 23, 22, 21, 19, 18] },
+      { threshold: 12115312, values: [64, 128, 256, 512, 1024, 2048], weights: [26, 25, 23, 21, 20, 18] },  // -32
+      { threshold: 12770064, values: [64, 128, 256, 512, 1024, 2048], weights: [26, 25, 23, 21, 20, 18] },
+      { threshold: 13445600, values: [64, 128, 256, 512, 1024, 2048], weights: [26, 25, 23, 21, 20, 18] },
+      { threshold: 14142135, values: [64, 128, 256, 512, 1024, 2048], weights: [26, 24, 23, 22, 20, 19] },
+      { threshold: 14859884, values: [64, 128, 256, 512, 1024, 2048], weights: [26, 24, 23, 22, 20, 19] },
+      { threshold: 15599057, values: [64, 128, 256, 512, 1024, 2048], weights: [26, 24, 23, 22, 20, 19] },
+      { threshold: 16359862, values: [64, 128, 256, 512, 1024, 2048], weights: [26, 24, 23, 22, 20, 19] },
+      { threshold: 17142509, values: [64, 128, 256, 512, 1024, 2048], weights: [26, 24, 23, 22, 21, 19] },
+      { threshold: 17947200, values: [64, 128, 256, 512, 1024, 2048], weights: [26, 24, 23, 22, 21, 19] },
+      { threshold: 18774140, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 22, 21, 20] },
+      { threshold: 19623529, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 22, 21, 20] },
+      { threshold: 20495568, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 22, 21, 20] },
+      { threshold: 21390454, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 22, 21, 20] },
+      { threshold: 22308384, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 22, 21, 20] },
+      { threshold: 23249551, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 22, 21, 20] },
+      { threshold: 24214149, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 22, 22, 21] },
+      { threshold: 25202368, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 22, 22, 21] },
+      { threshold: 26214400, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 23, 22, 21] },
+      { threshold: 27250431, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 23, 22, 21] },
+      { threshold: 28310649, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 23, 22, 21] },
+      { threshold: 29395238, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 23, 22, 22] },
+      { threshold: 30504384, values: [64, 128, 256, 512, 1024, 2048], weights: [25, 24, 23, 23, 22, 22] },
+      { threshold: 31638268, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 23, 23, 22, 22] },
+      { threshold: 32797073, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 23, 23, 22, 22] },
+      { threshold: 33980976, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 23, 23, 23, 22] },
+      { threshold: 35190158, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 23, 23, 23, 22] },
+      { threshold: 36424796, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 23, 23, 23, 23] },
+      { threshold: 37685066, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 23, 23, 23, 23] },
+      { threshold: 38971143, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 24, 23, 23, 23] },
+      { threshold: 40283200, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 24, 23, 23, 23] },
+      { threshold: 41621411, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 24, 23, 23, 23] },
+      { threshold: 42985946, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 24, 24, 23, 23] },
+      { threshold: 44376977, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 24, 24, 24, 24] },
+      { threshold: 45794672, values: [64, 128, 256, 512, 1024, 2048], weights: [24, 24, 24, 24, 24, 24] },
+      { threshold: 47239200, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 24, 24, 24, 24, 24] },
+      { threshold: 48710727, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 24, 24, 24, 24, 24] },
+      { threshold: 50209421, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 23, 24, 24, 24, 24] },
+      { threshold: 51735446, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 23, 24, 24, 24, 24] },
+      { threshold: 53288966, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 23, 24, 24, 24, 25] },
+      { threshold: 54870145, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 23, 24, 24, 24, 25] },
+      { threshold: 56479145, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 23, 24, 24, 25, 25] },
+      { threshold: 58116127, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 23, 24, 24, 25, 25] },
+      { threshold: 59781251, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 23, 24, 24, 25, 25] },
+      { threshold: 61474677, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 23, 24, 24, 25, 25] },
+      { threshold: 63196564, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 23, 24, 24, 25, 26] },
+      { threshold: 64947068, values: [64, 128, 256, 512, 1024, 2048], weights: [23, 23, 24, 25, 25, 26] },
+      { threshold: 66726348, values: [64, 128, 256, 512, 1024, 2048], weights: [22, 23, 24, 25, 25, 26] },
+      { threshold: 68534558, values: [64, 128, 256, 512, 1024, 2048], weights: [22, 23, 24, 25, 25, 26] },
+      { threshold: 70371855, values: [128, 256, 512, 1024, 2048], weights: [22, 23, 24, 25, 26] },  // -64
+      { threshold: 72238391, values: [128, 256, 512, 1024, 2048], weights: [22, 23, 24, 25, 26] },
+      { threshold: 74134322, values: [128, 256, 512, 1024, 2048], weights: [22, 23, 24, 26, 27] },
+      { threshold: 76059799, values: [128, 256, 512, 1024, 2048], weights: [22, 23, 24, 26, 27] },
+      { threshold: 78014974, values: [128, 256, 512, 1024, 2048], weights: [22, 23, 24, 26, 27] },
+    ];
 
+    // Which tile is removed at which level (1-based level number)
+    // Tiles already on the board of that value get replaced when this triggers.
+    const PURGE_AT = { 3: 2, 6: 4, 12: 8, 24: 16, 48: 32, 96: 64 };
+
+    // ─── State ────────────────────────────────────────────────────────────────────
     let GRID_SIZE = 6;
     let grid = [];
     let score = 0;
@@ -601,53 +771,239 @@
     let chain = [];
     let isDragging = false;
     let history = [];
+    let soundOn = true;
+    let cellSize = 60;
+    let cellGap = 6;
 
+    // ─── DOM ──────────────────────────────────────────────────────────────────────
     const gridEl = document.getElementById('grid');
     const svgEl = document.getElementById('svg-overlay');
     const scoreEl = document.getElementById('score-display');
     const chainEl = document.getElementById('chain-display');
     const comboEl = document.getElementById('combo-display');
     const bestEl = document.getElementById('best-val');
+    const levelBadge = document.getElementById('level-badge');
 
     bestEl.textContent = bestScore;
 
-    function setSize(s) {
-      GRID_SIZE = s;
-      document.querySelectorAll('.diff-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === s));
-      newGame();
+    // ─── Audio ────────────────────────────────────────────────────────────────────
+    let audioCtx = null;
+
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    }
+
+    function playTone(freq, type, duration, vol = 0.15) {
+      if (!soundOn) return;
+      try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.88, ctx.currentTime + duration);
+        gain.gain.setValueAtTime(vol, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) { }
+    }
+
+    function sfxTileAdd(len) {
+      playTone(Math.min(200 + len * 45, 900), 'sine', 0.07, 0.1);
+    }
+
+    function sfxClear(len) {
+      const notes = [523, 659, 784, 1047, 1319];
+      notes.slice(0, Math.min(len, 5)).forEach((f, i) => {
+        setTimeout(() => playTone(f, 'triangle', 0.16, 0.14), i * 55);
+      });
+    }
+
+    function sfxUndo() {
+      playTone(300, 'sine', 0.12, 0.09);
+      setTimeout(() => playTone(220, 'sine', 0.12, 0.09), 75);
+    }
+
+    function sfxLevelUp() {
+      [440, 554, 659, 880, 1108].forEach((f, i) => {
+        setTimeout(() => playTone(f, 'triangle', 0.28, 0.18), i * 90);
+      });
+    }
+
+    function sfxSave() {
+      playTone(660, 'sine', 0.1, 0.1);
+      setTimeout(() => playTone(880, 'sine', 0.1, 0.1), 90);
+    }
+
+    function toggleSound() {
+      soundOn = !soundOn;
+      const btn = document.getElementById('sound-toggle');
+      btn.textContent = soundOn ? '🔊' : '🔇';
+      btn.classList.toggle('on', soundOn);
+    }
+
+    // ─── Level helpers ────────────────────────────────────────────────────────────
+    function scoreTolevel(s) {
+      let n = 1;
+      LEVELS.forEach((l, i) => { if (s >= l.threshold) n = i + 1; });
+      return n;
+    }
+
+    function getLevelData(s) {
+      const sc = (s !== undefined) ? s : score;
+      let ld = LEVELS[0];
+      LEVELS.forEach(l => { if (sc >= l.threshold) ld = l; });
+      return ld;
+    }
+
+    function checkLevelUp(oldScore) {
+      const oldLv = scoreTolevel(oldScore);
+      const newLv = scoreTolevel(score);
+      if (newLv <= oldLv) return;
+
+      levelBadge.textContent = `Level ${newLv}`;
+
+      // Walk every level crossed — collect all purges that need to fire
+      // (a single big chain can jump multiple levels at once)
+      const purgedTiles = [];
+      for (let lv = oldLv + 1; lv <= newLv; lv++) {
+        if (PURGE_AT[lv] !== undefined) purgedTiles.push(PURGE_AT[lv]);
+      }
+
+      // Apply all purges to the board
+      if (purgedTiles.length > 0) {
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            if (purgedTiles.includes(grid[r][c])) {
+              // Replace with a value from the new pool that is not any purged tile
+              let newVal;
+              let attempts = 0;
+              do {
+                newVal = weightedRandom();
+                attempts++;
+              } while (purgedTiles.includes(newVal) && attempts < 20);
+              grid[r][c] = newVal;
+            }
+          }
+        }
+        render(); // rebuild DOM to show replaced tiles
+      }
+
+      const ld = getLevelData();
+      const maxTile = ld.values[ld.values.length - 1];
+
+      let desc = `Tiles up to <strong>${maxTile}</strong> are now in play!`;
+      if (purgedTiles.length > 0) {
+        desc += `<br><em>${purgedTiles.join('s, ')}s removed from the board.</em>`;
+      }
+
+      document.getElementById('levelup-title').textContent = `⬆ Level ${newLv}!`;
+      document.getElementById('levelup-desc').innerHTML = desc;
+      document.getElementById('levelup-overlay').classList.add('show');
+      setTimeout(() => document.getElementById('levelup-overlay').classList.remove('show'), 4000);
+      sfxLevelUp();
     }
 
     function weightedRandom() {
-      const total = VALUE_WEIGHTS.reduce((a, b) => a + b, 0);
+      const ld = getLevelData();
+      const total = ld.weights.reduce((a, b) => a + b, 0);
       let r = Math.random() * total;
-      for (let i = 0; i < TILE_VALUES.length; i++) {
-        r -= VALUE_WEIGHTS[i];
-        if (r <= 0) return TILE_VALUES[i];
+      for (let i = 0; i < ld.values.length; i++) {
+        r -= ld.weights[i];
+        if (r <= 0) return ld.values[i];
       }
-      return TILE_VALUES[0];
+      return ld.values[0];
     }
 
+    // ─── Cell sizing ───────────────────────────────────────────────────────────────
+    function computeCellSize() {
+      const wrapper = document.getElementById('game-wrapper');
+      const wh = wrapper.clientHeight;
+      const ww = wrapper.clientWidth;
+      // Reserved: header ~52px, toolbar ~34px, bottom ~28px, two paddings ~24px, margins ~10px
+      const reserved = 148;
+      const PAD = 10; // container padding each side
+      const GAP = 6;
+
+      const availH = wh - reserved - PAD * 2;
+      const availW = ww - PAD * 2;
+
+      const byH = Math.floor((availH - GAP * (GRID_SIZE - 1)) / GRID_SIZE);
+      const byW = Math.floor((availW - GAP * (GRID_SIZE - 1)) / GRID_SIZE);
+
+      cellSize = Math.max(28, Math.min(byH, byW, 74));
+      cellGap = GAP;
+    }
+
+    // ─── New game ──────────────────────────────────────────────────────────────────
     function newGame() {
-      score = 0;
-      chain = [];
-      history = [];
-      isDragging = false;
-      grid = [];
+      score = 0; chain = []; history = []; isDragging = false; grid = [];
+      levelBadge.textContent = 'Level 1';
       for (let r = 0; r < GRID_SIZE; r++) {
         grid.push([]);
-        for (let c = 0; c < GRID_SIZE; c++) {
-          grid[r].push(weightedRandom());
-        }
+        for (let c = 0; c < GRID_SIZE; c++) grid[r].push(weightedRandom());
       }
-      render();
-      updateScore();
-      comboEl.textContent = '';
+      render(); updateScore(); comboEl.textContent = '';
     }
 
-    // Full DOM rebuild — only call when grid data changes (new game, undo, after clearing tiles)
+    function setSize(s) {
+      GRID_SIZE = s;
+      document.getElementById('grid-select').value = s;
+      newGame();
+    }
+
+    // ─── Save / Load ───────────────────────────────────────────────────────────────
+    function saveGame(btn) {
+      const state = { grid: grid.map(r => [...r]), score, GRID_SIZE, savedAt: Date.now() };
+      localStorage.setItem('nc_save', JSON.stringify(state));
+      sfxSave();
+      if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Saved';
+        btn.style.color = '#1dd1a1';
+        setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1400);
+      }
+    }
+
+    function loadGame() {
+      try {
+        const raw = localStorage.getItem('nc_save');
+        if (!raw) return false;
+        const s = JSON.parse(raw);
+        if (!s.grid || s.score === undefined) return false;
+        grid = s.grid;
+        score = s.score;
+        GRID_SIZE = s.GRID_SIZE || 6;
+        document.getElementById('grid-select').value = GRID_SIZE;
+        levelBadge.textContent = `Level ${scoreTolevel(score)}`;
+        chain = []; history = [];
+        render(); updateScore(); comboEl.textContent = '';
+        return true;
+      } catch (e) { return false; }
+    }
+
+    // ─── Render (full DOM rebuild) ────────────────────────────────────────────────
     function render() {
-      gridEl.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 64px)`;
+      computeCellSize();
+
+      const innerSize = GRID_SIZE * cellSize + (GRID_SIZE - 1) * cellGap;
+      const boxSize = innerSize + 20; // 10px padding each side
+      const cont = document.getElementById('grid-container');
+      cont.style.width = boxSize + 'px';
+      cont.style.height = boxSize + 'px';
+
+      gridEl.style.gridTemplateColumns = `repeat(${GRID_SIZE}, ${cellSize}px)`;
+      gridEl.style.gap = cellGap + 'px';
       gridEl.innerHTML = '';
+
+      const baseFontSize = cellSize >= 60 ? '1.2rem'
+        : cellSize >= 48 ? '1.0rem'
+          : cellSize >= 38 ? '0.85rem'
+            : '0.7rem';
 
       for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
@@ -657,43 +1013,33 @@
           cell.dataset.r = r;
           cell.dataset.c = c;
           cell.textContent = val;
+          cell.style.width = cellSize + 'px';
+          cell.style.height = cellSize + 'px';
+          cell.style.fontSize = val >= 1024 ? '0.72rem'
+            : val >= 256 ? '0.88rem'
+              : baseFontSize;
 
           const color = COLORS[val] || '#888';
           cell.style.background = `linear-gradient(145deg, ${color}ee, ${color}99)`;
           cell.style.boxShadow = `0 4px 12px ${color}55, inset 0 1px 0 rgba(255,255,255,0.15)`;
 
-          if (val >= 1024) cell.style.fontSize = '0.95rem';
-          else if (val >= 256) cell.style.fontSize = '1.1rem';
-
           cell.addEventListener('mousedown', onCellDown);
           cell.addEventListener('touchstart', onTouchStart, { passive: false });
-
           gridEl.appendChild(cell);
         }
       }
-
       updateChainVisuals();
     }
 
-    // Lightweight update — only touches CSS classes, never rebuilds DOM
+    // ─── Chain visuals (lightweight, no DOM rebuild) ─────────────────────────────
     function updateChainVisuals() {
-      // Clear all chain-related classes
-      gridEl.querySelectorAll('.cell').forEach(cell => {
-        cell.classList.remove('selected', 'in-chain', 'valid-next');
-      });
-
-      // Mark chain members
+      gridEl.querySelectorAll('.cell').forEach(c =>
+        c.classList.remove('selected', 'in-chain', 'valid-next')
+      );
       chain.forEach((p, i) => {
         const cell = getCell(p.r, p.c);
-        if (!cell) return;
-        if (i === chain.length - 1) {
-          cell.classList.add('selected');
-        } else {
-          cell.classList.add('in-chain');
-        }
+        if (cell) cell.classList.add(i === chain.length - 1 ? 'selected' : 'in-chain');
       });
-
-      // Highlight valid next cells
       if (chain.length > 0) {
         const last = chain[chain.length - 1];
         const lastVal = grid[last.r][last.c];
@@ -701,14 +1047,11 @@
           for (let c = 0; c < GRID_SIZE; c++) {
             if (isAdjacent(last.r, last.c, r, c) && !inChain(r, c)) {
               const v = grid[r][c];
-              if (v === lastVal || v === lastVal * 2) {
-                getCell(r, c)?.classList.add('valid-next');
-              }
+              if (v === lastVal || v === lastVal * 2) getCell(r, c)?.classList.add('valid-next');
             }
           }
         }
       }
-
       drawLines();
     }
 
@@ -716,32 +1059,21 @@
       return gridEl.querySelector(`[data-r="${r}"][data-c="${c}"]`);
     }
 
-    function inChain(r, c) {
-      return chain.some(p => p.r === r && p.c === c);
-    }
+    function inChain(r, c) { return chain.some(p => p.r === r && p.c === c); }
 
     function isAdjacent(r1, c1, r2, c2) {
       return Math.abs(r1 - r2) <= 1 && Math.abs(c1 - c2) <= 1 && !(r1 === r2 && c1 === c2);
     }
 
     function cellCenter(r, c) {
-      // Cell size 64, gap 7, padding 14
-      const cellStep = 64 + 7;
-      const pad = 14;
-      return {
-        x: pad + c * cellStep + 32,
-        y: pad + r * cellStep + 32
-      };
+      const pad = 10;
+      const step = cellSize + cellGap;
+      return { x: pad + c * step + cellSize / 2, y: pad + r * step + cellSize / 2 };
     }
 
     function drawLines() {
       svgEl.innerHTML = '';
-      // Sync SVG size
-      const rect = gridEl.getBoundingClientRect();
-      const cont = document.getElementById('grid-container').getBoundingClientRect();
-
       if (chain.length < 2) return;
-
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       let d = '';
       chain.forEach((p, i) => {
@@ -754,37 +1086,31 @@
     }
 
     function getCellFromPoint(x, y) {
-      const els = document.elementsFromPoint(x, y);
-      for (const el of els) {
-        if (el.classList.contains('cell')) {
-          return { r: +el.dataset.r, c: +el.dataset.c };
-        }
+      for (const el of document.elementsFromPoint(x, y)) {
+        if (el.classList.contains('cell')) return { r: +el.dataset.r, c: +el.dataset.c };
       }
       return null;
     }
 
-    // Mouse drag — listeners on window so mouseup/mousemove always fire
+    // ─── Input ────────────────────────────────────────────────────────────────────
     function onCellDown(e) {
       e.preventDefault();
       isDragging = true;
-      const r = +e.currentTarget.dataset.r, c = +e.currentTarget.dataset.c;
-      chain = [{ r, c }];
+      chain = [{ r: +e.currentTarget.dataset.r, c: +e.currentTarget.dataset.c }];
       updateChainVisuals();
     }
 
-    window.addEventListener('mousemove', (e) => {
+    window.addEventListener('mousemove', e => {
       if (!isDragging) return;
       const pos = getCellFromPoint(e.clientX, e.clientY);
       if (pos) handleCellVisit(pos.r, pos.c);
     });
 
-    window.addEventListener('mouseup', (e) => {
+    window.addEventListener('mouseup', () => {
       if (!isDragging) return;
-      isDragging = false;
-      finishChain();
+      isDragging = false; finishChain();
     });
 
-    // Touch drag
     function onTouchStart(e) {
       e.preventDefault();
       isDragging = true;
@@ -793,172 +1119,112 @@
       if (pos) { chain = [pos]; updateChainVisuals(); }
     }
 
-    window.addEventListener('touchmove', (e) => {
+    window.addEventListener('touchmove', e => {
       if (!isDragging) return;
       e.preventDefault();
-      const t = e.touches[0];
-      const pos = getCellFromPoint(t.clientX, t.clientY);
+      const pos = getCellFromPoint(e.touches[0].clientX, e.touches[0].clientY);
       if (pos) handleCellVisit(pos.r, pos.c);
     }, { passive: false });
 
     window.addEventListener('touchend', () => {
       if (!isDragging) return;
-      isDragging = false;
-      finishChain();
+      isDragging = false; finishChain();
     });
 
     window.addEventListener('touchcancel', () => {
       if (!isDragging) return;
-      isDragging = false;
-      chain = [];
-      render();
+      isDragging = false; chain = []; updateChainVisuals();
     });
 
     function handleCellVisit(r, c) {
-      if (chain.length === 0) return;
-
-      // Allow backtracking
+      if (!chain.length) return;
+      // Backtrack support
       if (chain.length >= 2) {
         const prev = chain[chain.length - 2];
-        if (prev.r === r && prev.c === c) {
-          chain.pop();
-          updateChainVisuals();
-          return;
-        }
+        if (prev.r === r && prev.c === c) { chain.pop(); updateChainVisuals(); return; }
       }
-
       if (inChain(r, c)) return;
-
       const last = chain[chain.length - 1];
       if (!isAdjacent(last.r, last.c, r, c)) return;
-
       const lastVal = grid[last.r][last.c];
       const thisVal = grid[r][c];
-
       if (thisVal === lastVal || thisVal === lastVal * 2) {
         chain.push({ r, c });
         updateChainVisuals();
+        sfxTileAdd(chain.length);
       }
     }
 
+    // ─── Finish chain ─────────────────────────────────────────────────────────────
     function finishChain() {
-      if (chain.length < 2) {
-        chain = [];
-        updateChainVisuals();
-        return;
-      }
+      if (chain.length < 2) { chain = []; updateChainVisuals(); return; }
 
-      // Save state for undo
       history.push({ grid: grid.map(row => [...row]), score });
 
-      // Calculate score
       let sum = 0;
       chain.forEach(p => sum += grid[p.r][p.c]);
       const bonus = chain.length >= 5 ? chain.length : 1;
       const gained = sum * bonus;
+      const oldScore = score;
 
       score += gained;
       if (score > bestScore) {
         bestScore = score;
         localStorage.setItem('nc_best', bestScore);
-        bestEl.textContent = bestScore;
       }
 
+      checkLevelUp(oldScore);
       showFloatingScore(chain[chain.length - 1], gained);
+      sfxClear(chain.length);
 
       const cl = chain.length;
-      const CELL_STEP = 64 + 7;
+      const STEP = cellSize + cellGap;
       const removedSet = new Set(chain.map(p => p.r + ',' + p.c));
 
-      // Phase 1: shrink-remove the chained cells
-      chain.forEach(p => {
-        const cell = getCell(p.r, p.c);
-        if (cell) cell.classList.add('removing');
-      });
+      // Phase 1: shrink away
+      chain.forEach(p => { getCell(p.r, p.c)?.classList.add('removing'); });
 
       setTimeout(() => {
-        // --- Compute per-column fall info BEFORE mutating grid ---
-        // fallSlots[oldR][c] = how many slots this cell will fall (0 = new cell)
-        // newCount[c] = how many new cells fill from top
+        // Count removed per column
         const newCount = {};
-        // For each column, track how many removed cells are BELOW each surviving cell
-        const survivorFall = {}; // "oldR,c" -> slots fallen
-
         for (let c = 0; c < GRID_SIZE; c++) {
-          let removedBelow = 0;
           newCount[c] = 0;
-          for (let r = GRID_SIZE - 1; r >= 0; r--) {
-            if (removedSet.has(r + ',' + c)) {
-              newCount[c]++;
-            } else {
-              // This survivor will fall by however many removed cells are below it
-              survivorFall[r + ',' + c] = removedBelow;
-              removedBelow++;  // wait — we need removed BELOW, so count as we go up
-            }
-          }
-          // Recompute: scan top-to-bottom, count removed cells encountered so far above
-          // Actually easier: scan bottom-up, count removed below
-          let rb = 0;
-          for (let r = GRID_SIZE - 1; r >= 0; r--) {
-            if (removedSet.has(r + ',' + c)) {
-              rb++;
-            } else {
-              survivorFall[r + ',' + c] = rb;
-            }
+          for (let r = 0; r < GRID_SIZE; r++) {
+            if (removedSet.has(r + ',' + c)) newCount[c]++;
           }
         }
 
-        // --- Mutate grid ---
+        // Mutate grid
         chain.forEach(p => { grid[p.r][p.c] = null; });
         for (let c = 0; c < GRID_SIZE; c++) {
-          let writeRow = GRID_SIZE - 1;
+          let w = GRID_SIZE - 1;
           for (let r = GRID_SIZE - 1; r >= 0; r--) {
-            if (grid[r][c] !== null) {
-              grid[writeRow][c] = grid[r][c];
-              if (writeRow !== r) grid[r][c] = null;
-              writeRow--;
-            }
+            if (grid[r][c] !== null) { grid[w][c] = grid[r][c]; if (w !== r) grid[r][c] = null; w--; }
           }
-          for (let r = writeRow; r >= 0; r--) {
-            grid[r][c] = weightedRandom();
-          }
+          for (let r = w; r >= 0; r--) grid[r][c] = weightedRandom();
         }
 
-        chain = [];
-        updateScore();
-        render(); // rebuild DOM with new values
+        chain = []; updateScore(); render();
 
-        // --- Phase 2: animate each cell ---
-        // After render(), cell at [r][c] is either:
-        //   - a survivor that fell: it was at [r - slots][c], animate from -slots*CELL_STEP
-        //   - a new cell: animate dropping in from above the grid
+        // Phase 2: animate
         for (let c = 0; c < GRID_SIZE; c++) {
           const nc = newCount[c];
-          if (nc === 0) continue;
-
+          if (!nc) continue;
           for (let r = 0; r < GRID_SIZE; r++) {
-            const cell = getCell(r, c);
-            if (!cell) continue;
-
+            const cell = getCell(r, c); if (!cell) continue;
             if (r < nc) {
-              // New cell — drop from above. Stagger so row 0 arrives last (feels natural)
-              const dropFrom = -((nc - r) * CELL_STEP + 40);
-              const delay = r * 0.045;
-              cell.style.setProperty('--drop-from', dropFrom + 'px');
+              cell.style.setProperty('--drop-from', -((nc - r) * STEP + 40) + 'px');
               cell.style.setProperty('--drop-dur', '0.38s');
-              cell.style.setProperty('--drop-delay', delay + 's');
+              cell.style.setProperty('--drop-delay', (r * 0.045) + 's');
               cell.classList.add('drop-in');
             } else {
-              // Survivor that fell — was at original row (r - nc), so it fell nc slots
-              const fallFrom = -(nc * CELL_STEP);
-              cell.style.setProperty('--fall-from', fallFrom + 'px');
+              cell.style.setProperty('--fall-from', -(nc * STEP) + 'px');
               cell.style.setProperty('--fall-dur', '0.3s');
               cell.style.setProperty('--fall-delay', '0s');
               cell.classList.add('falling');
             }
           }
         }
-
         if (cl >= 4) showCombo(cl);
       }, 200);
 
@@ -966,9 +1232,8 @@
     }
 
     function showCombo(len) {
-      const msgs = { 4: 'Nice!', 5: 'Great!', 6: 'Amazing!', 7: 'Incredible!', 8: 'Unstoppable!', 9: 'LEGENDARY!' };
-      const msg = msgs[Math.min(len, 9)] || (len >= 9 ? 'LEGENDARY!' : '');
-      if (!msg) return;
+      const msgs = ['', '', '', '', 'Nice!', 'Great!', 'Amazing!', 'Incredible!', 'Unstoppable!', 'LEGENDARY!'];
+      const msg = msgs[Math.min(len, 9)] || 'LEGENDARY!';
       comboEl.textContent = `${msg} ${len}× chain!`;
       comboEl.style.opacity = '1';
       setTimeout(() => { comboEl.style.opacity = '0'; }, 1800);
@@ -977,13 +1242,11 @@
     function showFloatingScore(pos, val) {
       const { x, y } = cellCenter(pos.r, pos.c);
       const cont = document.getElementById('grid-container');
-      const contRect = cont.getBoundingClientRect();
       const span = document.createElement('div');
       span.className = 'float-score';
       span.textContent = `+${val}`;
       span.style.left = (x - 20) + 'px';
       span.style.top = (y - 20) + 'px';
-      cont.style.position = 'relative';
       cont.appendChild(span);
       setTimeout(() => span.remove(), 1000);
     }
@@ -992,34 +1255,26 @@
       scoreEl.textContent = score;
       chainEl.textContent = chain.length;
       bestEl.textContent = bestScore;
+      levelBadge.textContent = `Level ${scoreTolevel(score)}`;
     }
 
     function undoLast() {
-      if (history.length === 0) return;
+      if (!history.length) return;
       const prev = history.pop();
       grid = prev.grid;
       score = prev.score;
       chain = [];
-      render();
-      updateScore();
+      render(); updateScore(); sfxUndo();
     }
 
-    function showRules() {
-      document.getElementById('rules-panel').classList.add('show');
-    }
+    function showRules() { document.getElementById('rules-panel').classList.add('show'); }
+    function hideRules() { document.getElementById('rules-panel').classList.remove('show'); }
 
-    function hideRules() {
-      document.getElementById('rules-panel').classList.remove('show');
-    }
+    setInterval(() => { if (isDragging && chain.length > 0) chainEl.textContent = chain.length; }, 50);
+    window.addEventListener('resize', () => render());
 
-    // Update chain counter during dragging
-    setInterval(() => {
-      if (isDragging && chain.length > 0) {
-        chainEl.textContent = chain.length;
-      }
-    }, 50);
-
-    newGame();
+    // Boot: try saved game first, else new game
+    if (!loadGame()) newGame();
   </script>
 </body>
 </html>
