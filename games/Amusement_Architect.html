@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amusement Architect</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; color: #eee; font-family: 'Segoe UI', Tahoma, sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+
+#topbar {
+  background: linear-gradient(to right, #0f0f23, #16213e, #0f0f23);
+  border-bottom: 2px solid #e94560;
+  padding: 6px 14px;
+  display: flex; align-items: center; gap: 16px;
+  flex-shrink: 0; z-index: 10;
+  box-shadow: 0 2px 10px rgba(233,69,96,0.3);
+}
+#topbar h1 {
+  font-size: 17px; font-weight: 900; letter-spacing: 1px;
+  background: linear-gradient(90deg, #ffd700, #ff8c00, #e94560);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  white-space: nowrap;
+}
+.stat { display: flex; align-items: center; gap: 5px; font-size: 13px; white-space: nowrap; }
+.stat-label { color: #888; }
+.stat-val { color: #ffd700; font-weight: 700; min-width: 56px; }
+.stat-val.positive { color: #2ecc71; }
+.stat-val.negative { color: #e74c3c; }
+.topbar-divider { width: 1px; height: 28px; background: #333; }
+
+#speed-group { display: flex; gap: 3px; margin-left: auto; }
+.spd-btn {
+  background: #0f3460; border: 1px solid #1a4a7a;
+  color: #aaa; padding: 4px 10px; border-radius: 4px;
+  cursor: pointer; font-size: 12px; font-weight: bold; transition: all 0.15s;
+}
+.spd-btn:hover { background: #1a4a7a; color: #fff; }
+.spd-btn.active { background: #e94560; border-color: #ff6b8a; color: #fff; }
+
+#save-group { display: flex; gap: 4px; }
+.save-btn {
+  background: #0a2a0a; border: 1px solid #1a5a1a;
+  color: #7edb7e; padding: 4px 10px; border-radius: 4px;
+  cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.15s;
+}
+.save-btn:hover { background: #1a5a1a; color: #fff; }
+.load-btn {
+  background: #1a1a40; border: 1px solid #3a3a80;
+  color: #9999ff; padding: 4px 10px; border-radius: 4px;
+  cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.15s;
+}
+.load-btn:hover { background: #3a3a80; color: #fff; }
+
+#main { display: flex; flex: 1; overflow: hidden; }
+
+#sidebar {
+  width: 195px; background: #0f0f23;
+  border-right: 2px solid #1a3060;
+  display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0;
+}
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-track { background: #0f0f23; }
+#sidebar::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+.sb-section {
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  color: #e94560; padding: 7px 10px 2px; text-transform: uppercase;
+  border-top: 1px solid #1a2040;
+}
+.sb-section:first-child { border-top: none; }
+
+.tool-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: transparent; border: none; border-bottom: 1px solid #0d0d1f;
+  color: #ccc; padding: 5px 10px; cursor: pointer;
+  font-size: 11px; text-align: left; width: 100%; transition: background 0.15s;
+}
+.tool-btn:hover { background: #16213e; color: #fff; }
+.tool-btn.active { background: #1a3060; color: #fff; border-left: 3px solid #e94560; padding-left: 7px; }
+.tool-btn .t-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+.tool-btn .t-info { flex: 1; min-width: 0; }
+.tool-btn .t-name { display: block; font-weight: 600; font-size: 11px; line-height: 1.2; }
+.tool-btn .t-cost { display: block; color: #ffd700; font-size: 9px; }
+.tool-btn .t-size { color: #4a9aff; font-size: 9px; margin-left: 3px; flex-shrink: 0; }
+
+.tool-btn.demolish-btn { color: #e74c3c; }
+.tool-btn.demolish-btn:hover { background: #2d1010; }
+.tool-btn.demolish-btn.active { background: #2d1010; border-left-color: #e74c3c; }
+
+.entry-ctrl {
+  padding: 6px 10px; border-bottom: 1px solid #0d0d1f; font-size: 11px; color: #aaa;
+}
+.entry-ctrl label { display: block; margin-bottom: 3px; }
+.entry-ctrl input {
+  width: 65px; background: #0f3460; color: #ffd700;
+  border: 1px solid #1a4a7a; border-radius: 3px;
+  padding: 2px 5px; font-size: 12px; font-weight: bold;
+}
+
+.park-stats {
+  padding: 6px 10px; margin-top: auto;
+  border-top: 1px solid #1a3060; font-size: 10px; color: #666;
+}
+.park-stats div { margin: 1px 0; }
+.park-stats span { color: #888; }
+
+#canvas-wrap { flex: 1; position: relative; overflow: hidden; background: #111; }
+#gc { display: block; cursor: crosshair; }
+
+#infobar {
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  background: rgba(15,15,35,0.92); border: 1px solid #1a3060;
+  border-radius: 8px; padding: 5px 14px;
+  font-size: 12px; color: #aaa; white-space: nowrap;
+  pointer-events: none; z-index: 5;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+
+#toast {
+  position: absolute; top: 12px; right: 155px;
+  background: rgba(231,76,60,0.95); color: #fff;
+  border-radius: 6px; padding: 7px 13px;
+  font-size: 12px; font-weight: bold;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 20;
+}
+#toast.show { opacity: 1; }
+
+#minimap-wrap {
+  position: absolute; bottom: 12px; right: 12px;
+  border: 1px solid #1a3060; border-radius: 4px;
+  overflow: hidden; background: #111;
+}
+#minimap { display: block; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>🎡 AMUSEMENT ARCHITECT</h1>
+  <div class="topbar-divider"></div>
+  <div class="stat"><span class="stat-label">💰</span><span class="stat-val" id="sv-money">$10,000</span></div>
+  <div class="stat"><span class="stat-label">👥</span><span class="stat-val" id="sv-guests">0</span></div>
+  <div class="stat"><span class="stat-label">⭐</span><span class="stat-val" id="sv-rating">50</span></div>
+  <div class="stat"><span class="stat-label">📅</span><span class="stat-val" id="sv-day">Day 1</span></div>
+  <div class="stat"><span class="stat-label">🎟️</span><span class="stat-val" id="sv-entry">$10</span></div>
+  <div class="topbar-divider"></div>
+  <div id="speed-group">
+    <button class="spd-btn active" data-spd="0" onclick="setSpeed(0)">⏸</button>
+    <button class="spd-btn" data-spd="1" onclick="setSpeed(1)">▶</button>
+    <button class="spd-btn" data-spd="2" onclick="setSpeed(2)">▶▶</button>
+    <button class="spd-btn" data-spd="3" onclick="setSpeed(3)">▶▶▶</button>
+  </div>
+  <div class="topbar-divider"></div>
+  <div id="save-group">
+    <button class="save-btn" onclick="saveGame()">💾 Save</button>
+    <button class="load-btn" onclick="document.getElementById('load-input').click()">📂 Load</button>
+    <input type="file" id="load-input" accept=".json" style="display:none" onchange="loadGame(this)">
+  </div>
+</div>
+
+<div id="main">
+  <div id="sidebar">
+
+    <div class="sb-section">Terrain</div>
+    <button class="tool-btn" data-tool="path" onclick="selectTool('path')">
+      <span class="t-icon">🟫</span><span class="t-info"><span class="t-name">Path</span><span class="t-cost">$10/tile</span></span>
+    </button>
+
+    <div class="sb-section">Classic Rides</div>
+    <button class="tool-btn" data-tool="coaster" onclick="selectTool('coaster')">
+      <span class="t-icon">🎢</span><span class="t-info"><span class="t-name">Rocket Coaster</span><span class="t-cost">$5,000 · $5/ride</span></span>
+    </button>
+    <button class="tool-btn" data-tool="ferris" onclick="selectTool('ferris')">
+      <span class="t-icon">🎡</span><span class="t-info"><span class="t-name">Giant Wheel</span><span class="t-cost">$2,000 · $3/ride</span></span>
+    </button>
+    <button class="tool-btn" data-tool="carousel" onclick="selectTool('carousel')">
+      <span class="t-icon">🎠</span><span class="t-info"><span class="t-name">Carousel</span><span class="t-cost">$1,500 · $2/ride</span></span>
+    </button>
+    <button class="tool-btn" data-tool="bumper" onclick="selectTool('bumper')">
+      <span class="t-icon">🚗</span><span class="t-info"><span class="t-name">Bumper Cars</span><span class="t-cost">$1,800 · $3/ride</span></span>
+    </button>
+    <button class="tool-btn" data-tool="swings" onclick="selectTool('swings')">
+      <span class="t-icon">🎪</span><span class="t-info"><span class="t-name">Swing Ride</span><span class="t-cost">$1,200 · $2/ride</span></span>
+    </button>
+    <button class="tool-btn" data-tool="drop" onclick="selectTool('drop')">
+      <span class="t-icon">🗼</span><span class="t-info"><span class="t-name">Drop Tower</span><span class="t-cost">$3,500 · $4/ride</span></span>
+    </button>
+
+    <div class="sb-section">Thrill Rides</div>
+    <button class="tool-btn" data-tool="bungee" onclick="selectTool('bungee')">
+      <span class="t-icon">🪂</span><span class="t-info"><span class="t-name">Bungee Jump</span><span class="t-cost">$4,500 · $6/ride</span></span>
+    </button>
+    <button class="tool-btn" data-tool="sky_coaster" onclick="selectTool('sky_coaster')">
+      <span class="t-icon">✈️</span><span class="t-info"><span class="t-name">Sky Coaster</span><span class="t-cost">$5,000 · $6/ride</span></span><span class="t-size">2×2</span>
+    </button>
+    <button class="tool-btn" data-tool="spinning_coaster" onclick="selectTool('spinning_coaster')">
+      <span class="t-icon">🌪️</span><span class="t-info"><span class="t-name">Spinning Coaster</span><span class="t-cost">$6,000 · $5/ride</span></span><span class="t-size">3×2</span>
+    </button>
+    <button class="tool-btn" data-tool="dark_coaster" onclick="selectTool('dark_coaster')">
+      <span class="t-icon">🌑</span><span class="t-info"><span class="t-name">Dark Coaster</span><span class="t-cost">$5,500 · $5/ride</span></span><span class="t-size">3×2</span>
+    </button>
+    <button class="tool-btn" data-tool="haunted" onclick="selectTool('haunted')">
+      <span class="t-icon">👻</span><span class="t-info"><span class="t-name">Haunted Mansion</span><span class="t-cost">$4,000 · $4/ride</span></span><span class="t-size">2×2</span>
+    </button>
+
+    <div class="sb-section">Family Rides</div>
+    <button class="tool-btn" data-tool="mine_train" onclick="selectTool('mine_train')">
+      <span class="t-icon">🚂</span><span class="t-info"><span class="t-name">Mine Train</span><span class="t-cost">$2,800 · $3/ride</span></span><span class="t-size">3×1</span>
+    </button>
+    <button class="tool-btn" data-tool="pirate_ship" onclick="selectTool('pirate_ship')">
+      <span class="t-icon">⚓</span><span class="t-info"><span class="t-name">Pirate Ship</span><span class="t-cost">$2,500 · $3/ride</span></span><span class="t-size">2×1</span>
+    </button>
+    <button class="tool-btn" data-tool="wave_swinger" onclick="selectTool('wave_swinger')">
+      <span class="t-icon">🎭</span><span class="t-info"><span class="t-name">Wave Swinger</span><span class="t-cost">$1,800 · $2/ride</span></span><span class="t-size">2×2</span>
+    </button>
+    <button class="tool-btn" data-tool="sky_tower" onclick="selectTool('sky_tower')">
+      <span class="t-icon">🗽</span><span class="t-info"><span class="t-name">Sky Tower</span><span class="t-cost">$1,800 · $3/ride</span></span>
+    </button>
+    <button class="tool-btn" data-tool="teacups" onclick="selectTool('teacups')">
+      <span class="t-icon">☕</span><span class="t-info"><span class="t-name">Teacups</span><span class="t-cost">$1,200 · $2/ride</span></span><span class="t-size">2×2</span>
+    </button>
+    <button class="tool-btn" data-tool="tilt_whirl" onclick="selectTool('tilt_whirl')">
+      <span class="t-icon">💫</span><span class="t-info"><span class="t-name">Tilt-a-Whirl</span><span class="t-cost">$1,600 · $2/ride</span></span><span class="t-size">2×2</span>
+    </button>
+
+    <div class="sb-section">Flat &amp; Adventure</div>
+    <button class="tool-btn" data-tool="scrambler" onclick="selectTool('scrambler')">
+      <span class="t-icon">🌀</span><span class="t-info"><span class="t-name">Scrambler</span><span class="t-cost">$2,000 · $3/ride</span></span><span class="t-size">2×2</span>
+    </button>
+    <button class="tool-btn" data-tool="go_karts" onclick="selectTool('go_karts')">
+      <span class="t-icon">🏎️</span><span class="t-info"><span class="t-name">Go-Karts</span><span class="t-cost">$3,200 · $4/ride</span></span><span class="t-size">3×2</span>
+    </button>
+    <button class="tool-btn" data-tool="giant_slide" onclick="selectTool('giant_slide')">
+      <span class="t-icon">🛝</span><span class="t-info"><span class="t-name">Giant Slide</span><span class="t-cost">$1,000 · $2/ride</span></span><span class="t-size">2×1</span>
+    </button>
+    <button class="tool-btn" data-tool="zip_line" onclick="selectTool('zip_line')">
+      <span class="t-icon">🪁</span><span class="t-info"><span class="t-name">Zip Line</span><span class="t-cost">$2,500 · $4/ride</span></span><span class="t-size">4×1</span>
+    </button>
+
+    <div class="sb-section">Water Rides</div>
+    <button class="tool-btn" data-tool="log_flume" onclick="selectTool('log_flume')">
+      <span class="t-icon">🚣</span><span class="t-info"><span class="t-name">Log Flume</span><span class="t-cost">$3,500 · $4/ride</span></span><span class="t-size">3×2</span>
+    </button>
+    <button class="tool-btn" data-tool="lazy_river" onclick="selectTool('lazy_river')">
+      <span class="t-icon">🏖️</span><span class="t-info"><span class="t-name">Lazy River</span><span class="t-cost">$3,000 · $3/ride</span></span><span class="t-size">3×3</span>
+    </button>
+    <button class="tool-btn" data-tool="river_rapids" onclick="selectTool('river_rapids')">
+      <span class="t-icon">🌊</span><span class="t-info"><span class="t-name">River Rapids</span><span class="t-cost">$5,000 · $5/ride</span></span><span class="t-size">3×3</span>
+    </button>
+
+    <div class="sb-section">Food &amp; Services</div>
+    <button class="tool-btn" data-tool="food" onclick="selectTool('food')">
+      <span class="t-icon">🍔</span><span class="t-info"><span class="t-name">Food Stall</span><span class="t-cost">$500 · $4/use</span></span>
+    </button>
+    <button class="tool-btn" data-tool="drinks" onclick="selectTool('drinks')">
+      <span class="t-icon">🥤</span><span class="t-info"><span class="t-name">Drinks Stand</span><span class="t-cost">$400 · $3/use</span></span>
+    </button>
+    <button class="tool-btn" data-tool="ice_cream" onclick="selectTool('ice_cream')">
+      <span class="t-icon">🍦</span><span class="t-info"><span class="t-name">Ice Cream Cart</span><span class="t-cost">$350 · $2/use</span></span>
+    </button>
+    <button class="tool-btn" data-tool="bathroom" onclick="selectTool('bathroom')">
+      <span class="t-icon">🚻</span><span class="t-info"><span class="t-name">Restroom</span><span class="t-cost">$300 · Free</span></span>
+    </button>
+    <button class="tool-btn" data-tool="bench" onclick="selectTool('bench')">
+      <span class="t-icon">🪑</span><span class="t-info"><span class="t-name">Park Bench</span><span class="t-cost">$50 · Free</span></span>
+    </button>
+
+    <div class="sb-section">Tools</div>
+    <button class="tool-btn demolish-btn" data-tool="demolish" onclick="selectTool('demolish')">
+      <span class="t-icon">💥</span><span class="t-info"><span class="t-name">Demolish</span><span class="t-cost">25% refund</span></span>
+    </button>
+
+    <div class="sb-section">Entry Fee</div>
+    <div class="entry-ctrl">
+      <label>Ticket Price:</label>
+      <input type="number" id="entry-input" value="10" min="0" max="100"
+        oninput="G.entryFee = Math.max(0, +this.value); document.getElementById('sv-entry').textContent = '$' + G.entryFee">
+    </div>
+
+    <div class="park-stats">
+      <div>Visitors: <span id="ps-total">0</span></div>
+      <div>Rides built: <span id="ps-rides">0</span></div>
+      <div>Income today: <span id="ps-income">$0</span></div>
+    </div>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="gc"></canvas>
+    <div id="infobar"><span id="info-text">▶ Press Play · Select a tool · Right-click drag to pan · Scroll to zoom · Blue size tags = multi-cell</span></div>
+    <div id="toast"></div>
+    <div id="minimap-wrap"><canvas id="minimap" width="130" height="130"></canvas></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// =====================================================================
+//  CONSTANTS
+// =====================================================================
+const CELL  = 40;
+const GW    = 90;
+const GH    = 90;
+const MAX_G = 220;
+const SPD_PX = 72;
+
+// =====================================================================
+//  BUILDING DEFINITIONS  (w/h default 1×1)
+// =====================================================================
+const DEFS = {
+  // --- Classic Rides ---
+  coaster:         { name:'Rocket Coaster',    icon:'🎢', cost:5000, bg:'#e74c3c', type:'ride', ticket:5, dur:12, thrill:9, cap:6,  qmax:20, w:1, h:1 },
+  ferris:          { name:'Giant Wheel',       icon:'🎡', cost:2000, bg:'#3498db', type:'ride', ticket:3, dur:10, thrill:5, cap:8,  qmax:16, w:1, h:1 },
+  carousel:        { name:'Carousel',          icon:'🎠', cost:1500, bg:'#a569bd', type:'ride', ticket:2, dur:8,  thrill:3, cap:6,  qmax:12, w:1, h:1 },
+  bumper:          { name:'Bumper Cars',       icon:'🚗', cost:1800, bg:'#f39c12', type:'ride', ticket:3, dur:9,  thrill:6, cap:8,  qmax:14, w:1, h:1 },
+  swings:          { name:'Swing Ride',        icon:'🎪', cost:1200, bg:'#1abc9c', type:'ride', ticket:2, dur:7,  thrill:4, cap:10, qmax:12, w:1, h:1 },
+  drop:            { name:'Drop Tower',        icon:'🗼', cost:3500, bg:'#95a5a6', type:'ride', ticket:4, dur:6,  thrill:8, cap:4,  qmax:16, w:1, h:1 },
+  // --- Thrill Rides ---
+  bungee:          { name:'Bungee Jump',       icon:'🪂', cost:4500, bg:'#c0392b', type:'ride', ticket:6, dur:5,  thrill:10,cap:2,  qmax:12, w:1, h:1 },
+  sky_coaster:     { name:'Sky Coaster',       icon:'✈️', cost:5000, bg:'#27ae60', type:'ride', ticket:6, dur:10, thrill:9, cap:4,  qmax:14, w:2, h:2 },
+  spinning_coaster:{ name:'Spinning Coaster',  icon:'🌪️', cost:6000, bg:'#d35400', type:'ride', ticket:5, dur:14, thrill:8, cap:6,  qmax:20, w:3, h:2 },
+  dark_coaster:    { name:'Dark Coaster',      icon:'🌑', cost:5500, bg:'#2c3e50', type:'ride', ticket:5, dur:15, thrill:8, cap:6,  qmax:18, w:3, h:2 },
+  haunted:         { name:'Haunted Mansion',   icon:'👻', cost:4000, bg:'#6c3483', type:'ride', ticket:4, dur:16, thrill:7, cap:8,  qmax:20, w:2, h:2 },
+  // --- Family Rides ---
+  mine_train:      { name:'Mine Train',        icon:'🚂', cost:2800, bg:'#7d5a3c', type:'ride', ticket:3, dur:11, thrill:5, cap:8,  qmax:16, w:3, h:1 },
+  pirate_ship:     { name:'Pirate Ship',       icon:'⚓', cost:2500, bg:'#2c3e50', type:'ride', ticket:3, dur:8,  thrill:7, cap:12, qmax:18, w:2, h:1 },
+  wave_swinger:    { name:'Wave Swinger',      icon:'🎭', cost:1800, bg:'#8e44ad', type:'ride', ticket:2, dur:9,  thrill:4, cap:12, qmax:14, w:2, h:2 },
+  sky_tower:       { name:'Sky Tower',         icon:'🗽', cost:1800, bg:'#607d8b', type:'ride', ticket:3, dur:7,  thrill:3, cap:6,  qmax:12, w:1, h:1 },
+  teacups:         { name:'Teacups',           icon:'☕', cost:1200, bg:'#e91e8c', type:'ride', ticket:2, dur:6,  thrill:2, cap:8,  qmax:10, w:2, h:2 },
+  tilt_whirl:      { name:'Tilt-a-Whirl',      icon:'💫', cost:1600, bg:'#5b2c6f', type:'ride', ticket:2, dur:7,  thrill:5, cap:8,  qmax:12, w:2, h:2 },
+  // --- Flat & Adventure ---
+  scrambler:       { name:'Scrambler',         icon:'🌀', cost:2000, bg:'#c0392b', type:'ride', ticket:3, dur:8,  thrill:5, cap:6,  qmax:12, w:2, h:2 },
+  go_karts:        { name:'Go-Karts',          icon:'🏎️', cost:3200, bg:'#d68910', type:'ride', ticket:4, dur:12, thrill:5, cap:4,  qmax:14, w:3, h:2 },
+  giant_slide:     { name:'Giant Slide',       icon:'🛝', cost:1000, bg:'#f1c40f', type:'ride', ticket:2, dur:4,  thrill:4, cap:4,  qmax:10, w:2, h:1 },
+  zip_line:        { name:'Zip Line',          icon:'🪁', cost:2500, bg:'#196f3d', type:'ride', ticket:4, dur:6,  thrill:6, cap:2,  qmax:10, w:4, h:1 },
+  // --- Water Rides ---
+  log_flume:       { name:'Log Flume',         icon:'🚣', cost:3500, bg:'#1a5276', type:'ride', ticket:4, dur:14, thrill:6, cap:6,  qmax:18, w:3, h:2 },
+  lazy_river:      { name:'Lazy River',        icon:'🏖️', cost:3000, bg:'#117a8b', type:'ride', ticket:3, dur:18, thrill:2, cap:10, qmax:14, w:3, h:3 },
+  river_rapids:    { name:'River Rapids',      icon:'🌊', cost:5000, bg:'#1a5276', type:'ride', ticket:5, dur:16, thrill:7, cap:6,  qmax:16, w:3, h:3 },
+  // --- Food & Services ---
+  food:            { name:'Food Stall',        icon:'🍔', cost:500,  bg:'#e67e22', type:'food',    price:4,  serve:5, hunger:55, qmax:8,  w:1, h:1 },
+  drinks:          { name:'Drinks Stand',      icon:'🥤', cost:400,  bg:'#1abc9c', type:'drinks',  price:3,  serve:4, thirst:60, qmax:8,  w:1, h:1 },
+  ice_cream:       { name:'Ice Cream Cart',    icon:'🍦', cost:350,  bg:'#f1948a', type:'food',    price:2,  serve:3, hunger:30, thirst:20, qmax:6, w:1, h:1 },
+  bathroom:        { name:'Restroom',          icon:'🚻', cost:300,  bg:'#7f8c8d', type:'bathroom',price:0,  serve:6, bladder:90,qmax:6,  w:1, h:1 },
+  bench:           { name:'Park Bench',        icon:'🪑', cost:50,   bg:'#8B6914', type:'bench',   price:0,  serve:3, happy:8,   qmax:4,  w:1, h:1 },
+};
+
+// =====================================================================
+//  GAME STATE
+// =====================================================================
+const G = {
+  grid: [], buildings: [], guests: [], floaters: [], particles: [],
+  money: 10000, entryFee: 10, dayIncome: 0, totalGuests: 0,
+  day: 1, speed: 0, paused: true,
+  cam: { x: 0, y: 0, zoom: 1.3 },
+  rating: 50,
+  tool: null, mouseCell: null, mouseDown: false, panStart: null, panCamAt: null,
+  nextGId: 0, nextBId: 0,
+  entrance: { x: 44, y: 0 },
+};
+
+// =====================================================================
+//  GRID
+// =====================================================================
+function initGrid() {
+  G.grid = [];
+  for (let y = 0; y < GH; y++) {
+    G.grid[y] = [];
+    for (let x = 0; x < GW; x++) G.grid[y][x] = { type: 0, bldg: null };
+  }
+  const ex = G.entrance.x;
+  for (let y = 0; y <= 2; y++) setPath(ex, y);
+  for (let y = 3; y <= 8; y++)
+    for (let x = ex - 4; x <= ex + 4; x++) setPath(x, y);
+}
+
+function setPath(x, y) { if (inBounds(x, y)) G.grid[y][x].type = 1; }
+function inBounds(x, y) { return x >= 0 && x < GW && y >= 0 && y < GH; }
+function getCell(x, y)  { return inBounds(x, y) ? G.grid[y][x] : null; }
+function isPath(x, y)   { const c = getCell(x, y); return !!(c && c.type === 1); }
+function adjPaths(x, y) {
+  return [{x:x-1,y},{x:x+1,y},{x,y:y-1},{x,y:y+1}].filter(p => isPath(p.x, p.y));
+}
+
+// =====================================================================
+//  MULTI-CELL HELPERS
+// =====================================================================
+function bldgCells(b) {
+  const cells = [];
+  for (let dy = 0; dy < b.h; dy++)
+    for (let dx = 0; dx < b.w; dx++)
+      cells.push({ x: b.x + dx, y: b.y + dy });
+  return cells;
+}
+
+function isAdjToBldg(gCell, b) {
+  for (let dy = 0; dy < b.h; dy++)
+    for (let dx = 0; dx < b.w; dx++) {
+      const bx = b.x + dx, by = b.y + dy;
+      if (Math.abs(gCell.x - bx) + Math.abs(gCell.y - by) === 1) return true;
+    }
+  return false;
+}
+
+function bldgApproaches(b) {
+  const seen = new Set();
+  const result = [];
+  for (let dy = 0; dy < b.h; dy++) {
+    for (let dx = 0; dx < b.w; dx++) {
+      const bx = b.x + dx, by = b.y + dy;
+      [{x:bx-1,y:by},{x:bx+1,y:by},{x:bx,y:by-1},{x:bx,y:by+1}].forEach(p => {
+        const k = `${p.x},${p.y}`;
+        if (!seen.has(k) && isPath(p.x, p.y)) { seen.add(k); result.push(p); }
+      });
+    }
+  }
+  return result;
+}
+
+function bldgCenter(b) {
+  return { x: b.x + Math.floor(b.w / 2), y: b.y + Math.floor(b.h / 2) };
+}
+
+// =====================================================================
+//  TOOLS & BUILDING
+// =====================================================================
+function selectTool(name) {
+  G.tool = name;
+  document.querySelectorAll('.tool-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tool === name));
+  refreshInfo();
+}
+
+function refreshInfo() {
+  const el = document.getElementById('info-text');
+  if (!G.tool) { el.innerHTML = 'Select a tool!'; return; }
+  if (G.tool === 'path')     { el.innerHTML = '🟫 Path – <b style="color:#ffd700">$10/tile</b> – Click &amp; drag'; return; }
+  if (G.tool === 'demolish') { el.innerHTML = '💥 Demolish – <b style="color:#ffd700">25% refund</b>'; return; }
+  const d = DEFS[G.tool];
+  if (d) {
+    const sizeStr = (d.w > 1 || d.h > 1) ? ` <span style="color:#4a9aff">[${d.w}×${d.h}]</span>` : '';
+    const thrillStr = d.type === 'ride' ? ` | Thrill ${'★'.repeat(Math.round(d.thrill/3))}${'☆'.repeat(3-Math.round(d.thrill/3))} | $${d.ticket}/rider` : (d.price > 0 ? ` | $${d.price}/use` : ' | Free');
+    el.innerHTML = `${d.icon} <b style="color:#ffd700">${d.name}</b>${sizeStr} – $${d.cost.toLocaleString()}${thrillStr} – Must touch a path`;
+  }
+}
+
+function placeTile(cx, cy) {
+  if (!inBounds(cx, cy) || !G.tool) return;
+  if (G.tool === 'demolish') { doDemo(cx, cy); return; }
+  if (G.tool === 'path')     { doPath(cx, cy); return; }
+
+  const def = DEFS[G.tool];
+  if (!def) return;
+  const w = def.w || 1, h = def.h || 1;
+
+  if (G.money < def.cost) { showToast('⚠️ Not enough money!'); return; }
+
+  // Check entire footprint
+  for (let dy = 0; dy < h; dy++) {
+    for (let dx = 0; dx < w; dx++) {
+      if (!inBounds(cx+dx, cy+dy)) { showToast('⚠️ Out of bounds!'); return; }
+      const c = G.grid[cy+dy][cx+dx];
+      if (c.bldg)     { showToast('⚠️ Cell already occupied!'); return; }
+      if (c.type !== 0) { showToast('⚠️ Can only build on grass!'); return; }
+    }
+  }
+
+  // Must touch a path (any footprint cell)
+  if (def.type !== 'bench') {
+    let ok = false;
+    outer: for (let dy = 0; dy < h; dy++)
+      for (let dx = 0; dx < w; dx++)
+        if (adjPaths(cx+dx, cy+dy).length > 0) { ok = true; break outer; }
+    if (!ok) { showToast('⚠️ Must be adjacent to a path!'); return; }
+  }
+
+  const b = {
+    id: G.nextBId++, kind: G.tool, def, x: cx, y: cy, w, h,
+    queue: [], riders: [], serving: null,
+    operating: false, timer: 0, income: 0, visits: 0, pulse: 0,
+  };
+
+  for (let dy = 0; dy < h; dy++)
+    for (let dx = 0; dx < w; dx++)
+      G.grid[cy+dy][cx+dx].bldg = b;
+
+  G.buildings.push(b);
+  G.money -= def.cost;
+  burst((cx + w/2) * CELL, (cy + h/2) * CELL, def.bg, 14);
+}
+
+function doPath(cx, cy) {
+  const cell = G.grid[cy][cx];
+  if (cell.bldg || cell.type === 1) return;
+  if (G.money < 10) { showToast('⚠️ Not enough money!'); return; }
+  cell.type = 1;
+  G.money -= 10;
+}
+
+function doDemo(cx, cy) {
+  const cell = G.grid[cy][cx];
+  if (cell.bldg) {
+    const b = cell.bldg;
+    const refund = Math.floor(b.def.cost * 0.25);
+    G.money += refund;
+    addFloat((b.x + b.w/2) * CELL, b.y * CELL, `+$${refund}`, '#ffd700');
+    [...b.queue, ...b.riders].forEach(freeG);
+    if (b.serving) freeG(b.serving);
+    for (let dy = 0; dy < b.h; dy++)
+      for (let dx = 0; dx < b.w; dx++)
+        if (G.grid[b.y+dy] && G.grid[b.y+dy][b.x+dx])
+          G.grid[b.y+dy][b.x+dx].bldg = null;
+    G.buildings = G.buildings.filter(x => x.id !== b.id);
+    burst((b.x + b.w/2) * CELL, (b.y + b.h/2) * CELL, '#e74c3c', 10);
+  } else if (cell.type === 1) {
+    if (cx === G.entrance.x && cy <= 2) { showToast('⚠️ Cannot remove entrance!'); return; }
+    cell.type = 0;
+    G.money += 5;
+  }
+}
+
+function freeG(g) {
+  if (!g) return;
+  g.state = 'wandering'; g.targetBldg = null; g.targetCell = null;
+}
+
+// =====================================================================
+//  GUESTS
+// =====================================================================
+const GCOLS = [
+  '#ff6b6b','#feca57','#48dbfb','#ff9ff3','#54a0ff',
+  '#5f27cd','#00d2d3','#ff9f43','#10ac84','#ee5a24',
+  '#6c5ce7','#fd79a8','#00b894','#d63031','#0984e3',
+  '#e17055','#74b9ff','#a29bfe','#55efc4','#fdcb6e',
+];
+const SKIN_TONES = ['#fddbb4','#f5c89a','#e8a87c','#c68642','#a0522d','#7d3c17'];
+const HAIR_COLS  = ['#1a0a00','#3d1c00','#6b3a2a','#c4a35a','#f0e0b0','#ffd700','#ff4444','#0066cc','#555555','#aaaaaa'];
+
+function spawnGuest() {
+  if (G.guests.length >= MAX_G) return;
+  const ex = G.entrance.x;
+  const g = {
+    id: G.nextGId++,
+    x: ex * CELL + CELL/2, y: CELL * 0.5,
+    state: 'entering',
+    targetCell:  { x: ex, y: 6 },
+    currentCell: { x: ex, y: 0 },
+    targetBldg: null,
+    hunger:   55 + Math.random()*45,
+    thirst:   55 + Math.random()*45,
+    bladder:  65 + Math.random()*35,
+    happiness:68 + Math.random()*32,
+    wallet:   18 + Math.random()*42,
+    speed:    SPD_PX * (0.78 + Math.random()*0.44),
+    rides: 0, color: GCOLS[G.nextGId % GCOLS.length],
+    skin:    SKIN_TONES[G.nextGId % SKIN_TONES.length],
+    hairCol: HAIR_COLS[Math.floor(G.nextGId * 2.7) % HAIR_COLS.length],
+    wantLeave: false, wanderCd: Math.random()*3,
+    stuckTime: 0, lastX: 0, lastY: 0, age: 0,
+  };
+  G.guests.push(g);
+  G.totalGuests++;
+  const fee = G.entryFee;
+  G.money += fee; G.dayIncome += fee;
+  if (fee > 0) addFloat(g.x, g.y-12, `+$${fee}`, '#2ecc71');
+}
+
+function updateGuests(dt) {
+  G.guests = G.guests.filter(g => { updateG(g, dt); return g.state !== 'gone'; });
+}
+
+function updateG(g, dt) {
+  g.age += dt;
+  g.hunger  = Math.max(0, g.hunger  - dt * 1.8);
+  g.thirst  = Math.max(0, g.thirst  - dt * 2.5);
+  g.bladder = Math.max(0, g.bladder - dt * (g.thirst < 30 ? 2.5 : 1.2));
+
+  if (g.hunger  < 15) g.happiness = Math.max(0, g.happiness - dt*8);
+  if (g.thirst  < 15) g.happiness = Math.max(0, g.happiness - dt*10);
+  if (g.bladder <  8) g.happiness = Math.max(0, g.happiness - dt*20);
+  if (g.hunger > 40 && g.thirst > 40 && g.bladder > 25)
+    g.happiness = Math.min(100, g.happiness + dt*0.5);
+
+  if (g.happiness < 5 || g.wallet < -4) g.wantLeave = true;
+  if (g.rides >= 7 && Math.random() < dt*0.04) g.wantLeave = true;
+  if (g.age > 720) g.wantLeave = true;
+
+  // Stuck check
+  const moved = Math.hypot(g.x - g.lastX, g.y - g.lastY);
+  if (moved < 0.5) g.stuckTime += dt; else g.stuckTime = 0;
+  g.lastX = g.x; g.lastY = g.y;
+  if (g.stuckTime > 5) {
+    g.stuckTime = 0;
+    if (g.targetBldg) { g.targetBldg.queue = g.targetBldg.queue.filter(x => x.id !== g.id); g.targetBldg = null; }
+    g.state = 'wandering'; g.targetCell = null;
+  }
+
+  switch (g.state) {
+    case 'entering':
+      moveToCell(g, dt);
+      if (!g.targetCell) { g.state = 'wandering'; g.currentCell = { x: G.entrance.x, y: 6 }; }
+      break;
+
+    case 'wandering':
+      if (g.wantLeave) { startExit(g); break; }
+      g.wanderCd -= dt;
+      if (g.wanderCd <= 0) { chooseAction(g); g.wanderCd = 1.5 + Math.random()*4; }
+      if (!g.targetCell) pickRandom(g);
+      moveToCell(g, dt);
+      break;
+
+    case 'moving_to_bldg':
+      if (!g.targetBldg) { g.state = 'wandering'; break; }
+      moveToCell(g, dt);
+      if (!g.targetCell) {
+        const b = g.targetBldg;
+        if (isAdjToBldg(g.currentCell, b)) {
+          if (canQueue(g, b)) { b.queue.push(g); g.state = 'queuing'; }
+          else { g.state = 'wandering'; g.targetBldg = null; }
+        } else {
+          const ctr = bldgCenter(b);
+          const nxt = greedyStep(g.currentCell, ctr);
+          if (nxt) g.targetCell = nxt;
+          else { g.state = 'wandering'; g.targetBldg = null; }
+        }
+      }
+      break;
+
+    case 'queuing':
+      if (!g.targetBldg) g.state = 'wandering';
+      break;
+
+    case 'using':
+      break;
+
+    case 'exiting':
+      moveToCell(g, dt);
+      if (!g.targetCell) {
+        if (g.currentCell.y <= 0) { g.state = 'gone'; return; }
+        const nxt = greedyStep(g.currentCell, G.entrance);
+        if (nxt) g.targetCell = nxt; else g.state = 'gone';
+      }
+      break;
+  }
+}
+
+function chooseAction(g) {
+  if (g.bladder < 20) {
+    const b = nearestBldg(g, ['bathroom']);
+    if (b && canQueue(g, b)) { goTo(g, b); return; }
+  }
+  if (g.thirst < 30) {
+    const b = nearestBldg(g, ['drinks', 'ice_cream']);
+    if (b && canQueue(g, b)) { goTo(g, b); return; }
+  }
+  if (g.hunger < 35) {
+    const b = nearestBldg(g, ['food', 'ice_cream']);
+    if (b && canQueue(g, b)) { goTo(g, b); return; }
+  }
+  if (g.hunger < 70 && g.wallet >= 3 && Math.random() < 0.25) {
+    const b = nearestBldg(g, ['food']);
+    if (b && canQueue(g, b)) { goTo(g, b); return; }
+  }
+  if (g.thirst < 70 && g.wallet >= 2 && Math.random() < 0.25) {
+    const b = nearestBldg(g, ['drinks']);
+    if (b && canQueue(g, b)) { goTo(g, b); return; }
+  }
+  if (Math.random() < 0.65) {
+    const rides = G.buildings.filter(b => b.def.type === 'ride' && b.queue.length < b.def.qmax);
+    if (rides.length > 0) {
+      const r = rides[Math.floor(Math.random() * rides.length)];
+      if (canQueue(g, r)) { goTo(g, r); return; }
+    }
+  }
+  if (g.happiness < 55) {
+    const b = nearestBldg(g, ['bench']);
+    if (b && canQueue(g, b)) { goTo(g, b); return; }
+  }
+}
+
+function nearestBldg(g, types) {
+  let best = null, bestD = Infinity;
+  G.buildings.forEach(b => {
+    if (!types.includes(b.def.type) && !types.includes(b.kind)) return;
+    if (b.queue.length >= b.def.qmax) return;
+    const ctr = bldgCenter(b);
+    const d = Math.hypot(g.currentCell.x - ctr.x, g.currentCell.y - ctr.y);
+    if (d < bestD) { bestD = d; best = b; }
+  });
+  return best;
+}
+
+function canQueue(g, b) {
+  if (b.queue.length >= b.def.qmax) return false;
+  if (b.def.type === 'ride' && g.wallet < b.def.ticket) return false;
+  if ((b.def.type === 'food' || b.def.type === 'drinks') && g.wallet < b.def.price) return false;
+  return true;
+}
+
+function goTo(g, b) {
+  g.targetBldg = b;
+  g.state = 'moving_to_bldg';
+  const approaches = bldgApproaches(b);
+  if (approaches.length === 0) { g.state = 'wandering'; g.targetBldg = null; return; }
+  const best = approaches.reduce((a, p) =>
+    Math.hypot(g.currentCell.x-p.x, g.currentCell.y-p.y) <
+    Math.hypot(g.currentCell.x-a.x, g.currentCell.y-a.y) ? p : a);
+  const nxt = greedyStep(g.currentCell, best);
+  if (nxt) g.targetCell = nxt;
+  else { g.state = 'wandering'; g.targetBldg = null; }
+}
+
+function startExit(g) {
+  if (g.targetBldg) { g.targetBldg.queue = g.targetBldg.queue.filter(x => x.id !== g.id); g.targetBldg = null; }
+  g.state = 'exiting';
+  const nxt = greedyStep(g.currentCell, G.entrance);
+  if (nxt) g.targetCell = nxt; else g.state = 'gone';
+}
+
+function pickRandom(g) {
+  const adj = adjPaths(g.currentCell.x, g.currentCell.y);
+  if (adj.length === 0) { g.wantLeave = true; return; }
+  g.targetCell = adj[Math.floor(Math.random() * adj.length)];
+}
+
+function greedyStep(from, to) {
+  const adj = adjPaths(from.x, from.y);
+  if (adj.length === 0) return null;
+  return adj.reduce((best, p) => {
+    const da = Math.hypot(p.x - to.x, p.y - to.y);
+    const db = Math.hypot(best.x - to.x, best.y - to.y);
+    return da < db ? p : best;
+  });
+}
+
+function moveToCell(g, dt) {
+  if (!g.targetCell) return;
+  const tx = g.targetCell.x * CELL + CELL/2;
+  const ty = g.targetCell.y * CELL + CELL/2;
+  const dx = tx - g.x, dy = ty - g.y;
+  const dist = Math.hypot(dx, dy);
+  const move = g.speed * dt;
+  if (dist <= move) {
+    g.x = tx; g.y = ty;
+    g.currentCell = { ...g.targetCell };
+    g.targetCell = null;
+  } else {
+    g.x += (dx/dist)*move;
+    g.y += (dy/dist)*move;
+  }
+}
+
+// =====================================================================
+//  BUILDINGS
+// =====================================================================
+function updateBuildings(dt) {
+  G.buildings.forEach(b => {
+    b.pulse = Math.max(0, b.pulse - dt*3);
+    if (b.def.type === 'ride') updateRide(b, dt);
+    else                       updateService(b, dt);
+  });
+}
+
+function updateRide(b, dt) {
+  if (b.operating) {
+    b.timer -= dt;
+    if (b.timer <= 0) {
+      let earned = 0;
+      b.riders.forEach(g => {
+        g.wallet -= b.def.ticket; earned += b.def.ticket;
+        g.happiness = Math.min(100, g.happiness + b.def.thrill * 4);
+        g.rides++;
+        g.state = 'wandering'; g.targetBldg = null;
+        pickRandom(g);
+      });
+      G.money += earned; G.dayIncome += earned; b.income += earned;
+      b.visits += b.riders.length;
+      if (earned > 0) addFloat((b.x+b.w/2)*CELL, b.y*CELL-6, `+$${earned}`, '#2ecc71');
+      burst((b.x+b.w/2)*CELL, (b.y+b.h/2)*CELL, b.def.bg, 8);
+      b.riders = []; b.operating = false; b.pulse = 1;
+    }
+  }
+  if (!b.operating && b.queue.length > 0) {
+    const load = b.queue.splice(0, Math.min(b.def.cap, b.queue.length));
+    b.riders = load; b.operating = true; b.timer = b.def.dur;
+    load.forEach(g => g.state = 'using');
+  }
+}
+
+function updateService(b, dt) {
+  if (b.serving) {
+    b.timer -= dt;
+    if (b.timer <= 0) {
+      const g = b.serving; const d = b.def;
+      let earned = 0;
+      if (d.type === 'food') {
+        if (g.wallet >= d.price) { g.wallet -= d.price; earned = d.price; }
+        g.hunger  = Math.min(100, g.hunger  + (d.hunger||50));
+        if (d.thirst) g.thirst = Math.min(100, g.thirst + d.thirst);
+        g.happiness = Math.min(100, g.happiness + 6);
+      } else if (d.type === 'drinks') {
+        if (g.wallet >= d.price) { g.wallet -= d.price; earned = d.price; }
+        g.thirst = Math.min(100, g.thirst + (d.thirst||55));
+        g.happiness = Math.min(100, g.happiness + 4);
+      } else if (d.type === 'bathroom') {
+        g.bladder = Math.min(100, g.bladder + (d.bladder||85));
+        g.happiness = Math.min(100, g.happiness + 12);
+      } else if (d.type === 'bench') {
+        g.happiness = Math.min(100, g.happiness + (d.happy||8));
+      }
+      if (earned > 0) {
+        G.money += earned; G.dayIncome += earned; b.income += earned;
+        addFloat(b.x*CELL+CELL/2, b.y*CELL-6, `+$${earned}`, '#f39c12');
+      }
+      b.visits++;
+      g.state = 'wandering'; g.targetBldg = null;
+      pickRandom(g);
+      b.serving = null; b.timer = 0;
+    }
+  }
+  if (!b.serving && b.queue.length > 0) {
+    b.serving = b.queue.shift(); b.serving.state = 'using';
+    b.timer = b.def.serve; b.pulse = 0.7;
+  }
+}
+
+// =====================================================================
+//  FLOATERS & PARTICLES
+// =====================================================================
+function addFloat(x, y, text, color) { G.floaters.push({ x, y: y-4, text, color, life: 2 }); }
+function updateFloaters(dt) { G.floaters = G.floaters.filter(f => { f.y -= 24*dt; f.life -= dt; return f.life > 0; }); }
+
+function burst(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random()*Math.PI*2, s = 35+Math.random()*65;
+    G.particles.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-35, color, life:0.5+Math.random()*0.5, r:2+Math.random()*3 });
+  }
+}
+function updateParticles(dt) {
+  G.particles = G.particles.filter(p => { p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=90*dt; p.life-=dt; return p.life>0; });
+}
+
+// =====================================================================
+//  RATING
+// =====================================================================
+function updateRating(dt) {
+  if (G.guests.length === 0) return;
+  const avg = G.guests.reduce((s, g) => s + g.happiness, 0) / G.guests.length;
+  G.rating += (avg - G.rating) * dt * 0.3;
+  G.rating = Math.max(0, Math.min(100, G.rating));
+}
+
+// =====================================================================
+//  CANVAS & RENDERING
+// =====================================================================
+const canvas = document.getElementById('gc');
+const ctx    = canvas.getContext('2d');
+const mm     = document.getElementById('minimap');
+const mctx   = mm.getContext('2d');
+
+function resizeCanvas() {
+  const w = document.getElementById('canvas-wrap');
+  canvas.width = w.clientWidth; canvas.height = w.clientHeight;
+}
+
+function c2w(sx, sy) {
+  return { x:(sx-canvas.width/2)/G.cam.zoom+G.cam.x, y:(sy-canvas.height/2)/G.cam.zoom+G.cam.y };
+}
+function sToCell(sx, sy) {
+  const w = c2w(sx, sy);
+  return { x: Math.floor(w.x/CELL), y: Math.floor(w.y/CELL) };
+}
+function visRange() {
+  const tl = c2w(0,0), br = c2w(canvas.width, canvas.height);
+  return {
+    x0: Math.max(0, Math.floor(tl.x/CELL)-1),
+    y0: Math.max(0, Math.floor(tl.y/CELL)-1),
+    x1: Math.min(GW, Math.ceil(br.x/CELL)+2),
+    y1: Math.min(GH, Math.ceil(br.y/CELL)+2),
+  };
+}
+
+const GCOLS2 = ['#2d5a27','#2a5124','#2e5c28','#285020','#315e2a','#294d21'];
+
+function render(now) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.translate(canvas.width/2, canvas.height/2);
+  ctx.scale(G.cam.zoom, G.cam.zoom);
+  ctx.translate(-G.cam.x, -G.cam.y);
+
+  const { x0, y0, x1, y1 } = visRange();
+
+  for (let y = y0; y < y1; y++)
+    for (let x = x0; x < x1; x++)
+      drawTile(x, y);
+
+  ctx.strokeStyle = 'rgba(255,200,0,0.18)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(0, 0, GW*CELL, GH*CELL);
+
+  drawEntrance();
+
+  // Draw each building once (skip duplicates from multi-cell footprint)
+  const drawn = new Set();
+  G.buildings.forEach(b => {
+    if (drawn.has(b.id)) return;
+    if (b.x + b.w < x0-1 || b.x > x1 || b.y + b.h < y0-1 || b.y > y1) return;
+    drawn.add(b.id);
+    drawBuilding(b, now);
+  });
+
+  G.guests.forEach(g => {
+    if (g.x/CELL < x0-1 || g.x/CELL > x1 || g.y/CELL < y0-1 || g.y/CELL > y1) return;
+    drawGuest(g);
+  });
+
+  G.particles.forEach(p => {
+    ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  G.floaters.forEach(f => {
+    ctx.globalAlpha = Math.min(1, f.life*1.5);
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 3;
+    ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
+  });
+  ctx.globalAlpha = 1;
+
+  if (G.mouseCell && G.tool) drawHover(G.mouseCell.x, G.mouseCell.y);
+  ctx.restore();
+  renderMinimap();
+}
+
+function drawTile(x, y) {
+  const cell = G.grid[y][x];
+  const px = x*CELL, py = y*CELL;
+  if (cell.type === 0) {
+    ctx.fillStyle = GCOLS2[(x*7+y*3) % GCOLS2.length];
+    ctx.fillRect(px, py, CELL, CELL);
+  } else {
+    ctx.fillStyle = '#9b8464'; ctx.fillRect(px, py, CELL, CELL);
+    ctx.fillStyle = '#b8a07a'; ctx.fillRect(px+1, py+1, CELL-2, CELL-2);
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    if (!isPath(x,y-1)) ctx.fillRect(px+1, py+1, CELL-2, 3);
+    if (!isPath(x,y+1)) ctx.fillRect(px+1, py+CELL-4, CELL-2, 3);
+    if (!isPath(x-1,y)) ctx.fillRect(px+1, py+1, 3, CELL-2);
+    if (!isPath(x+1,y)) ctx.fillRect(px+CELL-4, py+1, 3, CELL-2);
+  }
+}
+
+function drawBuilding(b, now) {
+  const px = b.x*CELL, py = b.y*CELL;
+  const W = b.w*CELL, H = b.h*CELL;
+
+  if (b.pulse > 0) { ctx.shadowColor = b.def.bg; ctx.shadowBlur = 18*b.pulse; }
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(px+5, py+6, W-6, H-6);
+  // Body
+  ctx.fillStyle = b.def.bg;
+  ctx.fillRect(px+2, py+2, W-4, H-4);
+  // Top highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillRect(px+2, py+2, W-4, Math.min(8, H*0.18));
+  // Bottom shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(px+2, py+H-9, W-4, 7);
+
+  // Operating shimmer on rides
+  if (b.def.type === 'ride' && b.operating) {
+    const ox = ((now * 55) % (W-4));
+    const g2 = ctx.createLinearGradient(px+2+ox-10, py, px+2+ox+10, py);
+    g2.addColorStop(0, 'rgba(255,255,255,0)');
+    g2.addColorStop(0.5, 'rgba(255,255,255,0.3)');
+    g2.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g2;
+    ctx.fillRect(px+2, py+2, W-4, H-4);
+  }
+
+  ctx.shadowBlur = 0;
+
+  // Inner cell grid lines for multi-cell buildings
+  if (b.w > 1 || b.h > 1) {
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1;
+    for (let dx = 1; dx < b.w; dx++) {
+      ctx.beginPath(); ctx.moveTo(px+dx*CELL, py+2); ctx.lineTo(px+dx*CELL, py+H-2); ctx.stroke();
+    }
+    for (let dy = 1; dy < b.h; dy++) {
+      ctx.beginPath(); ctx.moveTo(px+2, py+dy*CELL); ctx.lineTo(px+W-2, py+dy*CELL); ctx.stroke();
+    }
+  }
+
+  // Icon
+  const iconSize = Math.floor(Math.min(W, H) * 0.52);
+  ctx.font = `${iconSize}px serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(b.def.icon, px+W/2, py + H/2 - (b.w > 1 || b.h > 1 ? 6 : 3));
+
+  // Name label for large buildings
+  if (b.w > 1 || b.h > 1) {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    const fontSize = Math.max(7, Math.min(11, Math.floor(W/b.def.name.length * 1.2)));
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(b.def.name, px+W/2, py+H-10);
+  }
+
+  // Queue badge
+  const qlen = b.queue.length + b.riders.length + (b.serving ? 1 : 0);
+  if (qlen > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.78)';
+    ctx.fillRect(px+2, py+H-17, W-4, 15);
+    ctx.fillStyle = qlen >= b.def.qmax ? '#e74c3c' : '#fff';
+    ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`👥 ${qlen}`, px+W/2, py+H-9);
+  }
+
+  // Operating dot
+  if (b.operating || b.serving) {
+    const t = (now * 3) % (Math.PI*2);
+    ctx.fillStyle = '#2ecc71';
+    ctx.beginPath();
+    ctx.arc(px+W-9, py+9, 4+Math.sin(t)*0.7, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function drawEntrance() {
+  const ex = G.entrance.x*CELL, ey = 0;
+  ctx.fillStyle = '#f1c40f';
+  ctx.fillRect(ex, ey, 8, CELL); ctx.fillRect(ex+CELL-8, ey, 8, CELL);
+  ctx.fillStyle = '#e67e22'; ctx.fillRect(ex, ey, CELL, 10);
+  ctx.fillStyle = '#f39c12'; ctx.fillRect(ex+8, ey+10, CELL-16, CELL-10);
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(ex+8+i*8, ey+10, 4, CELL-10);
+  }
+  ctx.font = `${Math.floor(CELL*0.45)}px serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🎪', ex+CELL/2, ey+CELL/2+4);
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('ENTRANCE', ex+CELL/2, ey+CELL+8);
+}
+
+function drawGuest(g) {
+  const x = g.x, y = g.y;
+  // Walking cycle: legs swing using age
+  const isMoving = (g.state === 'entering' || g.state === 'wandering' || g.state === 'moving_to_bldg' || g.state === 'exiting');
+  const cycle = isMoving ? Math.sin(g.age * 8) : 0;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath(); ctx.ellipse(x+1, y+8, 4, 2, 0, 0, Math.PI*2); ctx.fill();
+
+  // Legs (dark trousers)
+  ctx.strokeStyle = '#2c3e50';
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  // Left leg
+  ctx.beginPath();
+  ctx.moveTo(x-1, y+2);
+  ctx.lineTo(x-1 + cycle*1.5, y+8);
+  ctx.stroke();
+  // Right leg
+  ctx.beginPath();
+  ctx.moveTo(x+1, y+2);
+  ctx.lineTo(x+1 - cycle*1.5, y+8);
+  ctx.stroke();
+
+  // Body / shirt (guest color)
+  ctx.fillStyle = g.color;
+  ctx.beginPath();
+  ctx.roundRect(x-3, y-4, 6, 7, 1);
+  ctx.fill();
+
+  // Arms (skin tone, animated)
+  ctx.strokeStyle = g.skin;
+  ctx.lineWidth = 2;
+  // Left arm
+  ctx.beginPath();
+  ctx.moveTo(x-3, y-3);
+  ctx.lineTo(x-5 - cycle*1.2, y+1);
+  ctx.stroke();
+  // Right arm
+  ctx.beginPath();
+  ctx.moveTo(x+3, y-3);
+  ctx.lineTo(x+5 + cycle*1.2, y+1);
+  ctx.stroke();
+
+  // Head (skin tone)
+  ctx.fillStyle = g.skin;
+  ctx.beginPath(); ctx.arc(x, y-7, 3.5, 0, Math.PI*2); ctx.fill();
+
+  // Hair (top arc)
+  ctx.fillStyle = g.hairCol;
+  ctx.beginPath();
+  ctx.arc(x, y-7, 3.5, Math.PI, 0);
+  ctx.fill();
+
+  // Eyes
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath(); ctx.arc(x-1.2, y-7, 0.7, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x+1.2, y-7, 0.7, 0, Math.PI*2); ctx.fill();
+
+  // Unhappy indicator
+  if (g.happiness < 30) {
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath(); ctx.arc(x+5, y-13, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 4px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('!', x+5, y-11.5);
+  }
+}
+
+function drawHover(cx, cy) {
+  const def = DEFS[G.tool];
+  const w = def ? (def.w || 1) : 1;
+  const h = def ? (def.h || 1) : 1;
+
+  if (G.tool === 'demolish') {
+    if (!inBounds(cx, cy)) return;
+    const cell = G.grid[cy][cx];
+    const valid = !!(cell.bldg || cell.type === 1);
+    ctx.fillStyle = valid ? 'rgba(231,76,60,0.5)' : 'rgba(100,100,100,0.3)';
+    ctx.fillRect(cx*CELL, cy*CELL, CELL, CELL);
+    ctx.strokeStyle = valid ? 'rgba(255,255,255,0.9)' : 'rgba(231,76,60,0.9)';
+    ctx.lineWidth = 2; ctx.strokeRect(cx*CELL+1, cy*CELL+1, CELL-2, CELL-2);
+    return;
+  }
+
+  if (G.tool === 'path') {
+    if (!inBounds(cx, cy)) return;
+    const cell = G.grid[cy][cx];
+    const valid = !cell.bldg && cell.type === 0;
+    ctx.fillStyle = valid ? 'rgba(184,160,122,0.6)' : 'rgba(231,76,60,0.4)';
+    ctx.fillRect(cx*CELL, cy*CELL, CELL, CELL);
+    ctx.strokeStyle = valid ? 'rgba(255,255,255,0.9)' : 'rgba(231,76,60,0.9)';
+    ctx.lineWidth = 2; ctx.strokeRect(cx*CELL+1, cy*CELL+1, CELL-2, CELL-2);
+    return;
+  }
+
+  if (!def) return;
+  if (!inBounds(cx, cy) || !inBounds(cx+w-1, cy+h-1)) return;
+
+  // Validate footprint
+  let valid = G.money >= def.cost;
+  if (valid) {
+    let hasAdj = false;
+    for (let dy = 0; dy < h && valid; dy++) {
+      for (let dx = 0; dx < w && valid; dx++) {
+        if (!inBounds(cx+dx, cy+dy)) { valid = false; break; }
+        const c = G.grid[cy+dy][cx+dx];
+        if (c.bldg || c.type !== 0) { valid = false; break; }
+        if (adjPaths(cx+dx, cy+dy).length > 0) hasAdj = true;
+      }
+    }
+    if (!hasAdj && def.type !== 'bench') valid = false;
+  }
+
+  const color = valid ? def.bg + '88' : 'rgba(231,76,60,0.45)';
+  ctx.fillStyle = color;
+  ctx.fillRect(cx*CELL, cy*CELL, w*CELL, h*CELL);
+
+  // Cell grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 0.5;
+  for (let dx = 1; dx < w; dx++) {
+    ctx.beginPath(); ctx.moveTo((cx+dx)*CELL, cy*CELL); ctx.lineTo((cx+dx)*CELL, (cy+h)*CELL); ctx.stroke();
+  }
+  for (let dy = 1; dy < h; dy++) {
+    ctx.beginPath(); ctx.moveTo(cx*CELL, (cy+dy)*CELL); ctx.lineTo((cx+w)*CELL, (cy+dy)*CELL); ctx.stroke();
+  }
+
+  // Outline
+  ctx.strokeStyle = valid ? 'rgba(255,255,255,0.9)' : 'rgba(231,76,60,0.9)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cx*CELL+1, cy*CELL+1, w*CELL-2, h*CELL-2);
+
+  if (valid) {
+    ctx.globalAlpha = 0.7;
+    const iSize = Math.floor(Math.min(w,h)*CELL*0.52);
+    ctx.font = `${iSize}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(def.icon, (cx+w/2)*CELL, (cy+h/2)*CELL);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// =====================================================================
+//  MINIMAP
+// =====================================================================
+function renderMinimap() {
+  const W = mm.width, H = mm.height;
+  mctx.fillStyle = '#1a2a1a'; mctx.fillRect(0,0,W,H);
+  const sx = W/GW, sy = H/GH;
+
+  for (let y = 0; y < GH; y++)
+    for (let x = 0; x < GW; x++)
+      if (G.grid[y][x].type === 1) {
+        mctx.fillStyle = '#9b8464';
+        mctx.fillRect(x*sx, y*sy, Math.ceil(sx), Math.ceil(sy));
+      }
+
+  const drawn = new Set();
+  G.buildings.forEach(b => {
+    if (drawn.has(b.id)) return; drawn.add(b.id);
+    mctx.fillStyle = b.def.bg;
+    mctx.fillRect(b.x*sx-0.5, b.y*sy-0.5, b.w*sx+1, b.h*sy+1);
+  });
+
+  mctx.fillStyle = '#f1c40f';
+  mctx.fillRect(G.entrance.x*sx, 0, sx, sy*2);
+
+  mctx.fillStyle = 'rgba(255,255,255,0.9)';
+  G.guests.forEach(g => mctx.fillRect(g.x/CELL*sx-0.5, g.y/CELL*sy-0.5, 1.5, 1.5));
+
+  const tl = c2w(0,0), br = c2w(canvas.width, canvas.height);
+  mctx.strokeStyle = 'rgba(233,69,96,0.85)'; mctx.lineWidth = 1;
+  mctx.strokeRect(tl.x/CELL*sx, tl.y/CELL*sy, (br.x-tl.x)/CELL*sx, (br.y-tl.y)/CELL*sy);
+}
+
+// =====================================================================
+//  UI
+// =====================================================================
+function updateUI() {
+  const m = Math.floor(G.money);
+  const el = document.getElementById('sv-money');
+  el.textContent = '$' + m.toLocaleString();
+  el.className = 'stat-val' + (m < 0 ? ' negative' : m >= 5000 ? ' positive' : '');
+  document.getElementById('sv-guests').textContent = G.guests.length;
+  document.getElementById('sv-rating').textContent = Math.floor(G.rating);
+  document.getElementById('sv-day').textContent    = 'Day ' + G.day;
+  document.getElementById('ps-total').textContent  = G.totalGuests;
+  document.getElementById('ps-rides').textContent  = G.buildings.filter(b => b.def.type === 'ride').length;
+  document.getElementById('ps-income').textContent = '$' + Math.floor(G.dayIncome).toLocaleString();
+}
+
+let toastTid = 0;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTid);
+  toastTid = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// =====================================================================
+//  INPUT
+// =====================================================================
+const keys = {};
+window.addEventListener('keydown', e => { keys[e.key] = true; });
+window.addEventListener('keyup',   e => { keys[e.key] = false; });
+
+canvas.addEventListener('mousedown', e => {
+  G.mouseDown = true;
+  if (e.button === 0 && G.tool) {
+    const r = canvas.getBoundingClientRect();
+    const cell = sToCell(e.clientX - r.left, e.clientY - r.top);
+    placeTile(cell.x, cell.y);
+  }
+  if (e.button === 1 || e.button === 2) {
+    G.panStart = { mx: e.clientX, my: e.clientY };
+    G.panCamAt = { x: G.cam.x, y: G.cam.y };
+  }
+  e.preventDefault();
+});
+
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  G.mouseCell = sToCell(e.clientX - r.left, e.clientY - r.top);
+  if (G.panStart) {
+    G.cam.x = G.panCamAt.x - (e.clientX - G.panStart.mx) / G.cam.zoom;
+    G.cam.y = G.panCamAt.y - (e.clientY - G.panStart.my) / G.cam.zoom;
+  }
+  if (G.mouseDown && e.buttons === 1 && (G.tool === 'path' || G.tool === 'demolish'))
+    placeTile(G.mouseCell.x, G.mouseCell.y);
+});
+
+canvas.addEventListener('mouseup',    () => { G.mouseDown = false; G.panStart = null; });
+canvas.addEventListener('mouseleave', () => { G.mouseCell = null; G.mouseDown = false; G.panStart = null; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left - canvas.width/2;
+  const my = e.clientY - r.top  - canvas.height/2;
+  const oldZ = G.cam.zoom;
+  G.cam.zoom = Math.max(0.2, Math.min(5, G.cam.zoom * (e.deltaY < 0 ? 1.12 : 0.89)));
+  G.cam.x += mx/oldZ - mx/G.cam.zoom;
+  G.cam.y += my/oldZ - my/G.cam.zoom;
+}, { passive: false });
+
+function handleKeys(dt) {
+  const spd = 280*dt/G.cam.zoom;
+  if (keys['ArrowLeft']  || keys['a'] || keys['A']) G.cam.x -= spd;
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) G.cam.x += spd;
+  if (keys['ArrowUp']    || keys['w'] || keys['W']) G.cam.y -= spd;
+  if (keys['ArrowDown']  || keys['s'] || keys['S']) G.cam.y += spd;
+}
+
+// =====================================================================
+//  SPEED
+// =====================================================================
+function setSpeed(s) {
+  G.speed = s; G.paused = s === 0;
+  document.querySelectorAll('.spd-btn').forEach(b =>
+    b.classList.toggle('active', parseInt(b.dataset.spd) === s));
+}
+
+// =====================================================================
+//  SPAWN
+// =====================================================================
+function spawnInterval() {
+  const rides = G.buildings.filter(b => b.def.type === 'ride').length;
+  const svc   = G.buildings.filter(b => ['food','drinks','bathroom'].includes(b.def.type)).length;
+  return Math.max(1.5, 7 - rides * 0.55 - svc * 0.2);
+}
+
+// =====================================================================
+//  MAIN LOOP
+// =====================================================================
+let lastTs = 0, spawnCd = 3, dayCd = 120, uiCd = 0;
+
+function loop(ts) {
+  const rawDt = Math.min((ts - lastTs) / 1000, 0.1);
+  lastTs = ts;
+  handleKeys(rawDt);
+
+  if (!G.paused) {
+    const dt = rawDt * [0, 1, 2.5, 6][G.speed];
+    spawnCd -= dt;
+    if (spawnCd <= 0) { spawnGuest(); spawnCd = spawnInterval(); }
+    dayCd -= dt;
+    if (dayCd <= 0) { dayCd = 120; G.day++; G.dayIncome = 0; }
+    updateGuests(dt);
+    updateBuildings(dt);
+    updateFloaters(dt);
+    updateParticles(dt);
+    updateRating(dt);
+  }
+
+  render(ts / 1000);
+  uiCd -= rawDt;
+  if (uiCd <= 0) { uiCd = 0.1; updateUI(); }
+  requestAnimationFrame(loop);
+}
+
+// =====================================================================
+//  SAVE / LOAD
+// =====================================================================
+function saveGame() {
+  const gridData = G.grid.map(row => row.map(c => c.type));
+
+  const bldgData = G.buildings.map(b => ({
+    id: b.id, kind: b.kind, x: b.x, y: b.y, w: b.w, h: b.h,
+    income: b.income, visits: b.visits,
+    operating: b.operating, timer: b.timer, pulse: b.pulse,
+  }));
+
+  const guestData = G.guests.map(g => ({
+    id: g.id, x: g.x, y: g.y,
+    currentCell: g.currentCell,
+    hunger: g.hunger, thirst: g.thirst, bladder: g.bladder,
+    happiness: g.happiness, wallet: g.wallet, speed: g.speed,
+    rides: g.rides, color: g.color, skin: g.skin, hairCol: g.hairCol,
+    wantLeave: g.wantLeave, age: g.age,
+  }));
+
+  const save = {
+    version: 1,
+    money: G.money, entryFee: G.entryFee, dayIncome: G.dayIncome,
+    totalGuests: G.totalGuests, day: G.day, rating: G.rating,
+    nextGId: G.nextGId, nextBId: G.nextBId,
+    cam: { ...G.cam },
+    grid: gridData,
+    buildings: bldgData,
+    guests: guestData,
+  };
+
+  const blob = new Blob([JSON.stringify(save, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `AmusementArchitect_Day${G.day}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('💾 Game saved!');
+}
+
+function loadGame(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const save = JSON.parse(e.target.result);
+      if (!save.version || !save.grid) throw new Error('Invalid save file');
+
+      // Restore scalar state
+      G.money = save.money; G.entryFee = save.entryFee;
+      G.dayIncome = save.dayIncome; G.totalGuests = save.totalGuests;
+      G.day = save.day; G.rating = save.rating;
+      G.nextGId = save.nextGId; G.nextBId = save.nextBId;
+      G.cam = { ...save.cam };
+
+      // Rebuild grid
+      initGrid(); // resets to blank
+      for (let y = 0; y < GH; y++)
+        for (let x = 0; x < GW; x++)
+          G.grid[y][x].type = save.grid[y][x];
+
+      // Rebuild buildings
+      G.buildings = [];
+      save.buildings.forEach(bd => {
+        const def = DEFS[bd.kind];
+        if (!def) return;
+        const b = {
+          id: bd.id, kind: bd.kind, def, x: bd.x, y: bd.y, w: bd.w, h: bd.h,
+          queue: [], riders: [], serving: null,
+          income: bd.income, visits: bd.visits,
+          operating: false, timer: 0, pulse: 0,
+        };
+        // Mark grid cells
+        for (let dy = 0; dy < b.h; dy++)
+          for (let dx = 0; dx < b.w; dx++)
+            if (inBounds(b.x+dx, b.y+dy))
+              G.grid[b.y+dy][b.x+dx].bldg = b;
+        G.buildings.push(b);
+      });
+
+      // Rebuild guests (reset path state to wandering)
+      G.guests = save.guests.map(gd => ({
+        ...gd,
+        state: 'wandering',
+        targetBldg: null,
+        targetCell: null,
+        wanderCd: Math.random() * 2,
+        stuckTime: 0, lastX: gd.x, lastY: gd.y,
+      }));
+
+      // Sync entry fee input
+      document.getElementById('entry-input').value = G.entryFee;
+      document.getElementById('sv-entry').textContent = '$' + G.entryFee;
+
+      setSpeed(0);
+      showToast('📂 Game loaded — Day ' + G.day + '!');
+    } catch (err) {
+      showToast('⚠️ Failed to load: ' + err.message);
+    }
+    input.value = ''; // reset so same file can be re-loaded
+  };
+  reader.readAsText(file);
+}
+
+// =====================================================================
+//  INIT
+// =====================================================================
+function init() {
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  initGrid();
+  G.cam.x    = G.entrance.x * CELL + CELL/2;
+  G.cam.y    = GH * CELL * 0.1;
+  G.cam.zoom = 1.3;
+  spawnCd = 2;
+  lastTs = performance.now();
+  requestAnimationFrame(loop);
+}
+
+init();
+</script>
+</body>
+</html>
