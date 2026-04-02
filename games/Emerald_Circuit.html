@@ -1,0 +1,488 @@
+<!--
+CATEGORY: Games
+DESCRIPTION: Electro-Dash: Emerald Circuit – A high-stakes futuristic racing card game inspired by classic mechanics. Outmaneuver a neural AI to reach 1000 units while managing system power, deploying EM jammers, and activating deep-firewall shields. Features a sleek dark-green matrix interface, real-time circuit logs, synthesized audio, and a compact, zero-scroll layout.
+TAGS: Racing, Card Game, Strategy, Cyberpunk, AI Opponent
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electro-Dash: Emerald Circuit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+        
+        :root {
+            --neon-green: #00ff88;
+            --deep-forest: #0a1a0a;
+            --matrix-glow: rgba(0, 255, 136, 0.2);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--deep-forest);
+            color: #e0ffe0;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+
+        .card-gradient {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(0, 20, 0, 0.4) 100%);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .card-gradient:hover {
+            transform: translateY(-2px);
+            border-color: var(--neon-green);
+            box-shadow: 0 0 15px var(--matrix-glow);
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #004422, var(--neon-green));
+            box-shadow: 0 0 10px var(--matrix-glow);
+        }
+
+        .log-entry {
+            animation: slideIn 0.3s ease-out;
+            border-left: 2px solid #1a3a1a;
+            padding-left: 8px;
+            margin-bottom: 4px;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1a4a1a; border-radius: 10px; }
+        
+        .main-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <!-- Header -->
+        <header class="flex justify-between items-center shrink-0">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-orbitron font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-600">
+                    EMERALD CIRCUIT
+                </h1>
+                <p class="text-[10px] text-emerald-700 tracking-widest uppercase font-bold">Protocol: Electro-Dash v2.3</p>
+            </div>
+            <div class="flex items-center gap-6">
+                <button id="help-btn" class="text-xs font-orbitron border border-emerald-800 px-3 py-1 rounded hover:bg-emerald-900 transition-colors">
+                    [ MANUAL ]
+                </button>
+                <div class="text-right">
+                    <div class="text-emerald-800 text-[10px] uppercase font-bold">Goal</div>
+                    <div class="text-xl font-orbitron text-emerald-400">1,000</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Body Grid -->
+        <div class="flex-1 flex gap-4 min-h-0">
+            
+            <!-- Left Side: Status + Hand -->
+            <div class="flex-1 flex flex-col gap-4 min-h-0">
+                
+                <!-- Opponent Status (Pinned Top) -->
+                <div class="p-3 rounded-xl bg-black/40 border border-emerald-900/50 shrink-0">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-orbitron text-xs text-emerald-600 uppercase">Opponent Status</span>
+                        <span id="ai-distance" class="font-orbitron text-xs text-emerald-500">0 / 1000</span>
+                    </div>
+                    <div class="h-1.5 w-full bg-emerald-950 rounded-full overflow-hidden">
+                        <div id="ai-progress" class="h-full bg-emerald-500 transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between mt-1">
+                        <div id="ai-hazards" class="flex gap-1 min-h-[16px] text-sm"></div>
+                        <div id="ai-safeties" class="flex gap-1 min-h-[16px] text-xs"></div>
+                    </div>
+                </div>
+
+                <!-- Driver Status (Shrink to fit) -->
+                <div class="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 shrink-0">
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="font-orbitron text-lg text-emerald-400">DRIVER-01</span>
+                        <span id="player-distance" class="font-orbitron text-3xl text-emerald-100">0 / 1000</span>
+                    </div>
+                    <div class="h-3 w-full bg-emerald-950 rounded-full overflow-hidden mb-4">
+                        <div id="player-progress" class="h-full progress-bar transition-all duration-700" style="width: 0%"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 h-16">
+                        <div class="bg-black/20 p-2 rounded border border-emerald-900/50">
+                            <div class="text-[9px] text-emerald-700 uppercase font-bold mb-1">Status Inhibitors</div>
+                            <div id="player-hazards" class="flex flex-wrap gap-1 text-xl"></div>
+                        </div>
+                        <div class="bg-black/20 p-2 rounded border border-emerald-900/50">
+                            <div class="text-[9px] text-emerald-700 uppercase font-bold mb-1">Active Shields</div>
+                            <div id="player-safeties" class="flex flex-wrap gap-1 text-xl"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Player Hand (Fills remainder) -->
+                <div class="flex-1 flex flex-col min-h-0">
+                    <h3 class="text-[10px] text-emerald-700 uppercase font-bold mb-2 tracking-widest">Neural Link Hand</h3>
+                    <div id="hand-container" class="flex-1 overflow-y-auto pr-1">
+                        <div id="hand" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 pb-4">
+                            <!-- Cards injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Logs + Draw -->
+            <div class="w-1/4 min-w-[280px] flex flex-col gap-4 min-h-0">
+                <!-- Logs (Fills top) -->
+                <div class="flex-1 bg-black/40 border border-emerald-900 rounded-xl p-3 flex flex-col min-h-0">
+                    <h3 class="font-orbitron text-[10px] text-emerald-500 mb-2 uppercase tracking-widest border-b border-emerald-900/50 pb-1">Circuit Logs</h3>
+                    <div id="logs" class="flex-1 overflow-y-auto text-[11px] text-emerald-600/80 pr-1">
+                        <div class="log-entry">Booting Emerald OS...</div>
+                    </div>
+                </div>
+
+                <!-- Draw Panel (Pinned Bottom) -->
+                <div class="bg-black/30 border border-emerald-900/40 p-3 rounded-xl shrink-0 flex flex-col gap-2">
+                    <button id="draw-btn" class="w-full py-4 bg-emerald-800 hover:bg-emerald-700 text-white font-orbitron text-sm rounded-lg transition-all disabled:opacity-30 flex items-center justify-center shadow-lg">
+                        RE-SYNC DECK
+                    </button>
+                    <div class="flex justify-between text-[10px] text-emerald-900 font-bold uppercase px-1">
+                        <span>Core Deck</span>
+                        <span id="deck-count">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-6 hidden">
+        <div class="max-w-2xl w-full bg-emerald-950 border border-emerald-500 p-8 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <h2 class="font-orbitron text-2xl text-emerald-400 mb-4 border-b border-emerald-800 pb-2">TECHNICAL MANUAL</h2>
+            <div class="flex-1 space-y-6 text-sm text-emerald-100 overflow-y-auto pr-4">
+                <section>
+                    <h3 class="text-emerald-400 font-bold mb-1 uppercase text-xs tracking-widest">How to Play</h3>
+                    <p class="leading-relaxed">Initiate your journey by syncing a <span class="text-emerald-400 font-bold">GO (Green Light)</span> protocol. You cannot advance without it. Once moving, play Distance cards to reach exactly 1000 Units. If the Opponent deploys a Hazard, you must purge it with the matching Remedy before you can move again.</p>
+                </section>
+
+                <section>
+                    <h3 class="text-emerald-400 font-bold mb-1 uppercase text-xs tracking-widest">Card Definitions</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                        <div class="bg-black/20 p-3 rounded border border-emerald-900">
+                            <p class="font-bold text-emerald-300">⚡ Distance Cards</p>
+                            <p class="text-[11px] text-emerald-600 mt-1">25, 50, 75, 100, or 200 Units. Advancing is only possible if you are in 'GO' state and have no active Hazards.</p>
+                        </div>
+                        <div class="bg-black/20 p-3 rounded border border-emerald-900">
+                            <p class="font-bold text-red-400">🛑 Hazards (Deploy)</p>
+                            <p class="text-[11px] text-emerald-600 mt-1">Stop the Opponent with STOP, DRAIN, CRASH, or JAM. Forces them to find a Remedy before advancing.</p>
+                        </div>
+                        <div class="bg-black/20 p-3 rounded border border-emerald-900">
+                            <p class="font-bold text-emerald-400">🟢 Remedies (Fix)</p>
+                            <p class="text-[11px] text-emerald-600 mt-1">Clears active Hazards. Use GO to fix STOP, CHARGE to fix DRAIN, BOOT for CRASH, and CLEAR for JAM.</p>
+                        </div>
+                        <div class="bg-black/20 p-3 rounded border border-emerald-900">
+                            <p class="font-bold text-yellow-400">🛡️ Shields (Safety)</p>
+                            <p class="text-[11px] text-emerald-600 mt-1">Permanent upgrades. Solar (Battery), Firewall (OS), Link (Signal), or Pilot (Full Auto). Makes you immune to matching Hazards.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h3 class="text-emerald-400 font-bold mb-1 uppercase text-xs tracking-widest">Interface Protocols</h3>
+                    <ul class="list-disc list-inside space-y-1 text-emerald-500 text-[12px]">
+                        <li><span class="text-emerald-200">SYNC:</span> Play card into the circuit.</li>
+                        <li><span class="text-emerald-200">PURGE (🗑️):</span> Discard card to end your turn.</li>
+                        <li><span class="text-emerald-200">RE-SYNC:</span> Draw manually if your hand is not full.</li>
+                    </ul>
+                </section>
+            </div>
+            <button id="close-help" class="mt-6 w-full py-3 bg-emerald-500 text-black font-orbitron rounded-lg hover:bg-white transition-colors">
+                RETURN TO GRID
+            </button>
+        </div>
+    </div>
+
+    <!-- Overlay for Game End -->
+    <div id="overlay" class="fixed inset-0 bg-black/95 z-[70] flex flex-col items-center justify-center p-6 hidden">
+        <h2 id="end-title" class="font-orbitron text-5xl mb-4 text-emerald-400 text-center">CIRCUIT COMPLETE</h2>
+        <p id="end-msg" class="text-xl text-emerald-300 mb-8 text-center max-w-md"></p>
+        <button onclick="location.reload()" class="px-10 py-4 bg-emerald-500 text-black font-orbitron rounded-full hover:bg-white transition-all text-lg shadow-lg">
+            INITIATE NEW RACE
+        </button>
+    </div>
+
+    <script>
+        const GOAL = 1000;
+        const HAND_SIZE = 6;
+        
+        const CARD_TYPES = { DISTANCE: 'distance', HAZARD: 'hazard', REMEDY: 'remedy', SAFETY: 'safety' };
+
+        const CARDS = [
+            { id: 'd25', type: CARD_TYPES.DISTANCE, value: 25, label: '25', icon: '⚡', count: 10 },
+            { id: 'd50', type: CARD_TYPES.DISTANCE, value: 50, label: '50', icon: '⚡⚡', count: 10 },
+            { id: 'd75', type: CARD_TYPES.DISTANCE, value: 75, label: '75', icon: '🚀', count: 10 },
+            { id: 'd100', type: CARD_TYPES.DISTANCE, value: 100, label: '100', icon: '🚀🚀', count: 12 },
+            { id: 'd200', type: CARD_TYPES.DISTANCE, value: 200, label: '200', icon: '🌌', count: 4 },
+            { id: 'h_stop', type: CARD_TYPES.HAZARD, effect: 'STOP', label: 'STOP', icon: '🛑', count: 5 },
+            { id: 'r_go', type: CARD_TYPES.REMEDY, effect: 'GO', label: 'GO', icon: '🟢', count: 14 },
+            { id: 'h_empty', type: CARD_TYPES.HAZARD, effect: 'LOW_BATTERY', label: 'DRAIN', icon: '🪫', count: 3 },
+            { id: 'r_charge', type: CARD_TYPES.REMEDY, effect: 'LOW_BATTERY', label: 'CHARG', icon: '🔌', count: 6 },
+            { id: 'h_glitch', type: CARD_TYPES.HAZARD, effect: 'OS_CRASH', label: 'CRASH', icon: '👾', count: 3 },
+            { id: 'r_reboot', type: CARD_TYPES.REMEDY, effect: 'OS_CRASH', label: 'BOOT', icon: '🛠️', count: 6 },
+            { id: 'h_jam', type: CARD_TYPES.HAZARD, effect: 'EM_JAM', label: 'JAM', icon: '📡', count: 3 },
+            { id: 'r_unjam', type: CARD_TYPES.REMEDY, effect: 'EM_JAM', label: 'CLEAR', icon: '📶', count: 6 },
+            { id: 's_inf', type: CARD_TYPES.SAFETY, effect: 'LOW_BATTERY', label: 'SOLAR', icon: '☀️', count: 1 },
+            { id: 's_fire', type: CARD_TYPES.SAFETY, effect: 'OS_CRASH', label: 'WALL', icon: '🛡️', count: 1 },
+            { id: 's_boost', type: CARD_TYPES.SAFETY, effect: 'EM_JAM', label: 'LINK', icon: '🛰️', count: 1 },
+            { id: 's_auto', type: CARD_TYPES.SAFETY, effect: 'STOP', label: 'PILOT', icon: '🤖', count: 1 }
+        ];
+
+        let deck = [];
+        let player = { distance: 0, hand: [], hazards: [], safeties: [], canMove: false };
+        let ai = { distance: 0, hand: [], hazards: [], safeties: [], canMove: false };
+        let isPlayerTurn = true;
+
+        const playSound = (freq, type = 'sine', duration = 0.08) => {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.05, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch(e) {}
+        };
+
+        const initDeck = () => {
+            deck = [];
+            CARDS.forEach(c => { for(let i=0; i<c.count; i++) deck.push({...c, iid: Math.random()}); });
+            deck.sort(() => Math.random() - 0.5);
+            updateUI();
+        };
+
+        const log = (msg, color = 'text-emerald-600') => {
+            const logEl = document.getElementById('logs');
+            if (!logEl) return;
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${color}`;
+            entry.innerText = msg;
+            logEl.prepend(entry);
+        };
+
+        const drawCard = (entity) => {
+            if (deck.length === 0) initDeck();
+            if (deck.length > 0) {
+                entity.hand.push(deck.pop());
+                updateUI();
+            }
+        };
+
+        const updateUI = () => {
+            const ids = {
+                pDist: 'player-distance', aDist: 'ai-distance', 
+                pProg: 'player-progress', aProg: 'ai-progress', 
+                dCnt: 'deck-count', hand: 'hand'
+            };
+            const els = {};
+            Object.keys(ids).forEach(k => els[k] = document.getElementById(ids[k]));
+
+            if (els.pDist) els.pDist.innerText = `${player.distance}`;
+            if (els.aDist) els.aDist.innerText = `${ai.distance} / 1000`;
+            if (els.pProg) els.pProg.style.width = `${(player.distance / GOAL) * 100}%`;
+            if (els.aProg) els.aProg.style.width = `${(ai.distance / GOAL) * 100}%`;
+            if (els.dCnt) els.dCnt.innerText = deck.length;
+
+            const renderStatus = (ent, pre) => {
+                const hEl = document.getElementById(`${pre}-hazards`);
+                const sEl = document.getElementById(`${pre}-safeties`);
+                if (hEl) {
+                    hEl.innerHTML = ent.hazards.length > 0 ? '' : (!ent.canMove ? '🛑' : '🟢');
+                    ent.hazards.forEach(h => hEl.innerHTML += `<span>${h.icon}</span>`);
+                }
+                if (sEl) {
+                    sEl.innerHTML = '';
+                    ent.safeties.forEach(s => sEl.innerHTML += `<span title="${s.label}">${s.icon}</span>`);
+                }
+            };
+            renderStatus(player, 'player');
+            renderStatus(ai, 'ai');
+
+            if (els.hand) {
+                els.hand.innerHTML = '';
+                player.hand.forEach((c, i) => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = `card-gradient rounded-lg p-1.5 flex flex-col items-center justify-between h-[105px] border relative group ${!isPlayerTurn ? 'opacity-20 pointer-events-none' : 'border-emerald-900/40'}`;
+                    
+                    let col = 'text-white';
+                    if(c.type === 'hazard') col = 'text-red-400';
+                    if(c.type === 'remedy') col = 'text-emerald-400';
+                    if(c.type === 'safety') col = 'text-yellow-400';
+                    if(c.type === 'distance') col = 'text-emerald-100 font-bold';
+
+                    cardDiv.innerHTML = `
+                        <div class="text-xl mt-1">${c.icon}</div>
+                        <div class="text-[9px] font-orbitron uppercase ${col} mb-1">${c.label}</div>
+                        <div class="flex gap-1 w-full shrink-0">
+                            <button onclick="playPlayerCard(${i})" class="flex-1 bg-emerald-600/20 hover:bg-emerald-500 hover:text-black text-[8px] font-orbitron py-1 rounded transition-colors uppercase border border-emerald-500/20">Sync</button>
+                            <button onclick="discardPlayerCard(${i})" class="w-6 bg-red-900/20 hover:bg-red-600 text-white text-[8px] flex items-center justify-center rounded transition-colors border border-red-500/20" title="Purge Data">🗑️</button>
+                        </div>
+                    `;
+                    els.hand.appendChild(cardDiv);
+                });
+            }
+            const dBtn = document.getElementById('draw-btn');
+            if (dBtn) dBtn.disabled = !isPlayerTurn || player.hand.length >= 7;
+        };
+
+        const tryPlayCard = (act, tar, c) => {
+            if (!c) return false;
+            if (c.type === 'distance') {
+                if (!act.canMove || act.hazards.length > 0 || act.distance + c.value > GOAL) return false;
+                if (act.hazards.some(h => h.effect === 'EM_JAM') && c.value > 50) return false;
+                act.distance += c.value;
+                log(`${act === player ? 'YOU' : 'AI'} +${c.value}`, "text-emerald-400 font-bold");
+                return true;
+            }
+            if (c.type === 'hazard') {
+                if (tar.hazards.some(h => h.effect === c.effect) || tar.safeties.some(s => s.effect === c.effect)) return false;
+                if (c.effect === 'STOP' && !tar.canMove) return false;
+                tar.hazards.push(c);
+                if (c.effect === 'STOP') tar.canMove = false;
+                log(`${act === player ? 'DEPLOYED' : 'RECEIVED'} ${c.label}`, "text-red-500 font-bold");
+                return true;
+            }
+            if (c.type === 'remedy') {
+                if (c.effect === 'GO') {
+                    if (act.canMove && !act.hazards.some(h => h.effect === 'STOP')) return false;
+                    act.canMove = true;
+                    act.hazards = act.hazards.filter(h => h.effect !== 'STOP');
+                    log(`SYNCED: GREEN LIGHT`, "text-emerald-400 font-bold");
+                    return true;
+                }
+                const hi = act.hazards.findIndex(h => h.effect === c.effect);
+                if (hi === -1) return false;
+                act.hazards.splice(hi, 1);
+                log(`REPAIRED: ${c.label}`, "text-emerald-400 font-bold");
+                return true;
+            }
+            if (c.type === 'safety') {
+                act.safeties.push(c);
+                act.hazards = act.hazards.filter(h => h.effect !== c.effect);
+                if (c.effect === 'STOP') act.canMove = true;
+                log(`SHIELD UP: ${c.label}`, "text-yellow-500 font-bold");
+                return true;
+            }
+            return false;
+        };
+
+        window.playPlayerCard = (i) => {
+            if (!isPlayerTurn) return;
+            const c = player.hand[i];
+            if (tryPlayCard(player, ai, c)) {
+                player.hand.splice(i, 1);
+                playSound(600);
+                finalizeTurn();
+            } else {
+                playSound(100, 'sawtooth');
+            }
+        };
+
+        window.discardPlayerCard = (i) => {
+            if (!isPlayerTurn) return;
+            const c = player.hand[i];
+            log(`PURGED: ${c.label}`, "text-emerald-900 italic");
+            player.hand.splice(i, 1);
+            playSound(200, 'square');
+            finalizeTurn();
+        };
+
+        const finalizeTurn = () => {
+            checkWin();
+            if (player.hand.length < HAND_SIZE) drawCard(player);
+            isPlayerTurn = false;
+            updateUI();
+            setTimeout(aiTurn, 1000);
+        };
+
+        const aiTurn = () => {
+            while(ai.hand.length < HAND_SIZE && deck.length > 0) ai.hand.push(deck.pop());
+            let mi = ai.hand.findIndex(c => c.type === 'safety');
+            if (mi === -1) mi = ai.hand.findIndex(c => c.type === 'remedy' && tryPlayCard(ai, player, c));
+            if (mi === -1) mi = ai.hand.findIndex(c => c.type === 'hazard' && tryPlayCard(ai, player, c));
+            if (mi === -1) mi = ai.hand.findIndex(c => c.type === 'distance' && tryPlayCard(ai, player, c));
+
+            if (mi !== -1) {
+                ai.hand.splice(mi, 1);
+                playSound(300);
+            } else if (ai.hand.length > 0) {
+                ai.hand.splice(Math.floor(Math.random() * ai.hand.length), 1);
+                log("AI PURGED BUFFER", "text-emerald-950 font-bold opacity-40");
+            }
+            checkWin();
+            isPlayerTurn = true;
+            updateUI();
+        };
+
+        const checkWin = () => {
+            if (player.distance >= GOAL) endGame(true);
+            else if (ai.distance >= GOAL) endGame(false);
+        };
+
+        const endGame = (win) => {
+            const ov = document.getElementById('overlay');
+            if (ov) ov.classList.remove('hidden');
+            document.getElementById('end-title').innerText = win ? "CIRCUIT SECURED" : "SYSTEM PURGED";
+            document.getElementById('end-msg').innerText = win ? "You dominated the emerald grid." : "Neural-X has overridden your protocols.";
+            playSound(win ? 800 : 80, 'sine', 0.5);
+        };
+
+        document.getElementById('draw-btn').onclick = () => {
+            if (isPlayerTurn && player.hand.length < 7) {
+                drawCard(player);
+                playSound(1000, 'sine', 0.05);
+            }
+        };
+
+        // Help UI
+        const hBtn = document.getElementById('help-btn');
+        const hMod = document.getElementById('help-modal');
+        const cMod = document.getElementById('close-help');
+        hBtn.onclick = () => hMod.classList.remove('hidden');
+        cMod.onclick = () => hMod.classList.add('hidden');
+
+        window.onload = () => {
+            initDeck();
+            for(let i=0; i<HAND_SIZE; i++) {
+                if (deck.length > 0) player.hand.push(deck.pop());
+                if (deck.length > 0) ai.hand.push(deck.pop());
+            }
+            updateUI();
+        };
+    </script>
+    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>
