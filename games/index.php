@@ -518,7 +518,9 @@ function h(string $s): string {
         'counter.php',
         '.', '..',
         '.DS_Store',
-        'Thumbs.db'
+        'Thumbs.db',
+        '.gitignore',
+        'favicon' // Ignore the entire favicon directory
     ];
 
     $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'bmp'];
@@ -758,7 +760,7 @@ function h(string $s): string {
     </div>
 
     <div class="footer">
-        Created by Ryan Krawchuk via Agentic Coding (Gemini & ChatGPT). These assets are entirely open-source, copyright-free, and available for unlimited distribution.<br>
+        Created by Ryan Krawchuk via Agentic Coding (Gemini). These assets are entirely open-source, copyright-free, and available for unlimited distribution.<br>
         <a href="./games_to_make.html">Games to Make</a>
     </div>
 
