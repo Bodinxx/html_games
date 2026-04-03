@@ -7,6 +7,16 @@ http://web-mage.ca/games/
 
 ## Games & Tools
 
+### Amusement Architect
+
+<img src="games/Amusement_Architect.webp" alt="Amusement Architect" style="max-width:300px;">
+
+Amusement Architect: A sophisticated theme park management simulation. Design your park by placing paths and choosing from over 30 unique buildings, including classic coasters, thrill rides, water attractions, and guest services. Manage staff like janitors, set ticket prices, and monitor guest needs (hunger, thirst, happiness) in real-time. Features include dynamic pathfinding AI, animated ride art, a minimap system, and persistent JSON save/load functionality.
+
+**Tags:** `Simulation`, `Management`, `Theme Park`, `Pixel Art`, `Resource Management`
+
+---
+
 ### Cosmic Brick Breaker
 
 <img src="games/Cosmic_Brick_Breaker.webp" alt="Cosmic Brick Breaker" style="max-width:300px;">
@@ -84,6 +94,16 @@ An arcade-style subterranean action game featuring tile-based digging mechanics 
 A robust browser-based Dungeon Generator for tabletop RPGs. Features procedural map creation with multiple layout algorithms (Standard, Mine, Labyrinth), customizable themes, difficulty scaling, and interactive canvas rendering. Generates room descriptions with monsters, traps, and treasure based on D&D 5e mechanics, with export options for maps and keys.
 
 **Tags:** `TTRPG` `Procedural` `Tool` `D&D` `Map Generator`
+
+---
+
+### Emerald Circuit
+
+<img src="games/Emerald_Circuit.webp" alt="Emerald Circuit" style="max-width:300px">
+
+Electro-Dash: Emerald Circuit – A high-stakes futuristic racing card game inspired by classic mechanics. Outmaneuver a neural AI to reach 1000 units while managing system power, deploying EM jammers, and activating deep-firewall shields. Features a sleek dark-green matrix interface, real-time circuit logs, synthesized audio, and a compact, zero-scroll layout.
+
+**Tags:** `Racing`, `Card Game`, `Strategy`, `Cyberpunk`, `AI Opponent`
 
 ---
 
@@ -177,6 +197,16 @@ A sleek, futuristic block-stacking puzzle where you must strategically arrange f
 
 ---
 
+### Number Connect
+
+<img src="games/number_connect.webp" alt="Number Connect" style="max-width:300px">
+
+Number Connect is a satisfying number-chaining puzzle where you drag to connect adjacent tiles that share the same value or double it. Build long chains across a 5×5 to 8×8 grid, score multiplier bonuses, advance through levels with bigger tiles, and watch tiles cascade down with smooth animations as you clear your way to a high score.
+
+**Tags:** `Puzzle`, `Math`, `Skill-based`, `Strategy`
+
+---
+
 ### Pro Billiards
 
 <img src="games/Pro_Billiards.webp" alt="Pro Billiards" style="max-width:300px">
@@ -184,6 +214,16 @@ A sleek, futuristic block-stacking puzzle where you must strategically arrange f
 A high-fidelity physics-based pool simulator featuring authentic 8-Ball and 9-Ball modes. Play against an adjustable intelligent AI or practice solo in a responsive, mobile-optimized environment that automatically adapts to portrait and landscape orientations.
 
 **Tags:** `Sports` `Simulation` `Physics` `8-Ball` `9-Ball` `AI`
+
+---
+
+### Quick Draw
+
+<img src="games/Quick_Draw.webp" alt="Quick Draw" style="max-width:300px">
+
+Quick Draw Hex Edition: A fast-paced, hexagonal card matching game inspired by classic discard games. Features a robust AI for up to 6 players, customizable house rules like stacking and redirection, 5 visual themes, and 8 unique special cards. Includes synthesized audio, persistent auto-save, and celebratory fireworks.
+
+**Tags:** `Card Game`, `Strategy`, `AI Opponent`, `Hexagon`
 
 ---
 
