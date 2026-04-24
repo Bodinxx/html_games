@@ -1,0 +1,1635 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Taipan! A deep maritime trading game set in the South China Sea. Navigate 10 historical Far Eastern ports to trade opium, silk, arms, tea, ivory, and general goods. Manage debt to Elder Brother Wu, bank profits in Hong Kong or Macau, and upgrade your ship at the shipyard with cannons, explosive charges, and electric charges. Hire crew to boost combat accuracy in this faithful upgrade of the classic Apple IIc game.
+TAGS: Strategy, Simulation, Trading, Adventure, Old School
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taipan!</title>
+    <style>
+        :root {
+            --bg: #030c03;
+            --green: #00d44a;
+            --green-dim: #007030;
+            --green-bright: #88ffaa;
+            --border: #1a3a1a;
+            --paper: #071007;
+            --danger: #ff4444;
+            --gold: #ffc200;
+            --electric: #55aaff;
+            --electric-dim: #2266aa;
+            --explosive: #ff8c00;
+        }
+
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--green-dim) var(--bg);
+            box-sizing: border-box;
+        }
+        *::-webkit-scrollbar { width: 6px; }
+        *::-webkit-scrollbar-track { background: var(--bg); }
+        *::-webkit-scrollbar-thumb { background: var(--green-dim); }
+        *::-webkit-scrollbar-thumb:hover { background: var(--green); }
+
+        body {
+            background-color: var(--bg);
+            color: var(--green);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            text-transform: uppercase;
+        }
+
+        #setup-container, #game-container {
+            background-color: var(--paper);
+            width: 100%;
+            max-width: 820px;
+            border: 3px solid var(--green);
+            padding: 20px;
+            box-shadow: 0 0 24px rgba(0,212,74,0.15);
+            position: relative;
+        }
+        #game-container { display: none; }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid var(--green);
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+        }
+        h1 { margin: 0; font-size: 2em; letter-spacing: 4px; text-shadow: 0 0 12px var(--green); }
+        h2, h3 { margin: 0 0 6px; letter-spacing: 2px; }
+
+        .setup-box {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            max-width: 440px;
+            margin: 0 auto;
+        }
+        .setup-box label { font-size: 0.85em; color: var(--green-dim); }
+        input[type="text"], input[type="number"] {
+            background: #000;
+            border: 2px solid var(--green-dim);
+            color: var(--green);
+            padding: 8px 10px;
+            font-family: inherit;
+            font-size: 1.1em;
+            outline: none;
+            width: 100%;
+        }
+        input[type="text"]:focus, input[type="number"]:focus { border-color: var(--green); }
+
+        .type-option {
+            border: 2px solid var(--green-dim);
+            padding: 12px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .type-option:hover { border-color: var(--green); background: #0a1a0a; }
+        .type-option.selected { background: var(--green); color: var(--bg); border-color: var(--green); }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 6px;
+            border: 1px solid var(--green-dim);
+            padding: 10px;
+            margin-bottom: 14px;
+            font-size: 0.82em;
+        }
+        .stat-item { padding: 2px 0; }
+        .stat-label { color: var(--green-dim); }
+        .hull-bar-container { width: 100%; height: 6px; background: #111; border: 1px solid var(--green-dim); margin-top: 4px; }
+        .hull-bar-fill { height: 100%; background: var(--green); transition: width 0.3s; }
+
+        .port-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 10px;
+        }
+        @media (max-width: 560px) {
+            .port-view { grid-template-columns: 1fr; }
+            h1 { font-size: 1.5em; }
+        }
+
+        .panel-box {
+            border: 1px solid var(--green-dim);
+            padding: 8px;
+            min-height: 120px;
+        }
+        .panel-box h3 { font-size: 0.85em; border-bottom: 1px solid var(--green-dim); padding-bottom: 4px; margin-bottom: 6px; }
+
+        .market-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+            font-size: 0.78em;
+            border-bottom: 1px dashed var(--border);
+        }
+        .market-item:last-child { border-bottom: none; }
+        .market-risky { color: var(--danger); }
+
+        button {
+            background: var(--bg);
+            color: var(--green);
+            border: 1px solid var(--green-dim);
+            padding: 4px 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.78em;
+            transition: all 0.15s;
+            text-transform: uppercase;
+        }
+        button:hover:not(:disabled) { background: var(--green); color: var(--bg); }
+        button:disabled { border-color: #1a1a1a; color: #333; cursor: not-allowed; }
+
+        .btn-main {
+            padding: 10px 14px;
+            font-size: 0.85em;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .btn-danger { border-color: var(--danger); color: var(--danger); }
+        .btn-danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
+        .btn-electric { border-color: var(--electric); color: var(--electric); }
+        .btn-electric:hover:not(:disabled) { background: var(--electric); color: var(--bg); }
+        .btn-explosive { border-color: var(--explosive); color: var(--explosive); }
+        .btn-explosive:hover:not(:disabled) { background: var(--explosive); color: var(--bg); }
+
+        .log {
+            height: 80px;
+            overflow-y: auto;
+            border: 1px solid var(--green-dim);
+            padding: 6px 8px;
+            font-size: 0.75em;
+            margin-bottom: 12px;
+            background: #000;
+            line-height: 1.5;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            align-items: center;
+        }
+        .actions .btn-main { flex: 1 1 140px; min-width: 130px; }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--paper);
+            border: 3px solid var(--green);
+            padding: 18px;
+            z-index: 100;
+            width: 96%;
+            max-width: 860px;
+            max-height: 96vh;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,212,74,0.2);
+        }
+        .modal h2 { font-size: 1em; border-bottom: 1px solid var(--green-dim); padding-bottom: 6px; margin-bottom: 10px; }
+        .overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.88);
+            display: none; z-index: 90;
+        }
+        #modal-content {
+            overflow-y: auto;
+            flex-grow: 1;
+            font-size: 0.82em;
+            line-height: 1.6;
+        }
+        #modal-close-btn { display: block; margin: 10px auto 0; min-width: 160px; }
+
+        /* Fleet visual */
+        #fleet-visual {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            padding: 12px;
+            min-height: 180px;
+            background: #000;
+            border: 1px solid var(--green-dim);
+            margin: 8px 0;
+            position: relative;
+            overflow: hidden;
+            justify-items: center;
+            align-items: center;
+        }
+        #fleet-visual::after {
+            content: "";
+            position: absolute; inset: 0;
+            background: repeating-linear-gradient(0deg, rgba(0,212,74,0.03) 0px, rgba(0,212,74,0.03) 1px, transparent 1px, transparent 3px);
+            pointer-events: none;
+        }
+        .ship-container { width: 68px; text-align: center; position: relative; transition: all 0.4s; }
+        .ship-icon { width: 60px; height: 60px; fill: var(--green); }
+        .ship-health-small { width: 100%; height: 4px; background: #222; margin-top: 3px; }
+        .ship-health-fill { height: 100%; background: var(--green); transition: width 0.2s; }
+        .ship-container.hit { animation: shake 0.25s; filter: brightness(3); }
+        .ship-container.electric-hit { animation: shake 0.25s; filter: brightness(3) hue-rotate(180deg); }
+        .ship-container.sunk { transform: translateY(40px) rotate(15deg); opacity: 0; }
+        @keyframes shake {
+            0%   { transform: translate(1px,1px) rotate(0deg); }
+            25%  { transform: translate(-3px,0) rotate(1deg); }
+            50%  { transform: translate(3px,2px) rotate(-1deg); }
+            75%  { transform: translate(-1px,-1px) rotate(1deg); }
+            100% { transform: translate(1px,-2px) rotate(-1deg); }
+        }
+        .cannon-ball {
+            position: absolute;
+            width: 6px; height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            bottom: 20px; left: 50%;
+            z-index: 10;
+            box-shadow: 0 0 8px var(--green);
+        }
+        .cannon-ball.explosive { background: var(--explosive); box-shadow: 0 0 14px var(--explosive); width: 9px; height: 9px; }
+
+        /* Electric flash overlay */
+        @keyframes electric-flash {
+            0%   { background: rgba(85,170,255,0); }
+            20%  { background: rgba(85,170,255,0.35); }
+            45%  { background: rgba(85,170,255,0.05); }
+            65%  { background: rgba(85,170,255,0.28); }
+            100% { background: rgba(85,170,255,0); }
+        }
+        .electric-firing::before {
+            content: '';
+            position: absolute; inset: 0;
+            animation: electric-flash 0.9s ease;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        /* Combat stats bar */
+        #combat-stats {
+            font-size: 0.78em; padding: 6px 8px;
+            border: 1px dashed var(--green-dim);
+            background: #000; margin: 6px 0;
+            line-height: 1.7;
+        }
+        #combat-log-small { font-size: 0.72em; min-height: 40px; padding-top: 6px; border-top: 1px solid var(--green-dim); }
+
+        .flex-center { display: flex; align-items: center; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+
+        /* Switch */
+        .switch-container {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.72em; border: 1px solid var(--green-dim);
+            padding: 6px 10px; background: #000;
+        }
+        .switch { position: relative; display: inline-block; width: 36px; height: 18px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; inset: 0;
+            background: #111; border: 1px solid var(--green-dim); transition: .3s;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 10px; width: 10px;
+            left: 3px; bottom: 3px; background: var(--green-dim); transition: .3s;
+        }
+        input:checked + .slider { background: var(--green-dim); border-color: var(--green); }
+        input:checked + .slider:before { transform: translateX(16px); background: var(--green); }
+
+        /* Help table */
+        .help-table { width: 100%; border-collapse: collapse; font-size: 0.82em; margin: 8px 0; }
+        .help-table th, .help-table td { border: 1px solid var(--green-dim); padding: 4px 8px; text-align: left; }
+        .help-table th { background: #0a1a0a; color: var(--green-bright); }
+        .help-table tr:nth-child(even) { background: #050d05; }
+        .help-table .risky { color: var(--danger); }
+
+        /* Port desc */
+        #port-desc { font-size: 0.75em; color: var(--green-dim); margin-top: 3px; font-style: italic; min-height: 1em; }
+
+        .trans-input { width: 100px; font-size: 0.9em; padding: 5px; }
+
+        .section-divider { border: none; border-top: 1px dashed var(--green-dim); margin: 10px 0; }
+
+        .crew-bonus-row { display: flex; justify-content: space-between; padding: 2px 0; }
+
+        .ammo-badge {
+            display: inline-block; padding: 1px 6px; border: 1px solid; font-size: 0.7em;
+            margin-left: 4px; border-radius: 2px;
+        }
+        .ammo-exp { border-color: var(--explosive); color: var(--explosive); }
+        .ammo-elec { border-color: var(--electric); color: var(--electric); }
+    </style>
+</head>
+<body>
+
+<div id="setup-container">
+    <div class="header">
+        <h1>TAIPAN!</h1>
+        <p style="margin:4px 0; font-size:0.85em; color:var(--green-dim);">South China Sea Trading Adventure</p>
+    </div>
+    <div class="setup-box">
+        <label>Enter Your Name:</label>
+        <input type="text" id="player-name-input" maxlength="12" placeholder="TAIPAN">
+
+        <label>Select Starting Class:</label>
+        <div class="type-option selected" id="type1" onclick="selectType(1)">
+            <strong>ESTABLISHED MERCHANT</strong><br>
+            400 Gold &nbsp;·&nbsp; 0 Guns &nbsp;·&nbsp; 5,000 Debt to Elder Brother Wu
+        </div>
+        <div class="type-option" id="type2" onclick="selectType(2)">
+            <strong>SEA WOLF (PRIVATEER)</strong><br>
+            0 Gold &nbsp;·&nbsp; 5 Guns &nbsp;·&nbsp; No Debt
+        </div>
+
+        <button class="btn-main" onclick="startGame()">BEGIN VOYAGE</button>
+        <button class="btn-main" id="continue-btn" style="display:none; border-color:var(--green); font-weight:bold;" onclick="continueGame()">CONTINUE JOURNEY</button>
+        <button class="btn-main" style="border-color:var(--green-dim); color:var(--green-dim);" onclick="showHelp()">HANDBOOK &amp; PRICE GUIDE</button>
+    </div>
+</div>
+
+<div id="game-container">
+    <div class="header">
+        <h1 id="merchant-name-display">TAIPAN!</h1>
+        <div id="location-display" style="font-size:0.9em; margin-top:4px;">PORT: HONG KONG</div>
+        <div id="port-desc"></div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-item"><span class="stat-label">GOLD:</span> <span id="cash">0</span></div>
+        <div class="stat-item"><span class="stat-label">BANK:</span> <span id="bank">0</span></div>
+        <div class="stat-item"><span class="stat-label">DEBT:</span> <span id="debt" style="color:var(--danger)">0</span></div>
+        <div class="stat-item"><span class="stat-label">HOLD:</span> <span id="hold-used">0</span>/<span id="hold-total">100</span></div>
+        <div class="stat-item"><span class="stat-label">GUNS:</span> <span id="guns">0</span></div>
+        <div class="stat-item">
+            HULL: <span id="health">100</span>%
+            <div class="hull-bar-container"><div id="player-hull-fill" class="hull-bar-fill" style="width:100%"></div></div>
+        </div>
+        <div class="stat-item"><span class="stat-label">CREW:</span> <span id="crew-count">0</span>/10</div>
+        <div class="stat-item"><span class="stat-label">EXP:</span> <span id="ammo-explosive">0</span> <span class="ammo-badge ammo-exp">EXPLOSIVE</span></div>
+        <div class="stat-item"><span class="stat-label">ELEC:</span> <span id="ammo-electric">0</span> <span class="ammo-badge ammo-elec">ELECTRIC</span></div>
+    </div>
+
+    <div class="port-view">
+        <div class="panel-box">
+            <h3>MARKET</h3>
+            <div id="market-container"></div>
+        </div>
+        <div class="panel-box">
+            <h3>CARGO HOLD</h3>
+            <div id="inventory-container"></div>
+        </div>
+    </div>
+
+    <div id="log" class="log">Awaiting orders, Taipan...</div>
+
+    <div class="actions" style="margin-top:10px;">
+        <button class="btn-main" onclick="showTravel()">SET SAIL</button>
+        <button class="btn-main" onclick="showHelp()">HANDBOOK</button>
+        <button class="btn-main" id="bank-btn" onclick="visitBank()">BANK</button>
+        <button class="btn-main" id="warehouse-btn" onclick="visitWarehouse()">WAREHOUSE</button>
+        <button class="btn-main" id="yard-btn" onclick="visitShipyard()">SHIPYARD</button>
+        <button class="btn-main" onclick="visitCrew()">CREW</button>
+        <button class="btn-main" id="retire-btn" style="border-color:var(--gold);color:var(--gold);display:none;" onclick="retireGame()">RETIRE</button>
+    </div>
+
+    <div id="overlay" class="overlay"></div>
+    <div id="modal" class="modal">
+        <h2 id="modal-title">MESSAGE</h2>
+        <div id="modal-content"></div>
+        <div id="modal-actions" class="actions" style="margin-top:8px;"></div>
+        <button class="btn-main" id="modal-close-btn" onclick="closeModal()">CLOSE</button>
+    </div>
+</div>
+
+<script>
+// =============================================
+//  GAME CONSTANTS
+// =============================================
+const SAVE_KEY = 'taipan_v2_save';
+
+const commodities = [
+    { name: "Opium",   min: 1000, max: 9000, risky: true,  riskMsg: "CUSTOMS SEIZED YOUR OPIUM AND LEVIED A FINE!" },
+    { name: "Silk",    min: 200,  max: 1200, risky: false, riskMsg: "" },
+    { name: "Arms",    min: 100,  max: 600,  risky: true,  riskMsg: "PORT AUTHORITIES CONFISCATED YOUR ARMS SHIPMENT!" },
+    { name: "General", min: 10,   max: 80,   risky: false, riskMsg: "" },
+    { name: "Tea",     min: 40,   max: 200,  risky: false, riskMsg: "" },
+    { name: "Ivory",   min: 300,  max: 2000, risky: false, riskMsg: "" }
+];
+
+const PORTS = [
+    { name: "Hong Kong",  bank: true,  warehouse: true,  shipyard: "full",     desc: "Your home port. Elder Brother Wu's moneylenders hold court here." },
+    { name: "Shanghai",   bank: false, warehouse: false, shipyard: null,        desc: "A great northern port bustling with silk and tea merchants." },
+    { name: "Nagasaki",   bank: false, warehouse: false, shipyard: null,        desc: "A Japanese port famed for arms and fine lacquerware." },
+    { name: "Saigon",     bank: false, warehouse: false, shipyard: null,        desc: "Dense jungle trade — opium and ivory flow freely here." },
+    { name: "Manila",     bank: false, warehouse: false, shipyard: null,        desc: "Spanish galleons and prized goods pass through these docks." },
+    { name: "Singapore",  bank: false, warehouse: false, shipyard: "electric",  desc: "A vital straits port. Unusual electrical weapons are available here." },
+    { name: "Batavia",    bank: false, warehouse: false, shipyard: null,        desc: "Dutch colonial port — rich in general goods and spices." },
+    { name: "Canton",     bank: false, warehouse: false, shipyard: null,        desc: "Gateway to the Chinese interior, awash in commerce." },
+    { name: "Macau",      bank: true,  warehouse: false, shipyard: null,        desc: "Portuguese enclave and hub for high-value transactions." },
+    { name: "Formosa",    bank: false, warehouse: false, shipyard: null,        desc: "A windswept island with cheap goods and hidden dangers." }
+];
+
+const SHIP_SPRITE = `
+    <svg class="ship-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 40 L54 40 L48 52 L16 52 Z" />
+        <rect x="20" y="10" width="2" height="30" />
+        <rect x="42" y="15" width="2" height="25" />
+        <path d="M22 12 Q35 15 35 25 Q22 35 22 12" fill="none" stroke="currentColor" stroke-width="2" />
+        <path d="M44 17 Q52 20 52 28 Q44 35 44 17" fill="none" stroke="currentColor" stroke-width="2" />
+        <rect x="15" y="42" width="4" height="2" fill="var(--bg)" />
+        <rect x="25" y="42" width="4" height="2" fill="var(--bg)" />
+        <rect x="35" y="42" width="4" height="2" fill="var(--bg)" />
+        <rect x="45" y="42" width="4" height="2" fill="var(--bg)" />
+    </svg>`;
+
+// =============================================
+//  GAME STATE
+// =============================================
+let state = {
+    playerName: "TAIPAN",
+    cash: 400,
+    bank: 0,
+    debt: 5000,
+    holdTotal: 100,
+    warehouseTotal: 1000,
+    guns: 0,
+    health: 100,
+    currentPort: "Hong Kong",
+    inventory: { Opium: 0, Silk: 0, Arms: 0, General: 0, Tea: 0, Ivory: 0 },
+    warehouse: { Opium: 0, Silk: 0, Arms: 0, General: 0, Tea: 0, Ivory: 0 },
+    prices: {},
+    selectedType: 1,
+    combat: null,
+    voyageCount: 0,
+    autoCombat: false,
+    lastCombatAction: null,
+    crew: 0,
+    ammo: { explosive: 0, electric: 0 },
+    liYuenProtected: 0   // remaining voyages of Li Yuen protection
+};
+
+// =============================================
+//  SETUP / SAVE / LOAD
+// =============================================
+function selectType(t) {
+    state.selectedType = t;
+    document.getElementById('type1').classList.toggle('selected', t === 1);
+    document.getElementById('type2').classList.toggle('selected', t === 2);
+}
+
+function startGame() {
+    const name = document.getElementById('player-name-input').value.trim().toUpperCase();
+    state.playerName = name || "TAIPAN";
+    if (state.selectedType === 1) {
+        state.cash = 400; state.guns = 0; state.debt = 5000;
+    } else {
+        state.cash = 0; state.guns = 5; state.debt = 0;
+    }
+    document.getElementById('setup-container').style.display = 'none';
+    document.getElementById('game-container').style.display = 'block';
+    document.getElementById('merchant-name-display').innerText = state.playerName;
+    init();
+}
+
+function continueGame() {
+    try {
+        const saved = localStorage.getItem(SAVE_KEY);
+        if (saved) {
+            state = JSON.parse(saved);
+            // Ensure new fields exist in older saves
+            if (!state.ammo)           state.ammo = { explosive: 0, electric: 0 };
+            if (state.crew === undefined) state.crew = 0;
+            if (state.liYuenProtected === undefined) state.liYuenProtected = 0;
+            document.getElementById('setup-container').style.display = 'none';
+            document.getElementById('game-container').style.display = 'block';
+            document.getElementById('merchant-name-display').innerText = state.playerName;
+            init();
+        }
+    } catch(e) { console.error("Load failed", e); }
+}
+
+function saveProgress() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function init() {
+    updatePrices();
+    render();
+    log(`THE VOYAGE COMMENCES IN ${state.currentPort.toUpperCase()}. MAY FORTUNE FAVOUR THE BOLD.`);
+}
+
+// =============================================
+//  LOGGING & RENDERING
+// =============================================
+function log(msg, color) {
+    const logEl = document.getElementById('log');
+    const style = color ? ` style="color:${color}"` : '';
+    logEl.innerHTML += `<div${style}>&gt; ${msg}</div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+function getPortData(name) {
+    return PORTS.find(p => p.name === name) || PORTS[0];
+}
+
+function getHoldUsed() {
+    const cargo  = Object.values(state.inventory).reduce((a, b) => a + b, 0);
+    const gunSpc = state.guns * 10;
+    const crewSpc = state.crew * 2;
+    return cargo + gunSpc + crewSpc;
+}
+
+function getWarehouseUsed() {
+    return Object.values(state.warehouse).reduce((a, b) => a + b, 0);
+}
+
+function getCrewBonus() {
+    if (state.crew >= 9) return 0.45;
+    if (state.crew >= 7) return 0.35;
+    if (state.crew >= 5) return 0.25;
+    if (state.crew >= 3) return 0.15;
+    if (state.crew >= 1) return 0.05;
+    return 0;
+}
+
+function updatePrices() {
+    const port = getPortData(state.currentPort);
+    commodities.forEach(c => {
+        let price = Math.floor(Math.random() * (c.max - c.min) + c.min);
+        // Some ports have price tendencies for flavour
+        if (state.currentPort === "Shanghai"  && (c.name === "Silk" || c.name === "Tea"))    price = Math.floor(price * 0.8);
+        if (state.currentPort === "Nagasaki"  && c.name === "Arms")   price = Math.floor(price * 0.85);
+        if (state.currentPort === "Saigon"    && c.name === "Opium")  price = Math.floor(price * 0.8);
+        if (state.currentPort === "Manila"    && c.name === "Ivory")  price = Math.floor(price * 0.85);
+        if (state.currentPort === "Batavia"   && c.name === "General")price = Math.floor(price * 0.8);
+        if (state.currentPort === "Formosa"   && c.name === "General")price = Math.floor(price * 0.7);
+        state.prices[c.name] = price;
+    });
+    // Occasional market event
+    if (Math.random() > 0.82) {
+        const c = commodities[Math.floor(Math.random() * commodities.length)];
+        const high = Math.random() > 0.5;
+        state.prices[c.name] = high ? Math.floor(c.max * 1.8) : Math.max(1, Math.floor(c.min * 0.4));
+        log(`RUMOUR: ${c.name.toUpperCase()} IS ${high ? "SCARCE — PRICES SOARING" : "FLOODING THE MARKET — PRICES CRASHING"} IN ${state.currentPort.toUpperCase()}.`, high ? "var(--gold)" : "var(--electric)");
+    }
+}
+
+function render() {
+    const portData = getPortData(state.currentPort);
+    document.getElementById('cash').innerText        = state.cash.toLocaleString();
+    document.getElementById('bank').innerText        = state.bank.toLocaleString();
+    document.getElementById('debt').innerText        = state.debt.toLocaleString();
+    document.getElementById('health').innerText      = Math.round(state.health);
+    document.getElementById('player-hull-fill').style.width = `${state.health}%`;
+    document.getElementById('guns').innerText        = state.guns;
+    document.getElementById('hold-used').innerText   = getHoldUsed();
+    document.getElementById('hold-total').innerText  = state.holdTotal;
+    document.getElementById('crew-count').innerText  = state.crew;
+    document.getElementById('ammo-explosive').innerText = state.ammo.explosive;
+    document.getElementById('ammo-electric').innerText  = state.ammo.electric;
+    document.getElementById('location-display').innerText = `PORT: ${state.currentPort.toUpperCase()}`;
+    document.getElementById('port-desc').innerText   = portData.desc;
+
+    // Market
+    let mHtml = '';
+    commodities.forEach(c => {
+        const p = state.prices[c.name];
+        mHtml += `<div class="market-item ${c.risky ? 'market-risky' : ''}">
+            <span>${c.name}: ${p.toLocaleString()}${c.risky ? ' ⚠' : ''}</span>
+            <div>
+                <button onclick="openTradeModal('${c.name}','buy')">BUY</button>
+                <button onclick="openTradeModal('${c.name}','sell')">SELL</button>
+            </div>
+        </div>`;
+    });
+    document.getElementById('market-container').innerHTML = mHtml;
+
+    // Inventory
+    let iHtml = '';
+    commodities.forEach(c => {
+        const sq = state.inventory[c.name];
+        const wq = state.warehouse[c.name];
+        if (sq > 0 || wq > 0) {
+            iHtml += `<div class="market-item"><span>${c.name}: ${sq} <span style="color:var(--green-dim)">(WH:${wq})</span></span></div>`;
+        }
+    });
+    if (!iHtml) iHtml = `<div style="color:var(--green-dim);font-size:0.82em;">HOLD EMPTY</div>`;
+    document.getElementById('inventory-container').innerHTML = iHtml;
+
+    // Show/hide context buttons
+    document.getElementById('bank-btn').style.display      = portData.bank      ? 'flex' : 'none';
+    document.getElementById('warehouse-btn').style.display = portData.warehouse  ? 'flex' : 'none';
+    document.getElementById('yard-btn').style.display      = portData.shipyard   ? 'flex' : 'none';
+    document.getElementById('retire-btn').style.display    = (portData.bank && state.voyageCount >= 5) ? 'flex' : 'none';
+}
+
+// =============================================
+//  TRADING
+// =============================================
+function openTradeModal(item, mode) {
+    const price   = state.prices[item];
+    const used    = getHoldUsed();
+    const free    = state.holdTotal - used;
+    const maxBuy  = Math.min(free, Math.floor(state.cash / price));
+    const maxSell = state.inventory[item];
+    const comData = commodities.find(c => c.name === item);
+
+    let html = '';
+    if (mode === 'buy') {
+        html = `<p>PURCHASING <strong>${item.toUpperCase()}</strong></p>
+                <p>UNIT PRICE: ${price.toLocaleString()} GOLD &nbsp;|&nbsp; MAX: ${maxBuy} UNITS</p>
+                ${comData.risky ? `<p style="color:var(--danger)">⚠ WARNING: ${item.toUpperCase()} IS CONTRABAND — RISK OF SEIZURE ON ARRIVAL.</p>` : ''}
+                <div class="flex-center">
+                    <input type="number" id="trade-qty" class="trans-input" min="1" max="${maxBuy}" value="${maxBuy}">
+                    <button onclick="document.getElementById('trade-qty').value=${maxBuy}">MAX</button>
+                </div>
+                <button class="btn-main" onclick="executeTrade('${item}',${price},1)">CONFIRM PURCHASE</button>`;
+    } else {
+        html = `<p>SELLING <strong>${item.toUpperCase()}</strong></p>
+                <p>UNIT PRICE: ${price.toLocaleString()} GOLD &nbsp;|&nbsp; IN HOLD: ${maxSell} UNITS</p>
+                <div class="flex-center">
+                    <input type="number" id="trade-qty" class="trans-input" min="1" max="${maxSell}" value="${maxSell}">
+                    <button onclick="document.getElementById('trade-qty').value=${maxSell}">MAX</button>
+                </div>
+                <button class="btn-main" onclick="executeTrade('${item}',${price},-1)">CONFIRM SALE</button>`;
+    }
+    showModal(mode === 'buy' ? "MARKET: BUY" : "MARKET: SELL", html, true);
+}
+
+function executeTrade(item, price, dir) {
+    const qty = parseInt(document.getElementById('trade-qty').value) || 0;
+    if (qty <= 0) return;
+    if (dir === 1) {
+        const cost  = qty * price;
+        const space = state.holdTotal - getHoldUsed();
+        if (qty > space)          { log("NOT ENOUGH SPACE IN THE HOLD."); return; }
+        if (cost > state.cash)    { log("YOU LACK THE NECESSARY GOLD."); return; }
+        state.cash -= cost;
+        state.inventory[item] += qty;
+        log(`PURCHASED ${qty} UNITS OF ${item.toUpperCase()} FOR ${cost.toLocaleString()} GOLD.`);
+    } else {
+        if (qty > state.inventory[item]) { log("YOU DON'T HAVE THAT MANY UNITS."); return; }
+        const earn = qty * price;
+        state.cash += earn;
+        state.inventory[item] -= qty;
+        log(`SOLD ${qty} UNITS OF ${item.toUpperCase()} FOR ${earn.toLocaleString()} GOLD.`);
+    }
+    closeModal();
+    render();
+}
+
+// =============================================
+//  NAVIGATION
+// =============================================
+function showTravel() {
+    let html = '<p style="color:var(--green-dim);margin-bottom:8px;">SELECT DESTINATION:</p><div class="actions">';
+    PORTS.forEach(p => {
+        const isCurrent = p.name === state.currentPort;
+        html += `<button class="btn-main" style="min-width:130px" ${isCurrent ? 'disabled' : ''} onclick="travel('${p.name}')">${p.name.toUpperCase()}</button>`;
+    });
+    html += '</div>';
+    showModal("NAVIGATION CHART", html, true);
+}
+
+function travel(dest) {
+    closeModal();
+    log(`SAILS UNFURLED. SETTING COURSE FOR ${dest.toUpperCase()}.`);
+    state.currentPort = dest;
+
+    // Li Yuen protection reduces encounter chance
+    const protectionRoll = state.liYuenProtected > 0 && Math.random() > 0.25;
+
+    if (protectionRoll) {
+        log("LI YUEN'S FLAG FLIES ON YOUR MAST — THE PIRATES HOLD BACK.", "var(--green-dim)");
+        state.liYuenProtected = Math.max(0, state.liYuenProtected - 1);
+        arrive();
+        return;
+    }
+
+    const roll = Math.random();
+    if      (roll < 0.38) startEncounter();
+    else if (roll < 0.44) stormEvent();
+    else if (roll < 0.50) customsEvent();
+    else if (roll < 0.54) liYuenOffer();
+    else                  arrive();
+}
+
+// =============================================
+//  RANDOM EVENTS
+// =============================================
+function stormEvent() {
+    const dmg = Math.floor(Math.random() * 14) + 4;
+    state.health = Math.max(1, state.health - dmg);
+    log(`A VIOLENT STORM BATTERED THE HULL. INTEGRITY REDUCED BY ${dmg}%.`, "var(--danger)");
+    if (state.health <= 15) log("THE SHIP IS BARELY SEAWORTHY! SEEK REPAIRS IMMEDIATELY!", "var(--danger)");
+    arrive();
+}
+
+function customsEvent() {
+    let seized = false;
+    commodities.filter(c => c.risky).forEach(c => {
+        if (state.inventory[c.name] > 0 && Math.random() > 0.5) {
+            const qty   = state.inventory[c.name];
+            const fine  = Math.floor(state.cash * 0.2 + 500);
+            state.inventory[c.name] = 0;
+            state.cash = Math.max(0, state.cash - fine);
+            log(`${c.riskMsg} ${qty} UNITS LOST, FINED ${fine.toLocaleString()} GOLD.`, "var(--danger)");
+            seized = true;
+        }
+    });
+    if (!seized) log("CUSTOMS INSPECTION — NOTHING SUSPICIOUS FOUND. CARRY ON.");
+    arrive();
+}
+
+function liYuenOffer() {
+    if (state.liYuenProtected > 0) { arrive(); return; }
+    const tribute = Math.floor(state.cash * 0.12 + 800);
+    const html = `
+        <p>A FLEET OF JUNKS BLOCKS YOUR PATH. THE LEAD SHIP HOISTS LI YUEN'S BANNER.</p>
+        <p>"TAIPAN! PAY TRIBUTE OF <strong style="color:var(--gold)">${tribute.toLocaleString()} GOLD</strong> AND SAIL FREE FOR THREE VOYAGES. OR FACE OUR CANNONS!"</p>
+        <div class="actions" style="margin-top:12px;">
+            <button class="btn-main" onclick="payLiYuen(${tribute})" ${state.cash < tribute ? 'disabled' : ''}>PAY TRIBUTE (${tribute.toLocaleString()})</button>
+            <button class="btn-main btn-danger" onclick="closeLiYuenFight()">REFUSE — BATTLE!</button>
+            <button class="btn-main" onclick="closeLiYuenFlee()">ATTEMPT TO FLEE</button>
+        </div>
+        ${state.cash < tribute ? '<p style="color:var(--danger);font-size:0.8em;">YOU CANNOT AFFORD THE TRIBUTE.</p>' : ''}
+    `;
+    showModal("LI YUEN'S DEMAND", html, false);
+}
+
+function payLiYuen(tribute) {
+    state.cash -= tribute;
+    state.liYuenProtected = 3;
+    log(`TRIBUTE PAID TO LI YUEN. HIS FLAG WILL PROTECT YOU FOR 3 VOYAGES.`, "var(--gold)");
+    closeModal();
+    arrive();
+}
+
+function closeLiYuenFight() {
+    closeModal();
+    // Li Yuen's fleet is larger
+    const fleet = Math.floor(Math.random() * 20) + 15 + Math.floor(state.voyageCount / 3);
+    startEncounterWithFleet(fleet);
+}
+
+function closeLiYuenFlee() {
+    closeModal();
+    if (Math.random() > 0.45) {
+        log("YOU SLIPPED PAST LI YUEN'S FLEET IN THE FOG!");
+        arrive();
+    } else {
+        log("LI YUEN'S JUNKS ARE TOO FAST! THEY PURSUE!", "var(--danger)");
+        const fleet = Math.floor(Math.random() * 15) + 10;
+        startEncounterWithFleet(fleet);
+    }
+}
+
+// =============================================
+//  COMBAT
+// =============================================
+function startEncounter() {
+    const base  = Math.floor(Math.random() * 30) + 5;
+    const bonus = Math.floor(state.voyageCount / 4);
+    startEncounterWithFleet(base + bonus);
+}
+
+function startEncounterWithFleet(fleetSize) {
+    state.combat = {
+        fleetSize,
+        initialFleetSize: fleetSize,
+        status: "PIRATES ON THE HORIZON! PREPARE FOR BATTLE!",
+        logs: [],
+        busy: false,
+        ships: Array.from({ length: fleetSize }, (_, i) => ({ id: i, health: 100, alive: true })),
+        totalSunk: 0
+    };
+    state.autoCombat = false;
+    state.lastCombatAction = null;
+    renderCombat();
+}
+
+function renderCombat() {
+    const c = state.combat;
+    const alive = c.ships.filter(s => s.alive);
+    const shown = alive.slice(0, 10);
+
+    let fleetHTML = shown.map(s => `
+        <div class="ship-container" id="ship-${s.id}">
+            ${SHIP_SPRITE}
+            <div class="ship-health-small">
+                <div class="ship-health-fill" id="health-fill-${s.id}" style="width:${s.health}%"></div>
+            </div>
+        </div>`).join('');
+
+    const crewBonus = Math.round(getCrewBonus() * 100);
+    const html = `
+        <div id="fleet-visual">${fleetHTML}</div>
+        <div id="combat-stats">
+            ENEMY FLEET: ${alive.length} SHIPS REMAINING &nbsp;|&nbsp; SUNK: ${c.totalSunk}<br>
+            YOUR HULL: ${Math.round(state.health)}% &nbsp;|&nbsp; GUNS: ${state.guns} &nbsp;|&nbsp; CREW BONUS: +${crewBonus}% ACC<br>
+            AMMO — EXP: ${state.ammo.explosive} &nbsp;·&nbsp; ELEC: ${state.ammo.electric}
+        </div>
+        <p id="combat-status" style="font-size:0.85em;margin:4px 0;">${c.status}</p>
+        <div id="combat-log-small">${c.logs.slice(-3).join('<br>')}</div>`;
+
+    const busy = c.busy;
+    const hasGuns = state.guns > 0;
+    const actions = `
+        <button class="btn-main" id="btn-broadside" onclick="combatAction('broadside')" ${(busy || !hasGuns) ? 'disabled' : ''}>BROADSIDE</button>
+        <button class="btn-main btn-explosive" id="btn-explosive" onclick="combatAction('explosive')" ${(busy || !hasGuns || state.ammo.explosive <= 0) ? 'disabled' : ''}>EXPLOSIVE FIRE (${state.ammo.explosive})</button>
+        <button class="btn-main btn-electric" id="btn-electric" onclick="combatAction('electric')" ${(busy || state.ammo.electric <= 0) ? 'disabled' : ''}>ELECTRIC STRIKE (${state.ammo.electric})</button>
+        <button class="btn-main" id="btn-run" onclick="combatAction('run')" ${busy ? 'disabled' : ''}>RUN</button>
+        <button class="btn-main" id="btn-throw" onclick="combatAction('throw')" ${busy ? 'disabled' : ''}>THROW CARGO</button>
+        <div class="switch-container">
+            <span>AUTO:</span>
+            <label class="switch">
+                <input type="checkbox" id="auto-toggle" ${state.autoCombat ? 'checked' : ''} onchange="toggleAuto(this)">
+                <span class="slider"></span>
+            </label>
+        </div>`;
+
+    showModal("SEA BATTLE", html, false, actions);
+}
+
+function refreshFleetVisual() {
+    const c = state.combat;
+    const shown = c.ships.filter(s => s.alive).slice(0, 10);
+    const html = shown.map(s => `
+        <div class="ship-container" id="ship-${s.id}">
+            ${SHIP_SPRITE}
+            <div class="ship-health-small">
+                <div class="ship-health-fill" id="health-fill-${s.id}" style="width:${s.health}%"></div>
+            </div>
+        </div>`).join('');
+    const el = document.getElementById('fleet-visual');
+    if (el) el.innerHTML = html;
+}
+
+function toggleAuto(el) {
+    state.autoCombat = el.checked;
+    if (state.autoCombat && state.lastCombatAction && state.combat && !state.combat.busy) {
+        combatAction(state.lastCombatAction);
+    }
+}
+
+async function combatAction(type) {
+    if (state.combat.busy) return;
+    state.combat.busy = true;
+
+    // Only set lastCombatAction for repeatable actions
+    if (type === 'broadside' || type === 'run') state.lastCombatAction = type;
+    renderCombat();
+
+    const c = state.combat;
+    c.logs = [];
+
+    if (type === 'broadside') {
+        if (state.guns === 0) {
+            c.status = "WE HAVE NO GUNS! THE CREW IS IN DESPAIR!";
+        } else {
+            await fireBroadside('standard');
+            if (checkVictory()) return;
+        }
+        await enemyVolley();
+        checkMoraleBreak();
+    }
+    else if (type === 'explosive') {
+        state.ammo.explosive--;
+        await fireBroadside('explosive');
+        if (checkVictory()) return;
+        await enemyVolley();
+        checkMoraleBreak();
+    }
+    else if (type === 'electric') {
+        state.ammo.electric--;
+        await fireElectric();
+        if (checkVictory()) return;
+        await enemyVolley();
+        checkMoraleBreak();
+    }
+    else if (type === 'run') {
+        const ratio   = getHoldUsed() / state.holdTotal;
+        const chance  = 0.38 + 0.32 * (1 - ratio);
+        if (Math.random() < chance) {
+            const loot = bountyReward();
+            c.status = `ESCAPED! BOUNTY FOR ${c.totalSunk} DEFEATED SHIPS: ${loot.toLocaleString()} GOLD.`;
+            state.combat.busy = false;
+            endCombat();
+            return;
+        } else {
+            c.status = "THEY MATCH OUR SPEED! WE CANNOT OUTRUN THEM!";
+            await enemyVolley();
+            checkMoraleBreak();
+        }
+    }
+    else if (type === 'throw') {
+        let found = false;
+        for (const item in state.inventory) {
+            if (state.inventory[item] > 0) {
+                const thrown = Math.min(state.inventory[item], 20);
+                state.inventory[item] -= thrown;
+                c.status = `JETTISONED ${thrown} UNITS OF ${item.toUpperCase()} TO LIGHTEN LOAD.`;
+                found = true;
+                break;
+            }
+        }
+        if (!found) c.status = "THE HOLD IS ALREADY EMPTY — NOTHING TO THROW!";
+    }
+
+    state.combat.busy = false;
+    if (!state.combat) return; // ended during volley
+    renderCombat();
+
+    if (state.autoCombat && state.combat && (type === 'broadside' || type === 'run')) {
+        setTimeout(() => {
+            if (state.autoCombat && state.combat && !state.combat.busy) combatAction(type);
+        }, 900);
+    }
+}
+
+function checkVictory() {
+    const c = state.combat;
+    if (c.ships.filter(s => s.alive).length <= 0) {
+        const loot = bountyReward();
+        c.status = `VICTORY! BOUNTY FOR ${c.totalSunk} DEFEATED SHIPS: ${loot.toLocaleString()} GOLD.`;
+        state.combat.busy = false;
+        endCombat();
+        return true;
+    }
+    return false;
+}
+
+function bountyReward() {
+    const perShip = 200 + state.voyageCount * 30;
+    const loot = state.combat.totalSunk * perShip;
+    state.cash += loot;
+    return loot;
+}
+
+function checkMoraleBreak() {
+    const c = state.combat;
+    if (!c) return;
+    let fled = 0;
+    c.ships.forEach(s => {
+        if (s.alive && Math.random() < 0.12) {
+            s.alive = false;
+            fled++;
+            c.totalSunk++;
+            const el = document.getElementById(`ship-${s.id}`);
+            if (el) el.classList.add('sunk');
+        }
+    });
+    if (fled > 0) {
+        c.logs.push(`${fled} PIRATE SHIPS BROKE FORMATION AND FLED!`);
+        if (c.ships.filter(s => s.alive).length <= 0) {
+            const loot = bountyReward();
+            c.status = `ENEMIES DISPERSED. BOUNTY: ${loot.toLocaleString()} GOLD.`;
+            state.combat.busy = false;
+            endCombat();
+            return;
+        }
+        refreshFleetVisual();
+    }
+}
+
+async function fireBroadside(ammoType) {
+    const c = state.combat;
+    const visual = document.getElementById('fleet-visual');
+    const crewBonus = getCrewBonus();
+    let sunkCount = 0;
+    const isExplosive = ammoType === 'explosive';
+    const baseHitChance = isExplosive ? 0.70 + crewBonus : 0.48 + crewBonus;
+    const minDmg = isExplosive ? 40 : 20;
+    const maxDmg = isExplosive ? 85 : 60;
+
+    for (let i = 0; i < state.guns; i++) {
+        const alive = c.ships.filter(s => s.alive).slice(0, 10);
+        if (alive.length === 0) break;
+
+        const target = alive[Math.floor(Math.random() * alive.length)];
+        const targetEl = document.getElementById(`ship-${target.id}`);
+        if (!targetEl) { refreshFleetVisual(); i--; continue; }
+
+        // Animate cannonball
+        if (visual) {
+            const ball = document.createElement('div');
+            ball.className = isExplosive ? 'cannon-ball explosive' : 'cannon-ball';
+            visual.appendChild(ball);
+            const tRect = targetEl.getBoundingClientRect();
+            const vRect = visual.getBoundingClientRect();
+            const dx = (tRect.left + tRect.width / 2) - vRect.left;
+            const dy = (tRect.top  + tRect.height / 2) - vRect.top;
+            ball.style.transition = 'all 0.18s linear';
+            await new Promise(r => setTimeout(r, 10));
+            ball.style.transform = `translate(${dx - vRect.width / 2}px, ${dy - vRect.height}px)`;
+            await new Promise(r => setTimeout(r, 180));
+            ball.remove();
+        }
+
+        if (Math.random() < baseHitChance) {
+            const dmg = Math.floor(Math.random() * (maxDmg - minDmg) + minDmg);
+            target.health = Math.max(0, target.health - dmg);
+            const fillEl = document.getElementById(`health-fill-${target.id}`);
+            if (fillEl) fillEl.style.width = `${target.health}%`;
+            targetEl.classList.add('hit');
+            setTimeout(() => targetEl.classList.remove('hit'), 220);
+
+            if (target.health <= 0) {
+                target.alive = false;
+                targetEl.classList.add('sunk');
+                sunkCount++;
+                c.totalSunk++;
+
+                // Explosive splash
+                if (isExplosive && Math.random() < 0.40) {
+                    const splash = c.ships.filter(s => s.alive && s.id !== target.id).slice(0, 1);
+                    splash.forEach(s => {
+                        s.health = Math.max(0, s.health - Math.floor(Math.random() * 25 + 15));
+                        const sEl = document.getElementById(`ship-${s.id}`);
+                        if (sEl) { sEl.classList.add('hit'); setTimeout(() => sEl.classList.remove('hit'), 200); }
+                        if (s.health <= 0) { s.alive = false; sunkCount++; c.totalSunk++; if (sEl) sEl.classList.add('sunk'); }
+                    });
+                }
+
+                const remaining = c.ships.filter(s => s.alive).slice(0, 10);
+                if (remaining.length > 0 && alive.filter(s => s.alive).length === 0) {
+                    await new Promise(r => setTimeout(r, 350));
+                    refreshFleetVisual();
+                }
+            }
+        }
+        await new Promise(r => setTimeout(r, 55));
+    }
+    c.logs.push(`OUR ${isExplosive ? 'EXPLOSIVE' : ''} VOLLEY SANK ${sunkCount} SHIP${sunkCount !== 1 ? 'S' : ''}.`);
+}
+
+async function fireElectric() {
+    const c = state.combat;
+    const visual = document.getElementById('fleet-visual');
+    const crewBonus = getCrewBonus();
+    const hitChance = 0.52 + crewBonus;
+    let sunkCount = 0;
+
+    // Flash effect
+    if (visual) {
+        visual.classList.add('electric-firing');
+        setTimeout(() => visual.classList.remove('electric-firing'), 900);
+    }
+    await new Promise(r => setTimeout(r, 200));
+
+    const alive = c.ships.filter(s => s.alive).slice(0, 10);
+    for (const s of alive) {
+        if (Math.random() < hitChance) {
+            const dmg = Math.floor(Math.random() * 22 + 12);
+            s.health = Math.max(0, s.health - dmg);
+            const fillEl = document.getElementById(`health-fill-${s.id}`);
+            const shipEl = document.getElementById(`ship-${s.id}`);
+            if (fillEl) fillEl.style.width = `${s.health}%`;
+            if (shipEl) {
+                shipEl.classList.add('electric-hit');
+                setTimeout(() => shipEl.classList.remove('electric-hit'), 400);
+            }
+            if (s.health <= 0) {
+                s.alive = false;
+                sunkCount++;
+                c.totalSunk++;
+                if (shipEl) shipEl.classList.add('sunk');
+            }
+        }
+        await new Promise(r => setTimeout(r, 60));
+    }
+
+    c.logs.push(`ELECTRIC STRIKE ARCED THROUGH THE FLEET — ${sunkCount} SHIP${sunkCount !== 1 ? 'S' : ''} LOST!`);
+    await new Promise(r => setTimeout(r, 500));
+    refreshFleetVisual();
+}
+
+async function enemyVolley() {
+    const c = state.combat;
+    if (!c) return;
+    const alive = c.ships.filter(s => s.alive).slice(0, 10);
+    if (alive.length === 0) return;
+
+    let hits = 0;
+    for (let i = 0; i < alive.length; i++) { if (Math.random() > 0.87) hits++; }
+
+    const dmg = hits * 2;
+    state.health = Math.max(0, state.health - dmg);
+
+    const fill = document.getElementById('player-hull-fill');
+    if (fill) fill.style.width = `${state.health}%`;
+
+    c.logs.push(`ENEMY FIRE STRIKES ${hits} TIMES. HULL AT ${Math.round(state.health)}%.`);
+
+    // Crew casualty
+    if (state.crew > 0 && hits > 0 && Math.random() < 0.10) {
+        state.crew = Math.max(0, state.crew - 1);
+        c.logs.push("A CREWMAN FALLS IN BATTLE!");
+    }
+    // Gun damaged
+    if (hits > 0 && state.guns > 0 && Math.random() < 0.04) {
+        state.guns--;
+        c.logs.push("A DIRECT HIT SMASHES ONE OF OUR CANNONS TO SPLINTERS!");
+    }
+
+    if (state.health <= 0) {
+        state.combat = null;
+        closeModal();
+        gameOver("OUR SHIP WAS SENT TO THE BOTTOM OF THE SEA.");
+        return;
+    }
+    await new Promise(r => setTimeout(r, 750));
+}
+
+function endCombat() {
+    render();
+    const actionsEl = document.getElementById('modal-actions');
+    if (actionsEl) actionsEl.innerHTML = `<button class="btn-main" onclick="closeModal(); arrive();">PROCEED TO PORT</button>`;
+    const closeBtn = document.getElementById('modal-close-btn');
+    if (closeBtn) closeBtn.style.display = 'none';
+    state.combat.busy = false;
+    state.autoCombat = false;
+}
+
+// =============================================
+//  ARRIVAL
+// =============================================
+function arrive() {
+    state.voyageCount++;
+    updatePrices();
+
+    // Interest on debt
+    if (state.debt > 0) state.debt = Math.floor(state.debt * 1.10);
+    // Interest on bank savings
+    if (state.bank > 0) state.bank = Math.floor(state.bank * 1.02);
+    // Crew wages
+    if (state.crew > 0) {
+        const wages = state.crew * 50;
+        state.cash = Math.max(0, state.cash - wages);
+        log(`PAID ${wages.toLocaleString()} GOLD IN CREW WAGES.`);
+    }
+    // Elder Brother Wu's thugs if debt is crushing
+    if (state.debt > 0 && state.debt > state.cash * 10 && state.debt > 50000 && Math.random() > 0.65) {
+        const penalty = Math.floor(state.health * 0.20);
+        state.health = Math.max(1, state.health - penalty);
+        log("ELDER BROTHER WU'S THUGS FOUND YOU! THEY BEAT YOUR CREW AS A WARNING!", "var(--danger)");
+    }
+
+    log(`ANCHOR DROPPED. ARRIVED IN ${state.currentPort.toUpperCase()}.`);
+    saveProgress();
+
+    if (Math.random() < 0.12) {
+        offerNewShip();
+    } else {
+        render();
+    }
+}
+
+function offerNewShip() {
+    const newCap  = state.holdTotal + 60;
+    const cost    = state.holdTotal * 120;
+    const html = `
+        <p>A LOCAL SHIPWRIGHT APPROACHES ON THE DOCKS.</p>
+        <p>"CAPTAIN, I HAVE A FINE VESSEL — LARGER HOLD AND PRISTINE HULL."</p>
+        <p><strong>OFFER:</strong> ${newCap} HOLD &nbsp;|&nbsp; 100% HULL &nbsp;|&nbsp; PRICE: ${cost.toLocaleString()} GOLD</p>
+        <div class="actions" style="margin-top:10px;">
+            <button class="btn-main" onclick="acceptShip(${cost},${newCap})" ${state.cash < cost ? 'disabled' : ''}>ACCEPT OFFER</button>
+            <button class="btn-main" style="border-color:var(--green-dim);color:var(--green-dim)" onclick="closeModal();render();">DECLINE</button>
+        </div>
+        ${state.cash < cost ? '<p style="color:var(--danger);font-size:0.8em;margin-top:6px;">INSUFFICIENT GOLD.</p>' : ''}`;
+    showModal("SHIP OFFER", html, false);
+}
+
+function acceptShip(cost, cap) {
+    state.cash -= cost;
+    state.holdTotal = cap;
+    state.health = 100;
+    log(`NEW VESSEL ACQUIRED. HOLD NOW ${state.holdTotal}. HULL FULLY RESTORED.`);
+    closeModal(); render();
+}
+
+// =============================================
+//  BANK
+// =============================================
+function visitBank() {
+    const portData = getPortData(state.currentPort);
+    const bankName = state.currentPort === "Macau" ? "PORTUGUESE BANCO" : "ELDER BROTHER WU'S COUNTING HOUSE";
+    let html = `
+        <p>GOLD: ${state.cash.toLocaleString()} &nbsp;|&nbsp; BANK: ${state.bank.toLocaleString()} &nbsp;|&nbsp; DEBT: ${state.debt.toLocaleString()}</p>
+        <p style="color:var(--green-dim);font-size:0.8em;">Bank earns 2% per voyage. Debt compounds 10% per voyage.</p>
+        <hr class="section-divider">
+        <p>DEPOSIT TO VAULT</p>
+        <div class="flex-center">
+            <input type="number" id="bank-dep" class="trans-input" value="${state.cash}" min="0" max="${state.cash}">
+            <button onclick="document.getElementById('bank-dep').value=${state.cash}">MAX</button>
+            <button onclick="bankAction('dep')">DEPOSIT</button>
+        </div>
+        <hr class="section-divider">
+        <p>WITHDRAW FROM VAULT</p>
+        <div class="flex-center">
+            <input type="number" id="bank-wd" class="trans-input" value="${state.bank}" min="0" max="${state.bank}">
+            <button onclick="document.getElementById('bank-wd').value=${state.bank}">MAX</button>
+            <button onclick="bankAction('wd')">WITHDRAW</button>
+        </div>
+        <hr class="section-divider">
+        <button class="btn-main" onclick="bankAction('pay')" ${state.debt <= 0 ? 'disabled' : ''}>REPAY DEBT (MAX POSSIBLE)</button>
+    `;
+    showModal(bankName, html, true);
+}
+
+function bankAction(type) {
+    if (type === 'dep') {
+        const v = parseInt(document.getElementById('bank-dep').value) || 0;
+        const a = Math.min(Math.max(0, v), state.cash);
+        state.bank += a; state.cash -= a;
+    }
+    if (type === 'wd') {
+        const v = parseInt(document.getElementById('bank-wd').value) || 0;
+        const a = Math.min(Math.max(0, v), state.bank);
+        state.cash += a; state.bank -= a;
+    }
+    if (type === 'pay') {
+        const a = Math.min(state.cash, state.debt);
+        state.cash -= a; state.debt -= a;
+        if (state.debt <= 0) { state.debt = 0; log("YOUR DEBT TO ELDER BROTHER WU IS FULLY REPAID!", "var(--gold)"); }
+    }
+    render(); visitBank();
+}
+
+// =============================================
+//  WAREHOUSE
+// =============================================
+function visitWarehouse() {
+    const used = getWarehouseUsed();
+    let html = `<p>WAREHOUSE CAPACITY: ${used} / ${state.warehouseTotal}</p><hr class="section-divider">`;
+    commodities.forEach(c => {
+        const sq = state.inventory[c.name];
+        const wq = state.warehouse[c.name];
+        html += `
+            <div class="market-item" style="padding:8px 0;">
+                <div><strong>${c.name.toUpperCase()}</strong> &nbsp; SHIP: ${sq} &nbsp;|&nbsp; WAREHOUSE: ${wq}</div>
+                <div style="display:flex;gap:5px;">
+                    <button onclick="openWarehouseTransfer('${c.name}','store')">STORE</button>
+                    <button onclick="openWarehouseTransfer('${c.name}','fetch')">FETCH</button>
+                </div>
+            </div>`;
+    });
+    showModal("HONG KONG WAREHOUSE", html, true);
+}
+
+function openWarehouseTransfer(item, mode) {
+    const sq = state.inventory[item];
+    const wq = state.warehouse[item];
+    const houseSpace = state.warehouseTotal - getWarehouseUsed();
+    const shipSpace  = state.holdTotal - getHoldUsed();
+    const maxQty = mode === 'store' ? Math.min(sq, houseSpace) : Math.min(wq, shipSpace);
+    const title = mode === 'store' ? "STORE IN WAREHOUSE" : "FETCH FROM WAREHOUSE";
+    const html = `
+        <p>${title}: <strong>${item.toUpperCase()}</strong></p>
+        <p>MAXIMUM: ${maxQty} UNITS</p>
+        <div class="flex-center">
+            <input type="number" id="wh-qty" class="trans-input" min="1" max="${maxQty}" value="${maxQty}">
+            <button onclick="document.getElementById('wh-qty').value=${maxQty}">MAX</button>
+        </div>
+        <button class="btn-main" onclick="executeWarehouseTransfer('${item}','${mode}')">CONFIRM</button>`;
+    showModal(title, html, true);
+}
+
+function executeWarehouseTransfer(item, mode) {
+    const qty = parseInt(document.getElementById('wh-qty').value) || 0;
+    if (qty <= 0) return;
+    if (mode === 'store') {
+        state.inventory[item]  -= qty;
+        state.warehouse[item]  += qty;
+        log(`STORED ${qty} UNITS OF ${item.toUpperCase()} IN THE WAREHOUSE.`);
+    } else {
+        state.warehouse[item] -= qty;
+        state.inventory[item] += qty;
+        log(`LOADED ${qty} UNITS OF ${item.toUpperCase()} ONTO THE SHIP.`);
+    }
+    closeModal();
+    visitWarehouse();
+}
+
+// =============================================
+//  SHIPYARD
+// =============================================
+function visitShipyard() {
+    const portData = getPortData(state.currentPort);
+    const isFull     = portData.shipyard === 'full';
+    const isElectric = portData.shipyard === 'electric';
+    const gunCost    = 1500;
+    const repairRate = 50;  // per 1%
+    const maxRepair  = (100 - state.health) * repairRate;
+    const hullUpCost = state.holdTotal * 100;
+    const whCost     = 2000;
+    const expCost    = 2000;
+    const elecCost   = 4000;
+    const freeHold   = state.holdTotal - getHoldUsed();
+
+    let html = `
+        <p>HULL: ${Math.round(state.health)}% &nbsp;|&nbsp; GUNS: ${state.guns} &nbsp;|&nbsp; FREE HOLD: ${freeHold}</p>
+        <hr class="section-divider">
+        <p>SHIP REPAIRS (${repairRate} GOLD = 1% HULL)</p>
+        <div class="flex-center">
+            <input type="number" id="repair-amt" class="trans-input" value="${Math.min(state.cash, maxRepair)}" min="0">
+            <button onclick="document.getElementById('repair-amt').value=${Math.min(state.cash, maxRepair)}">MAX</button>
+            <button onclick="shipyardAction('repair')">REPAIR</button>
+        </div>
+        <hr class="section-divider">
+        <button class="btn-main" onclick="shipyardAction('gun')"
+            ${(state.cash < gunCost || freeHold < 10) ? 'disabled' : ''}>ADD CANNON — ${gunCost.toLocaleString()} GOLD (10 HOLD)</button>
+    `;
+    if (isFull) {
+        html += `
+            <button class="btn-main" onclick="shipyardAction('hull')"
+                ${state.cash < hullUpCost ? 'disabled' : ''}>UPGRADE HULL CAPACITY — ${hullUpCost.toLocaleString()} GOLD (+50 HOLD)</button>
+            <button class="btn-main" onclick="shipyardAction('warehouse')"
+                ${(state.cash < whCost || state.warehouseTotal >= 10000) ? 'disabled' : ''}>EXPAND WAREHOUSE — ${whCost.toLocaleString()} GOLD (+1000)</button>
+            <hr class="section-divider">
+            <p style="color:var(--explosive)">SPECIAL MUNITIONS — HONG KONG ARSENAL</p>
+            <button class="btn-main btn-explosive" onclick="shipyardAction('explosive')"
+                ${state.cash < expCost ? 'disabled' : ''}>BUY EXPLOSIVE CHARGE — ${expCost.toLocaleString()} GOLD EACH
+                <br><small>High-accuracy, high-damage. AOE splash on kill. ${state.ammo.explosive} OWNED.</small></button>
+        `;
+    }
+    if (isElectric) {
+        html += `
+            <hr class="section-divider">
+            <p style="color:var(--electric)">SPECIAL MUNITIONS — SINGAPORE DOCK</p>
+            <button class="btn-main btn-electric" onclick="shipyardAction('electric')"
+                ${state.cash < elecCost ? 'disabled' : ''}>BUY ELECTRIC CHARGE — ${elecCost.toLocaleString()} GOLD EACH
+                <br><small>Damages ALL enemy ships simultaneously. ${state.ammo.electric} OWNED.</small></button>
+        `;
+    }
+    showModal(`${state.currentPort.toUpperCase()} SHIPYARD`, html, true);
+}
+
+function shipyardAction(type) {
+    if (type === 'repair') {
+        const spent  = Math.min(parseInt(document.getElementById('repair-amt').value) || 0, state.cash);
+        const pct    = spent / 50;
+        const needed = 100 - state.health;
+        const actual = Math.min(pct, needed);
+        const cost   = Math.ceil(actual * 50);
+        state.cash  -= cost;
+        state.health = Math.min(100, state.health + actual);
+        log(`REPAIRS COMPLETED. HULL RESTORED BY ${actual.toFixed(1)}%.`);
+    }
+    if (type === 'gun') {
+        if (state.cash >= 1500 && (state.holdTotal - getHoldUsed()) >= 10) {
+            state.cash -= 1500; state.guns++;
+            log("NEW CANNON INSTALLED. BROADSIDE FIREPOWER INCREASED.");
+        }
+    }
+    if (type === 'hull') {
+        const cost = state.holdTotal * 100;
+        if (state.cash >= cost) { state.cash -= cost; state.holdTotal += 50; log("HULL REINFORCED AND EXPANDED. CAPACITY +50."); }
+    }
+    if (type === 'warehouse') {
+        if (state.cash >= 2000 && state.warehouseTotal < 10000) {
+            state.cash -= 2000; state.warehouseTotal = Math.min(10000, state.warehouseTotal + 1000);
+            log("HONG KONG WAREHOUSE EXPANDED BY 1,000 UNITS.");
+        }
+    }
+    if (type === 'explosive') {
+        if (state.cash >= 2000) {
+            state.cash -= 2000; state.ammo.explosive++;
+            log("1 EXPLOSIVE CHARGE ACQUIRED. LETHAL IN BATTLE.", "var(--explosive)");
+        }
+    }
+    if (type === 'electric') {
+        if (state.cash >= 4000) {
+            state.cash -= 4000; state.ammo.electric++;
+            log("1 ELECTRIC CHARGE ACQUIRED. STRIKES ALL ENEMY SHIPS.", "var(--electric)");
+        }
+    }
+    render();
+    visitShipyard();
+}
+
+// =============================================
+//  CREW
+// =============================================
+function visitCrew() {
+    const maxCrew  = 10;
+    const hireCost = 400;
+    const canHire  = Math.min(maxCrew - state.crew, Math.floor(state.cash / hireCost), Math.floor((state.holdTotal - getHoldUsed()) / 2));
+    const html = `
+        <p>CREW: ${state.crew}/${maxCrew} &nbsp;|&nbsp; CARGO SPACE PER CREW: 2 &nbsp;|&nbsp; WAGE: 50 GOLD/VOYAGE</p>
+        <p>HIRING COST: ${hireCost} GOLD PER SAILOR</p>
+        <hr class="section-divider">
+        <p><strong>CREW BONUSES (CANNON ACCURACY):</strong></p>
+        <div style="font-size:0.82em;">
+            <div class="crew-bonus-row"><span>1-2 CREW:</span><span>+5%</span></div>
+            <div class="crew-bonus-row"><span>3-4 CREW:</span><span>+15%</span></div>
+            <div class="crew-bonus-row"><span>5-6 CREW:</span><span>+25%</span></div>
+            <div class="crew-bonus-row"><span>7-8 CREW:</span><span>+35%</span></div>
+            <div class="crew-bonus-row"><span>9-10 CREW:</span><span>+45%</span></div>
+        </div>
+        <hr class="section-divider">
+        <p>HIRE SAILORS</p>
+        <div class="flex-center">
+            <input type="number" id="crew-hire-qty" class="trans-input" min="1" max="${canHire}" value="${Math.max(1, canHire)}">
+            <button onclick="document.getElementById('crew-hire-qty').value=${Math.max(1,canHire)}">MAX</button>
+            <button onclick="crewAction('hire')" ${canHire <= 0 ? 'disabled' : ''}>HIRE</button>
+        </div>
+        ${canHire <= 0 ? '<p style="color:var(--danger);font-size:0.8em;">CANNOT HIRE: NO SPACE OR GOLD.</p>' : ''}
+        <hr class="section-divider">
+        <p>DISMISS CREW</p>
+        <div class="flex-center">
+            <input type="number" id="crew-fire-qty" class="trans-input" min="1" max="${state.crew}" value="1">
+            <button onclick="crewAction('fire')" ${state.crew <= 0 ? 'disabled' : ''}>DISMISS</button>
+        </div>`;
+    showModal("CREW MANAGEMENT", html, true);
+}
+
+function crewAction(type) {
+    if (type === 'hire') {
+        const qty    = Math.max(0, parseInt(document.getElementById('crew-hire-qty').value) || 0);
+        const cost   = qty * 400;
+        const space  = Math.floor((state.holdTotal - getHoldUsed()) / 2);
+        const maxNew = Math.min(10 - state.crew, space, Math.floor(state.cash / 400));
+        const actual = Math.min(qty, maxNew);
+        if (actual <= 0) { log("CANNOT HIRE CREW — CHECK GOLD AND HOLD SPACE."); return; }
+        state.cash -= actual * 400;
+        state.crew += actual;
+        log(`HIRED ${actual} SAILOR${actual !== 1 ? 'S' : ''}. CREW NOW ${state.crew}/10.`);
+    }
+    if (type === 'fire') {
+        const qty    = Math.max(0, Math.min(parseInt(document.getElementById('crew-fire-qty').value) || 0, state.crew));
+        state.crew  -= qty;
+        log(`DISMISSED ${qty} SAILOR${qty !== 1 ? 'S' : ''}. CREW NOW ${state.crew}/10.`);
+    }
+    render(); visitCrew();
+}
+
+// =============================================
+//  HELP / HANDBOOK
+// =============================================
+function showHelp() {
+    const html = `
+        <div style="text-align:left;line-height:1.7;">
+            <p>Welcome to the South China Sea, Taipan! Your goal: accumulate wealth and RETIRE a legend.</p>
+
+            <h3 style="margin-top:12px;color:var(--green-bright);">THE 10 PORTS</h3>
+            <table class="help-table">
+                <tr><th>PORT</th><th>SERVICES</th><th>NOTABLE GOODS</th></tr>
+                ${PORTS.map(p => `
+                <tr>
+                    <td>${p.name.toUpperCase()}</td>
+                    <td>${[p.bank?'BANK':'',p.warehouse?'WAREHOUSE':'',p.shipyard==='full'?'FULL SHIPYARD':p.shipyard==='electric'?'SHIPYARD (ELEC)':''].filter(Boolean).join(', ') || '—'}</td>
+                    <td style="font-size:0.85em;color:var(--green-dim)">${p.desc}</td>
+                </tr>`).join('')}
+            </table>
+
+            <h3 style="margin-top:12px;color:var(--green-bright);">COMMODITY PRICE GUIDE</h3>
+            <table class="help-table">
+                <tr><th>COMMODITY</th><th>MIN PRICE</th><th>MAX PRICE</th><th>NOTES</th></tr>
+                ${commodities.map(c => `
+                <tr class="${c.risky ? 'risky' : ''}">
+                    <td>${c.name.toUpperCase()}${c.risky ? ' ⚠' : ''}</td>
+                    <td>${c.min.toLocaleString()}</td>
+                    <td>${c.max.toLocaleString()}</td>
+                    <td>${c.risky ? 'CONTRABAND — RISK OF SEIZURE' : 'Legal goods'}</td>
+                </tr>`).join('')}
+            </table>
+            <p style="color:var(--danger);font-size:0.8em;">⚠ Contraband may be seized by customs with a 20% gold fine. High risk, high reward.</p>
+            <p style="font-size:0.8em;">Market events can push prices 40% below minimum or 80% above maximum.</p>
+
+            <h3 style="margin-top:12px;color:var(--green-bright);">CREW SYSTEM</h3>
+            <p>Hire sailors at any port (400 gold each, 2 hold space, 50 gold/voyage wage). Crew improve cannon accuracy:</p>
+            <table class="help-table">
+                <tr><th>CREW SIZE</th><th>ACCURACY BONUS</th></tr>
+                <tr><td>1 – 2</td><td>+5%</td></tr>
+                <tr><td>3 – 4</td><td>+15%</td></tr>
+                <tr><td>5 – 6</td><td>+25%</td></tr>
+                <tr><td>7 – 8</td><td>+35%</td></tr>
+                <tr><td>9 – 10</td><td>+45%</td></tr>
+            </table>
+
+            <h3 style="margin-top:12px;color:var(--green-bright);">SPECIAL MUNITIONS</h3>
+            <table class="help-table">
+                <tr><th>AMMO TYPE</th><th>COST</th><th>WHERE TO BUY</th><th>EFFECT</th></tr>
+                <tr class="risky"><td>EXPLOSIVE CHARGE</td><td>2,000</td><td>HONG KONG</td><td>+70% base accuracy, 40–85 dmg/gun, 40% AOE splash on sunk ship</td></tr>
+                <tr style="color:var(--electric)"><td>ELECTRIC CHARGE</td><td>4,000</td><td>SINGAPORE</td><td>Simultaneously hits ALL enemy ships (12–34 dmg, 52%+ hit chance each)</td></tr>
+            </table>
+
+            <h3 style="margin-top:12px;color:var(--green-bright);">COMBAT TIPS</h3>
+            <ul style="padding-left:18px;font-size:0.85em;">
+                <li>BROADSIDE uses standard cannons (48% + crew bonus hit chance, 20–60 damage).</li>
+                <li>More guns = more shots per round.</li>
+                <li>Running is easier with an empty hold.</li>
+                <li>Throw cargo to lighten the ship when fleeing.</li>
+                <li>Pay tribute to Li Yuen for 3 voyages of reduced pirate encounters.</li>
+                <li>Electric charges bypass individual targeting — ideal vs large fleets.</li>
+                <li>Explosive charges excel against tough individual ships and trigger splash damage.</li>
+            </ul>
+
+            <h3 style="margin-top:12px;color:var(--green-bright);">ECONOMY</h3>
+            <ul style="padding-left:18px;font-size:0.85em;">
+                <li>DEBT compounds at 10% per voyage. Pay it off early!</li>
+                <li>BANK savings earn 2% per voyage.</li>
+                <li>Crew wages: 50 gold per crew member per voyage.</li>
+                <li>Each cannon takes 10 hold capacity.</li>
+                <li>Pirate bounty: 200 gold per ship sunk (+30 per voyage milestone).</li>
+            </ul>
+
+            <h3 style="margin-top:12px;color:var(--green-bright);">WINNING</h3>
+            <p>RETIRE via the RETIRE button (available at banks after 5 voyages). Your rank is based on net worth (gold + bank − debt):</p>
+            <table class="help-table">
+                <tr><th>RANK</th><th>NET WORTH</th></tr>
+                <tr><td>BEGGAR</td><td>Below 0</td></tr>
+                <tr><td>HUMBLE MERCHANT</td><td>0 – 50,000</td></tr>
+                <tr><td>PROSPEROUS TRADER</td><td>50,001 – 250,000</td></tr>
+                <tr><td>MASTER TAIPAN</td><td>250,001 – 1,000,000</td></tr>
+                <tr style="color:var(--gold)"><td>LEGENDARY TAIPAN</td><td>Over 1,000,000</td></tr>
+            </table>
+        </div>`;
+    showModal("TAIPAN HANDBOOK & PRICE GUIDE", html, true);
+}
+
+// =============================================
+//  RETIRE / GAME OVER
+// =============================================
+function retireGame() {
+    const net   = state.cash + state.bank - state.debt;
+    let rank;
+    if      (net >= 1000000) rank = "LEGENDARY TAIPAN";
+    else if (net >= 250000)  rank = "MASTER TAIPAN";
+    else if (net >= 50000)   rank = "PROSPEROUS TRADER";
+    else if (net >= 0)       rank = "HUMBLE MERCHANT";
+    else                     rank = "BEGGAR";
+
+    localStorage.removeItem(SAVE_KEY);
+    const html = `
+        <div style="text-align:center;line-height:2;">
+            <p style="font-size:1.2em;color:var(--green-bright);">${state.playerName} RETIRES FROM THE SEA!</p>
+            <p>VOYAGES COMPLETED: ${state.voyageCount}</p>
+            <p>GOLD ON HAND: ${state.cash.toLocaleString()}</p>
+            <p>GOLD IN BANK: ${state.bank.toLocaleString()}</p>
+            <p>DEBTS OWED: ${state.debt.toLocaleString()}</p>
+            <p>NET WORTH: <strong style="color:var(--gold)">${net.toLocaleString()} GOLD</strong></p>
+            <p style="font-size:1.4em;margin-top:10px;color:var(--gold);">RANK: ${rank}</p>
+            <button class="btn-main" style="margin-top:16px;" onclick="location.reload()">BEGIN A NEW VOYAGE</button>
+        </div>`;
+    showModal("THE VOYAGE ENDS", html, false);
+}
+
+function gameOver(reason) {
+    localStorage.removeItem(SAVE_KEY);
+    const html = `
+        <div style="text-align:center;line-height:2;">
+            <p style="color:var(--danger);font-size:1.1em;">${reason}</p>
+            <p>VOYAGES COMPLETED: ${state.voyageCount}</p>
+            <p>FINAL GOLD: ${state.cash.toLocaleString()}</p>
+            <button class="btn-main" style="margin-top:16px;" onclick="location.reload()">BEGIN A NEW VOYAGE</button>
+        </div>`;
+    showModal("SHIPWRECKED", html, false);
+}
+
+// =============================================
+//  MODAL UTILITY
+// =============================================
+function showModal(title, content, showClose = true, actionButtons = "") {
+    document.getElementById('modal-title').innerText = title;
+    const cEl = document.getElementById('modal-content');
+    cEl.innerHTML = content;
+    document.getElementById('modal-actions').innerHTML = actionButtons;
+    document.getElementById('modal-close-btn').style.display = showClose ? 'block' : 'none';
+    document.getElementById('modal').style.display = 'flex';
+    document.getElementById('overlay').style.display = 'block';
+    cEl.scrollTop = 0;
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('modal-close-btn').style.display = 'block';
+}
+
+// =============================================
+//  BOOT
+// =============================================
+window.onload = () => {
+    const saved = localStorage.getItem(SAVE_KEY);
+    if (saved) document.getElementById('continue-btn').style.display = 'block';
+};
+</script>
+<a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position:fixed;right:16px;bottom:16px;height:50px;z-index:9999;pointer-events:auto;"></a>
+</body>
+</html>
