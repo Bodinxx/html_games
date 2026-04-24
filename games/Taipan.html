@@ -478,6 +478,13 @@ const SHIP_SPRITE = `
         <rect x="45" y="42" width="4" height="2" fill="var(--bg)" />
     </svg>`;
 
+// Balance / tuning constants
+const CREW_ABANDONMENT_CHANCE  = 0.45;   // probability crew leaves after unpaid wages
+const CREW_QUARTERS_BASE_COST  = 75000;  // minimum cost of first crew limit expansion
+const CREW_QUARTERS_MULTIPLIER = 8000;   // per-current-slot cost multiplier
+const CHAIN_SHOT_MIN_DMG       = 55;     // minimum damage per chain-shot hit
+const CHAIN_SHOT_DAMAGE_RANGE  = 30;     // added range; max dmg = MIN + RANGE = 85
+
 // =============================================
 //  GAME STATE
 // =============================================
@@ -1365,7 +1372,7 @@ async function fireChainShot() {
         }
 
         if (Math.random() < hitChance) {
-            const dmg = Math.floor(Math.random() * 30 + 55); // 55-85, high damage
+            const dmg = Math.floor(Math.random() * CHAIN_SHOT_DAMAGE_RANGE + CHAIN_SHOT_MIN_DMG);
             target.health = Math.max(0, target.health - dmg);
             const fillEl = document.getElementById(`health-fill-${target.id}`);
             if (fillEl) fillEl.style.width = `${target.health}%`;
@@ -1474,7 +1481,7 @@ function arrive() {
             state.cash = 0;
             log(`UNABLE TO PAY FULL CREW WAGES! BORROWED ${shortfall.toLocaleString()} GOLD — DEBT INCREASED.`, "var(--danger)");
             // Chance of crew abandonment
-            if (Math.random() < 0.45) {
+            if (Math.random() < CREW_ABANDONMENT_CHANCE) {
                 const roles = ['gunners','merchants','carpenters'].filter(r => state.crew[r] > 0);
                 if (roles.length > 0) {
                     const role = roles[Math.floor(Math.random() * roles.length)];
@@ -1650,7 +1657,7 @@ function visitShipyard() {
     const expCost    = 2000;
     const chainCost  = 1500;
     const elecCost   = 4000;
-    const crewQtrCost = Math.max(75000, state.crewLimit * 8000); // very expensive, scales with limit
+    const crewQtrCost = Math.max(CREW_QUARTERS_BASE_COST, state.crewLimit * CREW_QUARTERS_MULTIPLIER); // very expensive, scales with limit
     const freeHold   = state.holdTotal - getHoldUsed();
 
     let html = `
@@ -1682,7 +1689,7 @@ function visitShipyard() {
                 <br><small>High-accuracy, high-damage. AOE splash on kill. ${state.ammo.explosive} OWNED.</small></button>
             <button class="btn-main btn-chain" onclick="shipyardAction('chain')"
                 ${state.cash < chainCost ? 'disabled' : ''}>BUY CHAIN SHOT — ${chainCost.toLocaleString()} GOLD EACH
-                <br><small>High damage (55–85), no splash. 65%+ accuracy. ${state.ammo.chain} OWNED.</small></button>
+                <br><small>High damage (${CHAIN_SHOT_MIN_DMG}–${CHAIN_SHOT_MIN_DMG + CHAIN_SHOT_DAMAGE_RANGE}), no splash. 65%+ accuracy. ${state.ammo.chain} OWNED.</small></button>
         `;
     }
     if (isElectric) {
@@ -1728,7 +1735,7 @@ function shipyardAction(type) {
         }
     }
     if (type === 'crewqtr') {
-        const cost = Math.max(75000, state.crewLimit * 8000);
+        const cost = Math.max(CREW_QUARTERS_BASE_COST, state.crewLimit * CREW_QUARTERS_MULTIPLIER);
         if (state.cash >= cost) {
             state.cash -= cost; state.crewLimit += 5;
             log(`CREW QUARTERS EXPANDED. MAXIMUM CREW NOW ${state.crewLimit}.`, "var(--green-bright)");
@@ -2037,7 +2044,7 @@ function playSound(type) {
             }
             default: break;
         }
-    } catch(e) { /* ignore audio errors */ }
+    } catch(e) { console.warn('Audio error:', e.message); }
 }
 function showHelp() {
     const html = `
