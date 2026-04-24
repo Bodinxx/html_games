@@ -955,7 +955,8 @@ function startEncounterWithFleet(fleetSize) {
         logs: [],
         busy: false,
         ships: Array.from({ length: fleetSize }, (_, i) => ({ id: i, health: 100, alive: true })),
-        totalSunk: 0
+        totalSunk: 0,
+        totalFled: 0
     };
     state.autoCombat = false;
     state.lastCombatAction = null;
@@ -1066,7 +1067,8 @@ async function combatAction(type) {
         const chance  = 0.38 + 0.32 * (1 - ratio);
         if (Math.random() < chance) {
             const loot = bountyReward();
-            c.status = `ESCAPED! BOUNTY FOR ${c.totalSunk} DEFEATED SHIPS: ${loot.toLocaleString()} GOLD.`;
+            const fledNote = c.totalFled > 0 ? ` (${c.totalFled} FLED, ${c.totalSunk - c.totalFled} SUNK)` : '';
+            c.status = `ESCAPED! BOUNTY FOR ${c.totalSunk} DEFEATED SHIPS${fledNote}: ${loot.toLocaleString()} GOLD.`;
             state.combat.busy = false;
             endCombat();
             return;
@@ -1105,7 +1107,8 @@ function checkVictory() {
     const c = state.combat;
     if (c.ships.filter(s => s.alive).length <= 0) {
         const loot = bountyReward();
-        c.status = `VICTORY! BOUNTY FOR ${c.totalSunk} DEFEATED SHIPS: ${loot.toLocaleString()} GOLD.`;
+        const fledNote = c.totalFled > 0 ? ` (${c.totalFled} FLED, ${c.totalSunk - c.totalFled} SUNK)` : '';
+        c.status = `VICTORY! BOUNTY FOR ${c.totalSunk} DEFEATED SHIPS${fledNote}: ${loot.toLocaleString()} GOLD.`;
         state.combat.busy = false;
         endCombat();
         return true;
@@ -1129,15 +1132,16 @@ function checkMoraleBreak() {
             s.alive = false;
             fled++;
             c.totalSunk++;
+            c.totalFled++;
             const el = document.getElementById(`ship-${s.id}`);
             if (el) el.classList.add('sunk');
         }
     });
     if (fled > 0) {
-        c.logs.push(`${fled} PIRATE SHIPS BROKE FORMATION AND FLED!`);
         if (c.ships.filter(s => s.alive).length <= 0) {
             const loot = bountyReward();
-            c.status = `ENEMIES DISPERSED. BOUNTY: ${loot.toLocaleString()} GOLD.`;
+            const fledNote = c.totalFled > 0 ? ` ${c.totalFled} FLED,` : '';
+            c.status = `ENEMIES DISPERSED.${fledNote} BOUNTY: ${loot.toLocaleString()} GOLD.`;
             state.combat.busy = false;
             endCombat();
             return;
