@@ -227,6 +227,16 @@ Quick Draw Hex Edition: A fast-paced, hexagonal card matching game inspired by c
 
 ---
 
+### Taipan!
+
+<img src="games/Taipan.webp" alt="Taipan!" style="max-width:300px;">
+
+A faithful upgrade of the classic Apple IIc trading game, set in the South China Sea. Navigate 10 historical Far Eastern ports — from Hong Kong to Nagasaki to Singapore — trading opium, silk, arms, tea, ivory, and general goods. Manage compounding debt to Elder Brother Wu, bank profits in Hong Kong or Macau, and upgrade your ship at the Hong Kong Arsenal with cannons and explosive charges, or visit the Singapore Dock for devastating electric charges that strike all enemy ships simultaneously. Hire crew to improve cannon accuracy, bribe Li Yuen the pirate king for safe passage, and survive storms, customs raids, and fleet battles on your way to becoming a Legendary Taipan.
+
+**Tags:** `Strategy` `Simulation` `Trading` `Adventure` `Old School`
+
+---
+
 ### Silk and Silver
 
 <img src="games/Silk_and_Silver.webp" alt="Silk and Silver" style="max-width:300px">
