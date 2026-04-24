@@ -1,0 +1,1068 @@
+<!--
+CATEGORY: Image / Audio / Video / Tools
+DESCRIPTION: A fully client-side tool that converts OXPS (Open XML Paper Specification) files to PDF directly in your browser — no server upload required. Renders every page to canvas, embeds fonts, then packages the result into a downloadable PDF with a live in-browser preview.
+TAGS: OXPS, XPS, PDF, Document, Converter, Tool
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OXPS → PDF Converter</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <style>
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --surface2: #21262d;
+      --border:   #30363d;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --accent:   #388bfd;
+      --accent-h: #58a6ff;
+      --success:  #3fb950;
+      --danger:   #f85149;
+      --warn:     #d29922;
+      --r:        12px;
+      --r-sm:     8px;
+      --shadow:   0 4px 24px rgba(0,0,0,.55);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font: 14px/1.55 system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: var(--bg);
+      background-image: radial-gradient(ellipse 120% 60% at 15% 0%, #0e1e3a 0%, var(--bg) 60%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 16px 32px;
+    }
+
+    /* ── Header ────────────────────────────────────────────── */
+    .app-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .app-header .logo {
+      font-size: 28px;
+      line-height: 1;
+      margin-top: 2px;
+    }
+    .app-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -.3px;
+      color: var(--text);
+    }
+    .app-header p {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(56,139,253,.18);
+      color: var(--accent-h);
+      border: 1px solid rgba(56,139,253,.35);
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 9px;
+      margin-top: 5px;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 18px;
+      flex: 1;
+    }
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Card ───────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .card + .card { margin-top: 14px; }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Drop Zone ───────────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--r-sm);
+      padding: 28px 18px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      background: rgba(255,255,255,.02);
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(56,139,253,.06);
+    }
+    .drop-icon { font-size: 36px; margin-bottom: 10px; }
+    .drop-zone p { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+    .drop-zone strong { color: var(--text); }
+    #fileInput { display: none; }
+
+    /* ── File Info ───────────────────────────────────────────── */
+    .file-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 12px 14px;
+      margin-top: 12px;
+    }
+    .file-info .fi-icon { font-size: 22px; flex-shrink: 0; }
+    .file-info .fi-name { font-weight: 600; font-size: 13px; word-break: break-all; }
+    .file-info .fi-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .hidden { display: none !important; }
+
+    /* ── Options ─────────────────────────────────────────────── */
+    .option-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .option-row:last-child { border-bottom: none; }
+    .option-row label { color: var(--muted); font-size: 13px; }
+    select {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 5px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      outline: none;
+    }
+    select:focus { border-color: var(--accent); }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: none;
+      border-radius: var(--r-sm);
+      padding: 9px 18px;
+      font: 600 13px/1 system-ui, sans-serif;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+    .btn:not(:disabled):active { transform: translateY(1px); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:not(:disabled):hover { background: var(--accent-h); }
+    .btn-success { background: #1b4d2e; color: var(--success); border: 1px solid #2b6840; }
+    .btn-success:not(:disabled):hover { background: #1f5a35; }
+    .btn-sm { padding: 7px 13px; font-size: 12px; }
+    .btn-block { width: 100%; justify-content: center; margin-top: 14px; padding: 11px 18px; font-size: 14px; }
+
+    /* ── Progress ────────────────────────────────────────────── */
+    .progress-wrap { margin-top: 14px; }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .progress-bar {
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-h));
+      border-radius: 99px;
+      transition: width .3s ease;
+      width: 0%;
+    }
+
+    /* ── Status / Error ──────────────────────────────────────── */
+    .status-msg {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: var(--r-sm);
+      font-size: 13px;
+    }
+    .status-msg.success { background: rgba(63,185,80,.12); border: 1px solid rgba(63,185,80,.3); color: var(--success); }
+    .status-msg.error   { background: rgba(248,81,73,.12); border: 1px solid rgba(248,81,73,.3); color: var(--danger); }
+    .status-msg.info    { background: rgba(56,139,253,.1);  border: 1px solid rgba(56,139,253,.25); color: var(--accent-h); }
+
+    /* ── Preview panel ───────────────────────────────────────── */
+    .preview-panel {
+      display: flex;
+      flex-direction: column;
+    }
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .preview-header h2 { font-size: 15px; font-weight: 600; }
+    .preview-container {
+      flex: 1;
+      min-height: 520px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preview-placeholder {
+      text-align: center;
+      color: var(--muted);
+      padding: 40px;
+    }
+    .preview-placeholder .ph-icon { font-size: 48px; margin-bottom: 12px; opacity: .4; }
+    .preview-placeholder p { font-size: 14px; }
+    #pdfFrame {
+      width: 100%;
+      height: 100%;
+      min-height: 520px;
+      border: none;
+      display: block;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    .app-footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      opacity: .7;
+    }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo">📄</div>
+  <div>
+    <h1>OXPS → PDF Converter</h1>
+    <p>Convert Open XML Paper Specification files to PDF entirely in your browser — nothing is uploaded anywhere.</p>
+    <span class="badge">Client-side · No Upload</span>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- ── Left column ── -->
+  <div class="left-col">
+
+    <div class="card">
+      <div class="card-title">1 · Select File</div>
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-icon">📂</div>
+        <p>Drag & drop an <strong>.oxps</strong> or <strong>.xps</strong> file here</p>
+        <button class="btn btn-primary btn-sm" id="browseBtn" type="button">Browse…</button>
+        <input type="file" id="fileInput" accept=".oxps,.xps" />
+      </div>
+      <div id="fileInfo" class="file-info hidden">
+        <div class="fi-icon">📑</div>
+        <div>
+          <div class="fi-name" id="fileName"></div>
+          <div class="fi-meta" id="fileMeta"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">2 · Options</div>
+      <div class="option-row">
+        <label for="qualitySelect">Render Quality</label>
+        <select id="qualitySelect">
+          <option value="1">72 DPI — Fast</option>
+          <option value="1.5" selected>108 DPI — Balanced</option>
+          <option value="2">144 DPI — High Quality</option>
+          <option value="3">216 DPI — Best Quality</option>
+        </select>
+      </div>
+      <div class="option-row">
+        <label for="bgColor">Page Background</label>
+        <select id="bgColor">
+          <option value="white" selected>White</option>
+          <option value="transparent">Transparent</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">3 · Convert</div>
+      <button class="btn btn-primary btn-block" id="convertBtn" disabled>
+        ⚙ Convert to PDF
+      </button>
+      <div id="progressWrap" class="progress-wrap hidden">
+        <div class="progress-label">
+          <span id="progressLabel">Processing…</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+      <div id="statusMsg" class="status-msg hidden"></div>
+    </div>
+
+    <div class="card" id="downloadCard" style="display:none">
+      <div class="card-title">4 · Download</div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:12px;" id="dlInfo"></p>
+      <button class="btn btn-success btn-block" id="downloadBtn">
+        ⬇ Download PDF
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ── Right column ── -->
+  <div class="preview-panel">
+    <div class="preview-header">
+      <h2>PDF Preview</h2>
+      <span id="pageCount" style="font-size:12px;color:var(--muted);"></span>
+    </div>
+    <div class="preview-container" id="previewContainer">
+      <div class="preview-placeholder">
+        <div class="ph-icon">📑</div>
+        <p>Your converted PDF will appear here</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="app-footer">
+  Processing is 100% local — your document never leaves your device.
+</footer>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════
+//  DOM references
+// ═══════════════════════════════════════════════════════════════
+const dropZone       = document.getElementById('dropZone');
+const browseBtn      = document.getElementById('browseBtn');
+const fileInput      = document.getElementById('fileInput');
+const fileInfoEl     = document.getElementById('fileInfo');
+const fileNameEl     = document.getElementById('fileName');
+const fileMetaEl     = document.getElementById('fileMeta');
+const convertBtn     = document.getElementById('convertBtn');
+const qualitySelect  = document.getElementById('qualitySelect');
+const bgColorSelect  = document.getElementById('bgColor');
+const progressWrap   = document.getElementById('progressWrap');
+const progressLabel  = document.getElementById('progressLabel');
+const progressPct    = document.getElementById('progressPct');
+const progressFill   = document.getElementById('progressFill');
+const statusMsg      = document.getElementById('statusMsg');
+const downloadCard   = document.getElementById('downloadCard');
+const downloadBtn    = document.getElementById('downloadBtn');
+const dlInfo         = document.getElementById('dlInfo');
+const previewContainer = document.getElementById('previewContainer');
+const pageCountEl    = document.getElementById('pageCount');
+
+// ═══════════════════════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════════════════════
+let selectedFile = null;
+let pdfBlobUrl   = null;
+let pdfBytes     = null;
+
+// ═══════════════════════════════════════════════════════════════
+//  UI helpers
+// ═══════════════════════════════════════════════════════════════
+function setProgress(done, total, msg) {
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  progressFill.style.width = pct + '%';
+  progressLabel.textContent = msg || 'Processing…';
+  progressPct.textContent   = pct + '%';
+}
+
+function showStatus(type, msg) {
+  statusMsg.className = 'status-msg ' + type;
+  statusMsg.textContent = msg;
+  statusMsg.classList.remove('hidden');
+}
+
+function hideStatus() { statusMsg.classList.add('hidden'); }
+
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1048576).toFixed(2) + ' MB';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  File selection
+// ═══════════════════════════════════════════════════════════════
+function handleFile(file) {
+  if (!file) return;
+  selectedFile = file;
+  fileNameEl.textContent = file.name;
+  fileMetaEl.textContent = fmtBytes(file.size);
+  fileInfoEl.classList.remove('hidden');
+  convertBtn.disabled = false;
+  hideStatus();
+  downloadCard.style.display = 'none';
+  pageCountEl.textContent = '';
+  previewContainer.innerHTML = `
+    <div class="preview-placeholder">
+      <div class="ph-icon">📑</div>
+      <p>Your converted PDF will appear here</p>
+    </div>`;
+  if (pdfBlobUrl) { URL.revokeObjectURL(pdfBlobUrl); pdfBlobUrl = null; }
+  pdfBytes = null;
+}
+
+browseBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  handleFile(e.dataTransfer.files[0]);
+});
+dropZone.addEventListener('click', e => { if (e.target !== browseBtn) fileInput.click(); });
+
+// ═══════════════════════════════════════════════════════════════
+//  XPS Renderer
+// ═══════════════════════════════════════════════════════════════
+class XpsRenderer {
+  constructor(zip) {
+    this.zip        = zip;
+    this.imgCache   = new Map();
+    this.fontCache  = new Map(); // fontUri → CSS family name
+  }
+
+  // ─── path utilities ────────────────────────────────────────
+  norm(p) { return p.replace(/^\//, '').replace(/\/\//g, '/'); }
+
+  resolve(base, rel) {
+    if (!rel) return base;
+    if (rel.startsWith('/')) return this.norm(rel);
+    const dir = base.includes('/') ? base.slice(0, base.lastIndexOf('/') + 1) : '';
+    const parts = (dir + rel).split('/');
+    const out = [];
+    for (const p of parts) {
+      if (p === '..') out.pop();
+      else if (p && p !== '.') out.push(p);
+    }
+    return out.join('/');
+  }
+
+  async readXml(path) {
+    path = this.norm(path);
+    const f = this.zip.file(path);
+    if (!f) throw new Error('File not found in archive: ' + path + '. Please ensure this is a valid OXPS/XPS file.');
+    const text = await f.async('string');
+    return new DOMParser().parseFromString(text, 'text/xml');
+  }
+
+  // ─── document structure ────────────────────────────────────
+  async getPagePaths() {
+    const relsDoc = await this.readXml('_rels/.rels');
+    let fdsPath = null;
+    for (const rel of relsDoc.querySelectorAll('Relationship')) {
+      if ((rel.getAttribute('Type') || '').toLowerCase().includes('fixedrepresentation')) {
+        fdsPath = this.norm(rel.getAttribute('Target') || '');
+        break;
+      }
+    }
+    if (!fdsPath) throw new Error('FixedDocumentSequence not found. Is this a valid OXPS/XPS file?');
+
+    const fdsDoc = await this.readXml(fdsPath);
+    const pagePaths = [];
+    for (const docRef of fdsDoc.querySelectorAll('DocumentReference')) {
+      const fdPath = this.resolve(fdsPath, docRef.getAttribute('Source') || '');
+      const fdDoc  = await this.readXml(fdPath);
+      for (const pc of fdDoc.querySelectorAll('PageContent')) {
+        pagePaths.push(this.resolve(fdPath, pc.getAttribute('Source') || ''));
+      }
+    }
+    return pagePaths;
+  }
+
+  // ─── page rendering ────────────────────────────────────────
+  async renderPage(pagePath, scale, bgColor) {
+    const doc  = await this.readXml(pagePath);
+    const fp   = doc.documentElement;
+    const pw   = parseFloat(fp.getAttribute('Width')  || 816);
+    const ph   = parseFloat(fp.getAttribute('Height') || 1056);
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.round(pw * scale);
+    canvas.height = Math.round(ph * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    if (bgColor !== 'transparent') {
+      ctx.fillStyle = bgColor || 'white';
+      ctx.fillRect(0, 0, pw, ph);
+    }
+
+    const baseDir = pagePath.includes('/') ? pagePath.slice(0, pagePath.lastIndexOf('/') + 1) : '';
+    await this.renderNode(fp, ctx, Object.create(null), baseDir, pw, ph);
+    return { canvas, pw, ph };
+  }
+
+  // ─── element dispatch ──────────────────────────────────────
+  async renderNode(el, ctx, res, baseDir, pw, ph) {
+    const tag = el.localName;
+    if (!tag || tag.includes('.') || tag === 'parsererror') return;
+
+    ctx.save();
+
+    const opacity = el.getAttribute('Opacity');
+    if (opacity !== null) ctx.globalAlpha *= Math.max(0, Math.min(1, parseFloat(opacity)));
+
+    const transform = this.getTransform(el);
+    if (transform) ctx.transform(...transform);
+
+    if (tag === 'FixedPage' || tag === 'Canvas') {
+      const resProp = tag + '.Resources';
+      for (const child of el.children)
+        if (child.localName === resProp)
+          await this.collectRes(child, res, baseDir, ctx, pw, ph);
+      for (const child of el.children)
+        await this.renderNode(child, ctx, res, baseDir, pw, ph);
+
+    } else if (tag === 'Path') {
+      await this.renderPath(el, ctx, res, baseDir, pw, ph);
+    } else if (tag === 'Glyphs') {
+      await this.renderGlyphs(el, ctx, res, baseDir);
+    }
+
+    ctx.restore();
+  }
+
+  // ─── transform ─────────────────────────────────────────────
+  getTransform(el) {
+    const attr = el.getAttribute('RenderTransform');
+    if (attr) return this.parseMatrix(attr);
+
+    const propName = el.localName + '.RenderTransform';
+    for (const child of el.children) {
+      if (child.localName !== propName) continue;
+      for (const c of child.children) {
+        const lt = c.localName;
+        if (lt === 'MatrixTransform') {
+          const m = c.getAttribute('Matrix');
+          if (m) return this.parseMatrix(m);
+        }
+        if (lt === 'TranslateTransform') {
+          return [1, 0, 0, 1,
+            parseFloat(c.getAttribute('X') || 0),
+            parseFloat(c.getAttribute('Y') || 0)];
+        }
+        if (lt === 'ScaleTransform') {
+          const sx = parseFloat(c.getAttribute('ScaleX') || 1);
+          const sy = parseFloat(c.getAttribute('ScaleY') || 1);
+          const cx = parseFloat(c.getAttribute('CenterX') || 0);
+          const cy = parseFloat(c.getAttribute('CenterY') || 0);
+          return [sx, 0, 0, sy, cx - sx * cx, cy - sy * cy];
+        }
+        if (lt === 'RotateTransform') {
+          const angle = parseFloat(c.getAttribute('Angle') || 0) * Math.PI / 180;
+          const cx = parseFloat(c.getAttribute('CenterX') || 0);
+          const cy = parseFloat(c.getAttribute('CenterY') || 0);
+          const cos = Math.cos(angle), sin = Math.sin(angle);
+          return [cos, sin, -sin, cos,
+            cx - cos * cx + sin * cy,
+            cy - sin * cx - cos * cy];
+        }
+      }
+    }
+    return null;
+  }
+
+  parseMatrix(s) {
+    const parts = s.trim().split(/[\s,]+/).map(Number);
+    return parts.length >= 6 ? parts.slice(0, 6) : null;
+  }
+
+  // ─── path rendering ────────────────────────────────────────
+  async renderPath(el, ctx, res, baseDir, pw, ph) {
+    let dataAttr = el.getAttribute('Data');
+    if (!dataAttr) {
+      for (const child of el.children) {
+        if (child.localName === 'Path.Data') {
+          const geom = child.children[0];
+          if (geom) dataAttr = this.pathGeomToString(geom);
+          break;
+        }
+      }
+    }
+    if (!dataAttr) return;
+
+    const { fillRule, svgD } = this.parsePathData(dataAttr);
+    let path2d;
+    try { path2d = new Path2D(svgD); } catch (err) { console.warn('Invalid path data:', err); return; }
+
+    const lj = el.getAttribute('StrokeLineJoin');
+    if (lj) ctx.lineJoin = lj.toLowerCase();
+    const lc = el.getAttribute('StrokeStartLineCap') || el.getAttribute('StrokeEndLineCap');
+    if (lc) ctx.lineCap = lc.toLowerCase();
+    const da = el.getAttribute('StrokeDashArray');
+    if (da) ctx.setLineDash(da.split(/[\s,]+/).map(Number).filter(n => !isNaN(n)));
+
+    const fill = await this.resolveBrush(el, 'Fill', res, baseDir, ctx, pw, ph);
+    if (fill !== null) {
+      ctx.fillStyle = fill;
+      ctx.fill(path2d, fillRule === 'evenodd' ? 'evenodd' : 'nonzero');
+    }
+
+    const stroke = await this.resolveBrush(el, 'Stroke', res, baseDir, ctx, pw, ph);
+    if (stroke !== null) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth   = parseFloat(el.getAttribute('StrokeThickness') || 1);
+      ctx.stroke(path2d);
+    }
+  }
+
+  parsePathData(data) {
+    let d = data.trim();
+    let fillRule = 'nonzero';
+    if (/^F\s*0\b/.test(d))      { fillRule = 'evenodd'; d = d.replace(/^F\s*0\s*/, ''); }
+    else if (/^F\s*1\b/.test(d)) { fillRule = 'nonzero'; d = d.replace(/^F\s*1\s*/, ''); }
+    return { fillRule, svgD: d.trim() };
+  }
+
+  pathGeomToString(geomEl) {
+    const fr = geomEl.getAttribute('FillRule') === 'EvenOdd' ? 'F0' : 'F1';
+    const figs = [];
+    for (const fig of geomEl.children) {
+      if (fig.localName !== 'PathFigure') continue;
+      const sp = (fig.getAttribute('StartPoint') || '0,0').split(',');
+      let d = `M ${sp[0]},${sp[1]}`;
+      for (const seg of fig.children) {
+        const st = seg.localName;
+        if (st === 'PolyLineSegment')
+          d += ` L ${seg.getAttribute('Points') || ''}`;
+        else if (st === 'PolyBezierSegment')
+          d += ` C ${seg.getAttribute('Points') || ''}`;
+        else if (st === 'PolyQuadraticBezierSegment')
+          d += ` Q ${seg.getAttribute('Points') || ''}`;
+        else if (st === 'LineSegment')
+          d += ` L ${seg.getAttribute('Point') || '0,0'}`;
+        else if (st === 'BezierSegment')
+          d += ` C ${seg.getAttribute('Point1')||'0,0'} ${seg.getAttribute('Point2')||'0,0'} ${seg.getAttribute('Point3')||'0,0'}`;
+        else if (st === 'QuadraticBezierSegment')
+          d += ` Q ${seg.getAttribute('Point1')||'0,0'} ${seg.getAttribute('Point2')||'0,0'}`;
+        else if (st === 'ArcSegment') {
+          const sz   = (seg.getAttribute('Size') || '0,0').split(',');
+          const rot  = seg.getAttribute('RotationAngle') || '0';
+          const lg   = seg.getAttribute('IsLargeArc') === 'True' ? 1 : 0;
+          const sw   = seg.getAttribute('SweepDirection') === 'Clockwise' ? 1 : 0;
+          d += ` A ${sz[0]},${sz[1]} ${rot} ${lg},${sw} ${seg.getAttribute('Point')||'0,0'}`;
+        }
+      }
+      if (fig.getAttribute('IsClosed') === 'True') d += ' Z';
+      figs.push(d);
+    }
+    return fr + ' ' + figs.join(' ');
+  }
+
+  // ─── brush resolution ──────────────────────────────────────
+  async resolveBrush(el, prop, res, baseDir, ctx, pw, ph) {
+    const attr = el.getAttribute(prop);
+    if (attr !== null) {
+      if (!attr || attr.toLowerCase() === 'transparent') return null;
+      if (attr.startsWith('{StaticResource ')) {
+        const key = attr.slice(16, -1).trim();
+        return res[key] !== undefined ? res[key] : null;
+      }
+      return this.parseColor(attr);
+    }
+    const propChild = el.localName + '.' + prop;
+    for (const child of el.children) {
+      if (child.localName === propChild) {
+        const brushEl = child.children[0];
+        return brushEl ? await this.parseBrush(brushEl, res, baseDir, ctx, pw, ph) : null;
+      }
+    }
+    return null;
+  }
+
+  async parseBrush(el, res, baseDir, ctx, pw, ph) {
+    const tag     = el.localName;
+    const opacity = parseFloat(el.getAttribute('Opacity') || 1);
+
+    if (tag === 'SolidColorBrush') {
+      const c = this.parseColor(el.getAttribute('Color') || '#FF000000');
+      return opacity < 1 ? this.applyAlpha(c, opacity) : c;
+    }
+    if (tag === 'LinearGradientBrush')  return this.linearGrad(el, ctx, pw, ph, opacity);
+    if (tag === 'RadialGradientBrush')  return this.radialGrad(el, ctx, pw, ph, opacity);
+    if (tag === 'ImageBrush')           return await this.imageBrush(el, baseDir, ctx);
+    return null;
+  }
+
+  gatherGradientStops(el, brushTag, opacity) {
+    const stops = [];
+    const scan = parent => {
+      for (const child of parent.children) {
+        if (child.localName === 'GradientStop')
+          stops.push({
+            offset: parseFloat(child.getAttribute('Offset') || 0),
+            color:  this.applyAlpha(this.parseColor(child.getAttribute('Color') || '#FF000000'), opacity)
+          });
+        else if (!child.localName.includes('.'))
+          scan(child);
+      }
+    };
+    scan(el);
+    stops.sort((a, b) => a.offset - b.offset);
+    return stops;
+  }
+
+  linearGrad(el, ctx, pw, ph, opacity) {
+    const sp    = (el.getAttribute('StartPoint') || '0,0').split(',').map(Number);
+    const ep    = (el.getAttribute('EndPoint')   || '1,0').split(',').map(Number);
+    const stops = this.gatherGradientStops(el, 'LinearGradientBrush', opacity);
+    if (!stops.length) return null;
+    const grad  = ctx.createLinearGradient(sp[0]*pw, sp[1]*ph, ep[0]*pw, ep[1]*ph);
+    for (const s of stops) try { grad.addColorStop(Math.min(1, Math.max(0, s.offset)), s.color); } catch(err) { console.warn('Invalid gradient stop:', s, err); }
+    return grad;
+  }
+
+  radialGrad(el, ctx, pw, ph, opacity) {
+    const ctr   = (el.getAttribute('Center')         || '0.5,0.5').split(',').map(Number);
+    const orig  = (el.getAttribute('GradientOrigin') || el.getAttribute('Center') || '0.5,0.5').split(',').map(Number);
+    const rx    = parseFloat(el.getAttribute('RadiusX') || 0.5);
+    const stops = this.gatherGradientStops(el, 'RadialGradientBrush', opacity);
+    if (!stops.length) return null;
+    const grad  = ctx.createRadialGradient(orig[0]*pw, orig[1]*ph, 0, ctr[0]*pw, ctr[1]*ph, rx*pw);
+    for (const s of stops) try { grad.addColorStop(Math.min(1, Math.max(0, s.offset)), s.color); } catch(err) { console.warn('Invalid gradient stop:', s, err); }
+    return grad;
+  }
+
+  async imageBrush(el, baseDir, ctx) {
+    const src = el.getAttribute('ImageSource');
+    if (!src) return null;
+    const path = this.resolve(baseDir, src.replace(/^\//, ''));
+    const img  = await this.loadZipImage(path);
+    if (!img) return null;
+    return ctx.createPattern(img, 'repeat');
+  }
+
+  async loadZipImage(path) {
+    if (this.imgCache.has(path)) return this.imgCache.get(path);
+    const f = this.zip.file(this.norm(path));
+    if (!f) return null;
+    try {
+      const blob = await f.async('blob');
+      const url  = URL.createObjectURL(blob);
+      const img  = await new Promise((ok, fail) => {
+        const i = new Image();
+        i.onload  = () => ok(i);
+        i.onerror = fail;
+        i.src = url;
+      });
+      URL.revokeObjectURL(url);
+      this.imgCache.set(path, img);
+      return img;
+    } catch (err) { console.warn('Failed to load image from archive:', path, err); return null; }
+  async renderGlyphs(el, ctx, res, baseDir) {
+    const text = el.getAttribute('UnicodeString');
+    if (!text) return;
+
+    const x       = parseFloat(el.getAttribute('OriginX') || 0);
+    const y       = parseFloat(el.getAttribute('OriginY') || 0);
+    const size    = parseFloat(el.getAttribute('FontRenderingEmSize') || 12);
+    const fillRaw = el.getAttribute('Fill');
+    const opacity = parseFloat(el.getAttribute('Opacity') || 1);
+
+    let fillStyle = '#000000';
+    if (fillRaw) {
+      if (fillRaw.startsWith('{StaticResource ')) {
+        const key = fillRaw.slice(16, -1).trim();
+        fillStyle = res[key] || '#000000';
+      } else {
+        fillStyle = this.parseColor(fillRaw) || '#000000';
+      }
+    }
+
+    if (opacity < 1) ctx.globalAlpha *= opacity;
+
+    // Try to load the XPS font for accurate rendering
+    const fontUri = el.getAttribute('FontUri') || '';
+    let fontFamily = 'sans-serif';
+    if (fontUri) {
+      const resolved = this.resolve(baseDir, fontUri.replace(/^\//, ''));
+      if (!this.fontCache.has(resolved)) {
+        const loaded = await this.loadOdttfFont(resolved);
+        this.fontCache.set(resolved, loaded || null);
+      }
+      fontFamily = this.fontCache.get(resolved) || 'sans-serif';
+    }
+
+    // Style simulations
+    const sim  = (el.getAttribute('StyleSimulations') || '').toLowerCase();
+    const bold = sim.includes('bold')   ? 'bold '   : '';
+    const ital = sim.includes('italic') ? 'italic ' : '';
+
+    ctx.fillStyle    = fillStyle;
+    ctx.font         = `${ital}${bold}${size}px ${fontFamily}`;
+    ctx.textBaseline = 'alphabetic';
+
+    const indices = el.getAttribute('Indices');
+    if (indices && indices.trim()) {
+      this.drawIndexed(ctx, text, indices, x, y, size);
+    } else {
+      ctx.fillText(text, x, y);
+    }
+  }
+
+  drawIndexed(ctx, text, indices, x, y, fontSize) {
+    const chars   = [...text];
+    const entries = indices.split(';');
+    let curX = x;
+    for (let i = 0; i < chars.length; i++) {
+      ctx.fillText(chars[i], curX, y);
+      const entry   = (entries[i] || '').trim();
+      const parts   = entry.split(',');
+      const advRaw  = parts.length >= 2 ? parts[1] : '';
+      const advance = advRaw !== '' && !isNaN(advRaw)
+        ? parseFloat(advRaw) / 100 * fontSize
+        : ctx.measureText(chars[i]).width;
+      curX += advance;
+    }
+  }
+
+  // ─── font deobfuscation ────────────────────────────────────
+  async loadOdttfFont(path) {
+    const guidMatch = path.match(/([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/i);
+    const f = this.zip.file(this.norm(path));
+    if (!f) return null;
+    try {
+      let data = await f.async('uint8array');
+      data = new Uint8Array(data); // mutable copy
+
+      if (guidMatch) {
+        // De-obfuscate per ECMA-376 §10.2.7.4
+        const hex  = guidMatch[1].replace(/-/g, '');
+        const gRaw = [];
+        for (let i = 0; i < 32; i += 2) gRaw.push(parseInt(hex.slice(i, i + 2), 16));
+        // Windows GUID binary: D1 LE (4), D2 LE (2), D3 LE (2), D4 as-is (8)
+        const key = [
+          ...gRaw.slice(0, 4).reverse(),
+          ...gRaw.slice(4, 6).reverse(),
+          ...gRaw.slice(6, 8).reverse(),
+          ...gRaw.slice(8, 16)
+        ];
+        for (let i = 0; i < Math.min(32, data.length); i++) {
+          // XOR each of the first 32 font bytes with the key traversed in reverse
+          // order, cycling through the 16-byte key twice — per ECMA-376 §10.2.7.4
+          data[i] ^= key[15 - (i % 16)];
+        }
+      }
+
+      const familyName = 'xps-' + path.replace(/[^a-zA-Z0-9]/g, '-');
+      const blob       = new Blob([data], { type: 'font/otf' });
+      const url        = URL.createObjectURL(blob);
+      const face       = new FontFace(familyName, `url(${url})`);
+      await face.load();
+      document.fonts.add(face);
+      URL.revokeObjectURL(url);
+      return familyName;
+    } catch (err) { console.warn('Failed to load/deobfuscate font:', path, err); return null; }
+  async collectRes(propEl, res, baseDir, ctx, pw, ph) {
+    const scan = async parent => {
+      for (const child of parent.children) {
+        if (child.localName === 'ResourceDictionary') { await scan(child); continue; }
+        const key = child.getAttribute('x:Key') || child.getAttribute('Key');
+        if (!key) continue;
+        const val = await this.parseBrush(child, res, baseDir, ctx, pw, ph);
+        if (val !== null) res[key] = val;
+      }
+    };
+    await scan(propEl);
+  }
+
+  // ─── color utilities ───────────────────────────────────────
+  parseColor(s) {
+    if (!s) return null;
+    s = s.trim();
+    if (/^#[0-9a-fA-F]{8}$/.test(s)) {
+      const a = parseInt(s.slice(1, 3), 16) / 255;
+      const r = parseInt(s.slice(3, 5), 16);
+      const g = parseInt(s.slice(5, 7), 16);
+      const b = parseInt(s.slice(7, 9), 16);
+      return `rgba(${r},${g},${b},${a.toFixed(4)})`;
+    }
+    if (/^#[0-9a-fA-F]{6}$/.test(s)) return s;
+    if (/^#[0-9a-fA-F]{3}$/.test(s)) return s;
+    if (s.startsWith('sc#')) {
+      const p = s.slice(3).split(',').map(Number);
+      if (p.length === 4) {
+        const lin = v => v <= 0.0031308
+          ? Math.round(v * 12.92 * 255)
+          : Math.round((1.055 * Math.pow(Math.max(0, v), 1 / 2.4) - 0.055) * 255);
+        return `rgba(${lin(p[1])},${lin(p[2])},${lin(p[3])},${p[0].toFixed(4)})`;
+      }
+    }
+    return s;
+  }
+
+  applyAlpha(color, alpha) {
+    if (!color || alpha >= 1) return color;
+    if (color.startsWith('rgba(')) {
+      const p = color.slice(5, -1).split(',');
+      p[3] = (parseFloat(p[3]) * alpha).toFixed(4);
+      return `rgba(${p.join(',')})`;
+    }
+    if (color.startsWith('rgb(')) {
+      return `rgba(${color.slice(4, -1)},${alpha.toFixed(4)})`;
+    }
+    if (/^#[0-9a-fA-F]{6}$/.test(color)) {
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+      return `rgba(${r},${g},${b},${alpha.toFixed(4)})`;
+    }
+    return color;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PDF builder
+// ═══════════════════════════════════════════════════════════════
+async function buildPdf(pages, onProgress) {
+  const { PDFDocument } = PDFLib;
+  const pdf = await PDFDocument.create();
+
+  for (let i = 0; i < pages.length; i++) {
+    onProgress(i, pages.length, `Encoding page ${i + 1} of ${pages.length}…`);
+
+    const { canvas, pw, ph } = pages[i];
+
+    // Canvas → PNG bytes
+    const dataUrl  = canvas.toDataURL('image/png');
+    const b64      = dataUrl.split(',')[1];
+    const pngBytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const img      = await pdf.embedPng(pngBytes);
+
+    // XPS units are 96 DPI; PDF points are 72 DPI
+    const pdfW = pw * (72 / 96);
+    const pdfH = ph * (72 / 96);
+
+    const page = pdf.addPage([pdfW, pdfH]);
+    page.drawImage(img, { x: 0, y: 0, width: pdfW, height: pdfH });
+  }
+
+  onProgress(pages.length, pages.length, 'Saving PDF…');
+  return await pdf.save();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Main conversion pipeline
+// ═══════════════════════════════════════════════════════════════
+convertBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  convertBtn.disabled = true;
+  downloadCard.style.display = 'none';
+  hideStatus();
+  progressWrap.classList.remove('hidden');
+  pageCountEl.textContent = '';
+  setProgress(0, 1, 'Reading file…');
+
+  try {
+    const scale   = parseFloat(qualitySelect.value);
+    const bgColor = bgColorSelect.value;
+
+    // 1. Load ZIP
+    setProgress(0, 10, 'Extracting archive…');
+    const arrayBuffer = await selectedFile.arrayBuffer();
+    const zip = await JSZip.loadAsync(arrayBuffer);
+
+    // 2. Parse document structure
+    setProgress(1, 10, 'Parsing document structure…');
+    const renderer = new XpsRenderer(zip);
+    const pagePaths = await renderer.getPagePaths();
+
+    if (!pagePaths.length) throw new Error('No pages found in this document.');
+    pageCountEl.textContent = `${pagePaths.length} page${pagePaths.length > 1 ? 's' : ''}`;
+
+    // 3. Render pages
+    const renderedPages = [];
+    for (let i = 0; i < pagePaths.length; i++) {
+      setProgress(i, pagePaths.length, `Rendering page ${i + 1} of ${pagePaths.length}…`);
+      const result = await renderer.renderPage(pagePaths[i], scale, bgColor);
+      renderedPages.push(result);
+      // Yield to keep UI responsive
+      await new Promise(r => setTimeout(r, 0));
+    }
+
+    // 4. Build PDF
+    setProgress(0, renderedPages.length, 'Building PDF…');
+    const bytes = await buildPdf(renderedPages, (done, total, msg) => setProgress(done, total, msg));
+    pdfBytes = bytes;
+
+    // 5. Preview
+    setProgress(renderedPages.length, renderedPages.length, 'Done!');
+    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    pdfBlobUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+
+    previewContainer.innerHTML = `<iframe id="pdfFrame" src="${pdfBlobUrl}"></iframe>`;
+
+    // 6. Download card
+    const sizeFmt = fmtBytes(bytes.byteLength);
+    dlInfo.textContent = `${renderedPages.length} page${renderedPages.length > 1 ? 's' : ''} · ${sizeFmt}`;
+    downloadCard.style.display = '';
+    showStatus('success', `✓ Conversion complete — ${renderedPages.length} page${renderedPages.length > 1 ? 's' : ''} converted.`);
+
+  } catch (err) {
+    showStatus('error', '✗ ' + (err.message || String(err)));
+  } finally {
+    convertBtn.disabled = false;
+    setProgress(100, 100, 'Done');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Download
+// ═══════════════════════════════════════════════════════════════
+downloadBtn.addEventListener('click', () => {
+  if (!pdfBytes) return;
+  const name = (selectedFile?.name || 'document').replace(/\.(oxps|xps)$/i, '') + '.pdf';
+  const a    = Object.assign(document.createElement('a'), {
+    href:     URL.createObjectURL(new Blob([pdfBytes], { type: 'application/pdf' })),
+    download: name
+  });
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 5000);
+});
+</script>
+</body>
+</html>
