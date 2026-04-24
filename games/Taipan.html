@@ -480,7 +480,7 @@ let state = {
     voyageCount: 0,
     autoCombat: false,
     lastCombatAction: null,
-    crew: 0,
+    crew: { gunners: 0, merchants: 0, carpenters: 0 },
     ammo: { explosive: 0, electric: 0 },
     liYuenProtected: 0   // remaining voyages of Li Yuen protection
 };
@@ -618,8 +618,17 @@ document.addEventListener('DOMContentLoaded', () => {
 function applyLoadedState(parsed) {
     state = parsed;
     if (!state.ammo)                         state.ammo = { explosive: 0, electric: 0 };
-    if (state.crew === undefined)            state.crew = 0;
     if (state.liYuenProtected === undefined) state.liYuenProtected = 0;
+    // Migrate old numeric crew to role object
+    if (typeof state.crew === 'number') {
+        state.crew = { gunners: state.crew, merchants: 0, carpenters: 0 };
+    } else if (!state.crew || typeof state.crew !== 'object') {
+        state.crew = { gunners: 0, merchants: 0, carpenters: 0 };
+    } else {
+        if (state.crew.gunners   === undefined) state.crew.gunners   = 0;
+        if (state.crew.merchants === undefined) state.crew.merchants = 0;
+        if (state.crew.carpenters=== undefined) state.crew.carpenters= 0;
+    }
     document.getElementById('setup-container').style.display = 'none';
     document.getElementById('game-container').style.display  = 'block';
     document.getElementById('merchant-name-display').innerText = state.playerName;
@@ -649,7 +658,7 @@ function getPortData(name) {
 function getHoldUsed() {
     const cargo  = Object.values(state.inventory).reduce((a, b) => a + b, 0);
     const gunSpc = state.guns * 10;
-    const crewSpc = state.crew * 2;
+    const crewSpc = getTotalCrew() * 2;
     return cargo + gunSpc + crewSpc;
 }
 
@@ -657,13 +666,32 @@ function getWarehouseUsed() {
     return Object.values(state.warehouse).reduce((a, b) => a + b, 0);
 }
 
+function getTotalCrew() {
+    return (state.crew.gunners || 0) + (state.crew.merchants || 0) + (state.crew.carpenters || 0);
+}
+
+// Accuracy bonus scales with GUNNERS only
 function getCrewBonus() {
-    if (state.crew >= 9) return 0.45;
-    if (state.crew >= 7) return 0.35;
-    if (state.crew >= 5) return 0.25;
-    if (state.crew >= 3) return 0.15;
-    if (state.crew >= 1) return 0.05;
+    const g = state.crew.gunners || 0;
+    if (g >= 9) return 0.45;
+    if (g >= 7) return 0.35;
+    if (g >= 5) return 0.25;
+    if (g >= 3) return 0.15;
+    if (g >= 1) return 0.05;
     return 0;
+}
+
+// MERCHANTS lower buy price / raise sell price — 3% each, max 15% at 5 merchants
+function getMerchantDiscount() {
+    return Math.max(0.85, 1 - (state.crew.merchants || 0) * 0.03);
+}
+function getMerchantBonus() {
+    return Math.min(1.15, 1 + (state.crew.merchants || 0) * 0.03);
+}
+
+// CARPENTERS repair 2% hull per voyage while sailing, capped at 12% total
+function getCarpenterRepair() {
+    return Math.min(12, (state.crew.carpenters || 0) * 2);
 }
 
 function updatePrices() {
@@ -698,7 +726,7 @@ function render() {
     document.getElementById('guns').innerText        = state.guns;
     document.getElementById('hold-used').innerText   = getHoldUsed();
     document.getElementById('hold-total').innerText  = state.holdTotal;
-    document.getElementById('crew-count').innerText  = state.crew;
+    document.getElementById('crew-count').innerText  = getTotalCrew();
     document.getElementById('ammo-explosive').innerText = state.ammo.explosive;
     document.getElementById('ammo-electric').innerText  = state.ammo.electric;
     document.getElementById('location-display').innerText = `PORT: ${state.currentPort.toUpperCase()}`;
@@ -741,31 +769,40 @@ function render() {
 //  TRADING
 // =============================================
 function openTradeModal(item, mode) {
-    const price   = state.prices[item];
-    const used    = getHoldUsed();
-    const free    = state.holdTotal - used;
-    const maxBuy  = Math.min(free, Math.floor(state.cash / price));
-    const maxSell = state.inventory[item];
-    const comData = commodities.find(c => c.name === item);
+    const basePrice = state.prices[item];
+    const comData   = commodities.find(c => c.name === item);
+    const merchants = state.crew.merchants || 0;
 
     let html = '';
     if (mode === 'buy') {
+        const effPrice = Math.max(1, Math.floor(basePrice * getMerchantDiscount()));
+        const used     = getHoldUsed();
+        const free     = state.holdTotal - used;
+        const maxBuy   = Math.min(free, Math.floor(state.cash / effPrice));
+        const discount = basePrice - effPrice;
         html = `<p>PURCHASING <strong>${item.toUpperCase()}</strong></p>
-                <p>UNIT PRICE: ${price.toLocaleString()} GOLD &nbsp;|&nbsp; MAX: ${maxBuy} UNITS</p>
+                <p>MARKET PRICE: ${basePrice.toLocaleString()} GOLD</p>
+                ${merchants > 0 ? `<p style="color:var(--green-bright)">MERCHANT DISCOUNT: −${discount.toLocaleString()} → <strong>${effPrice.toLocaleString()} GOLD</strong></p>` : ''}
+                <p>MAX: ${maxBuy} UNITS</p>
                 ${comData.risky ? `<p style="color:var(--danger)">⚠ WARNING: ${item.toUpperCase()} IS CONTRABAND — RISK OF SEIZURE ON ARRIVAL.</p>` : ''}
                 <div class="flex-center">
                     <input type="number" id="trade-qty" class="trans-input" min="1" max="${maxBuy}" value="${maxBuy}">
                     <button onclick="document.getElementById('trade-qty').value=${maxBuy}">MAX</button>
                 </div>
-                <button class="btn-main" onclick="executeTrade('${item}',${price},1)">CONFIRM PURCHASE</button>`;
+                <button class="btn-main" onclick="executeTrade('${item}',${effPrice},1)">CONFIRM PURCHASE</button>`;
     } else {
+        const effPrice = Math.ceil(basePrice * getMerchantBonus());
+        const maxSell  = state.inventory[item];
+        const bonus    = effPrice - basePrice;
         html = `<p>SELLING <strong>${item.toUpperCase()}</strong></p>
-                <p>UNIT PRICE: ${price.toLocaleString()} GOLD &nbsp;|&nbsp; IN HOLD: ${maxSell} UNITS</p>
+                <p>MARKET PRICE: ${basePrice.toLocaleString()} GOLD</p>
+                ${merchants > 0 ? `<p style="color:var(--green-bright)">MERCHANT PREMIUM: +${bonus.toLocaleString()} → <strong>${effPrice.toLocaleString()} GOLD</strong></p>` : ''}
+                <p>IN HOLD: ${maxSell} UNITS</p>
                 <div class="flex-center">
                     <input type="number" id="trade-qty" class="trans-input" min="1" max="${maxSell}" value="${maxSell}">
                     <button onclick="document.getElementById('trade-qty').value=${maxSell}">MAX</button>
                 </div>
-                <button class="btn-main" onclick="executeTrade('${item}',${price},-1)">CONFIRM SALE</button>`;
+                <button class="btn-main" onclick="executeTrade('${item}',${effPrice},-1)">CONFIRM SALE</button>`;
     }
     showModal(mode === 'buy' ? "MARKET: BUY" : "MARKET: SELL", html, true);
 }
@@ -940,7 +977,7 @@ function renderCombat() {
         <div id="fleet-visual">${fleetHTML}</div>
         <div id="combat-stats">
             ENEMY FLEET: ${alive.length} SHIPS REMAINING &nbsp;|&nbsp; SUNK: ${c.totalSunk}<br>
-            YOUR HULL: ${Math.round(state.health)}% &nbsp;|&nbsp; GUNS: ${state.guns} &nbsp;|&nbsp; CREW BONUS: +${crewBonus}% ACC<br>
+            YOUR HULL: ${Math.round(state.health)}% &nbsp;|&nbsp; GUNS: ${state.guns} &nbsp;|&nbsp; GUNNERS: ${state.crew.gunners || 0} (+${crewBonus}% ACC)<br>
             AMMO — EXP: ${state.ammo.explosive} &nbsp;·&nbsp; ELEC: ${state.ammo.electric}
         </div>
         <p id="combat-status" style="font-size:0.85em;margin:4px 0;">${c.status}</p>
@@ -1235,10 +1272,14 @@ async function enemyVolley() {
 
     c.logs.push(`ENEMY FIRE STRIKES ${hits} TIMES. HULL AT ${Math.round(state.health)}%.`);
 
-    // Crew casualty
-    if (state.crew > 0 && hits > 0 && Math.random() < 0.10) {
-        state.crew = Math.max(0, state.crew - 1);
-        c.logs.push("A CREWMAN FALLS IN BATTLE!");
+    // Crew casualty — lose one from a random occupied role
+    if (getTotalCrew() > 0 && hits > 0 && Math.random() < 0.10) {
+        const occupied = ['gunners','merchants','carpenters'].filter(r => state.crew[r] > 0);
+        if (occupied.length > 0) {
+            const role = occupied[Math.floor(Math.random() * occupied.length)];
+            state.crew[role]--;
+            c.logs.push(`A ${role.slice(0,-1).toUpperCase()} FALLS IN BATTLE!`);
+        }
     }
     // Gun damaged
     if (hits > 0 && state.guns > 0 && Math.random() < 0.04) {
@@ -1277,10 +1318,18 @@ function arrive() {
     // Interest on bank savings
     if (state.bank > 0) state.bank = Math.floor(state.bank * 1.02);
     // Crew wages
-    if (state.crew > 0) {
-        const wages = state.crew * 50;
+    const totalCrew = getTotalCrew();
+    if (totalCrew > 0) {
+        const wages = totalCrew * 50;
         state.cash = Math.max(0, state.cash - wages);
         log(`PAID ${wages.toLocaleString()} GOLD IN CREW WAGES.`);
+    }
+    // Carpenter hull repair during voyage
+    const repair = getCarpenterRepair();
+    if (repair > 0 && state.health < 100) {
+        const actual = Math.min(repair, 100 - state.health);
+        state.health = Math.min(100, state.health + actual);
+        log(`YOUR CARPENTERS PATCHED ${actual}% HULL DAMAGE DURING THE VOYAGE.`, "var(--green-bright)");
     }
     // Elder Brother Wu's thugs if debt is crushing
     if (state.debt > 0 && state.debt > state.cash * 10 && state.debt > 50000 && Math.random() > 0.65) {
@@ -1528,52 +1577,65 @@ function shipyardAction(type) {
 function visitCrew() {
     const maxCrew  = 10;
     const hireCost = 400;
-    const canHire  = Math.min(maxCrew - state.crew, Math.floor(state.cash / hireCost), Math.floor((state.holdTotal - getHoldUsed()) / 2));
-    const html = `
-        <p>CREW: ${state.crew}/${maxCrew} &nbsp;|&nbsp; CARGO SPACE PER CREW: 2 &nbsp;|&nbsp; WAGE: 50 GOLD/VOYAGE</p>
-        <p>HIRING COST: ${hireCost} GOLD PER SAILOR</p>
-        <hr class="section-divider">
-        <p><strong>CREW BONUSES (CANNON ACCURACY):</strong></p>
-        <div style="font-size:0.82em;">
-            <div class="crew-bonus-row"><span>1-2 CREW:</span><span>+5%</span></div>
-            <div class="crew-bonus-row"><span>3-4 CREW:</span><span>+15%</span></div>
-            <div class="crew-bonus-row"><span>5-6 CREW:</span><span>+25%</span></div>
-            <div class="crew-bonus-row"><span>7-8 CREW:</span><span>+35%</span></div>
-            <div class="crew-bonus-row"><span>9-10 CREW:</span><span>+45%</span></div>
-        </div>
-        <hr class="section-divider">
-        <p>HIRE SAILORS</p>
-        <div class="flex-center">
-            <input type="number" id="crew-hire-qty" class="trans-input" min="1" max="${canHire}" value="${Math.max(1, canHire)}">
-            <button onclick="document.getElementById('crew-hire-qty').value=${Math.max(1,canHire)}">MAX</button>
-            <button onclick="crewAction('hire')" ${canHire <= 0 ? 'disabled' : ''}>HIRE</button>
-        </div>
-        ${canHire <= 0 ? '<p style="color:var(--danger);font-size:0.8em;">CANNOT HIRE: NO SPACE OR GOLD.</p>' : ''}
-        <hr class="section-divider">
-        <p>DISMISS CREW</p>
-        <div class="flex-center">
-            <input type="number" id="crew-fire-qty" class="trans-input" min="1" max="${state.crew}" value="1">
-            <button onclick="crewAction('fire')" ${state.crew <= 0 ? 'disabled' : ''}>DISMISS</button>
+    const total    = getTotalCrew();
+    const spaceForCrew = Math.floor((state.holdTotal - getHoldUsed()) / 2);
+    const canHireAny   = Math.min(maxCrew - total, Math.floor(state.cash / hireCost), spaceForCrew);
+
+    const roles = [
+        { key: 'gunners',    label: 'GUNNER',    icon: '🎯',
+          desc: 'Improves cannon accuracy in combat (+5% to +45% based on gunner count).' },
+        { key: 'merchants',  label: 'MERCHANT',  icon: '📦',
+          desc: 'Lowers buy prices and raises sell prices (up to −15% / +15% with 5 merchants).' },
+        { key: 'carpenters', label: 'CARPENTER', icon: '🔨',
+          desc: 'Repairs hull while sailing — 2% per carpenter per voyage (max 12%).' }
+    ];
+
+    let rolesHtml = '';
+    roles.forEach(r => {
+        const count   = state.crew[r.key] || 0;
+        const canHire = Math.min(canHireAny, maxCrew - total); // recalculated each row
+        rolesHtml += `
+        <div style="background:#050f05;border:1px solid var(--border);padding:8px;margin-bottom:6px;border-radius:2px;">
+            <p style="margin:0 0 3px;color:var(--green-bright);">${r.icon} ${r.label} &nbsp;·&nbsp; <span style="color:var(--green);">${count}</span> HIRED</p>
+            <p style="margin:0 0 6px;font-size:0.8em;color:var(--green-dim);">${r.desc}</p>
+            <div class="flex-center">
+                <span style="font-size:0.8em;color:var(--green-dim);margin-right:6px;">HIRE</span>
+                <input type="number" id="crew-hire-${r.key}" class="trans-input" min="1" max="${Math.max(1,canHireAny)}" value="1" style="width:60px;">
+                <button onclick="crewAction('hire','${r.key}')" ${canHireAny <= 0 ? 'disabled' : ''}>HIRE</button>
+                <span style="font-size:0.8em;color:var(--green-dim);margin-left:10px;margin-right:6px;">DISMISS</span>
+                <input type="number" id="crew-fire-${r.key}" class="trans-input" min="1" max="${Math.max(1,count)}" value="1" style="width:60px;">
+                <button onclick="crewAction('fire','${r.key}')" ${count <= 0 ? 'disabled' : ''}>DISMISS</button>
+            </div>
         </div>`;
+    });
+
+    const html = `
+        <p>CREW: ${total}/${maxCrew} &nbsp;|&nbsp; CARGO SPACE PER CREW: 2 &nbsp;|&nbsp; WAGE: 50 GOLD/VOYAGE</p>
+        <p>HIRING COST: ${hireCost} GOLD PER SAILOR</p>
+        ${canHireAny <= 0 ? '<p style="color:var(--danger);font-size:0.8em;">CANNOT HIRE: NO SPACE, GOLD, OR CREW SLOTS.</p>' : ''}
+        <hr class="section-divider">
+        ${rolesHtml}`;
     showModal("CREW MANAGEMENT", html, true);
 }
 
-function crewAction(type) {
+function crewAction(type, role) {
+    const maxCrew = 10;
     if (type === 'hire') {
-        const qty    = Math.max(0, parseInt(document.getElementById('crew-hire-qty').value) || 0);
-        const cost   = qty * 400;
-        const space  = Math.floor((state.holdTotal - getHoldUsed()) / 2);
-        const maxNew = Math.min(10 - state.crew, space, Math.floor(state.cash / 400));
-        const actual = Math.min(qty, maxNew);
-        if (actual <= 0) { log("CANNOT HIRE CREW — CHECK GOLD AND HOLD SPACE."); return; }
-        state.cash -= actual * 400;
-        state.crew += actual;
-        log(`HIRED ${actual} SAILOR${actual !== 1 ? 'S' : ''}. CREW NOW ${state.crew}/10.`);
+        const inputId = `crew-hire-${role}`;
+        const qty     = Math.max(0, parseInt(document.getElementById(inputId)?.value) || 0);
+        const space   = Math.floor((state.holdTotal - getHoldUsed()) / 2);
+        const maxNew  = Math.min(maxCrew - getTotalCrew(), space, Math.floor(state.cash / 400));
+        const actual  = Math.min(qty, maxNew);
+        if (actual <= 0) { log("CANNOT HIRE CREW — CHECK GOLD AND HOLD SPACE."); closeModal(); return; }
+        state.cash         -= actual * 400;
+        state.crew[role]    = (state.crew[role] || 0) + actual;
+        log(`HIRED ${actual} ${role.slice(0,-1).toUpperCase()}${actual !== 1 ? 'S' : ''}. CREW NOW ${getTotalCrew()}/${maxCrew}.`);
     }
     if (type === 'fire') {
-        const qty    = Math.max(0, Math.min(parseInt(document.getElementById('crew-fire-qty').value) || 0, state.crew));
-        state.crew  -= qty;
-        log(`DISMISSED ${qty} SAILOR${qty !== 1 ? 'S' : ''}. CREW NOW ${state.crew}/10.`);
+        const inputId = `crew-fire-${role}`;
+        const qty     = Math.max(0, Math.min(parseInt(document.getElementById(inputId)?.value) || 0, state.crew[role] || 0));
+        state.crew[role] = Math.max(0, (state.crew[role] || 0) - qty);
+        log(`DISMISSED ${qty} ${role.slice(0,-1).toUpperCase()}${qty !== 1 ? 'S' : ''}. CREW NOW ${getTotalCrew()}/${maxCrew}.`);
     }
     render(); visitCrew();
 }
@@ -1612,9 +1674,16 @@ function showHelp() {
             <p style="font-size:0.8em;">Market events can push prices 40% below minimum or 80% above maximum.</p>
 
             <h3 style="margin-top:12px;color:var(--green-bright);">CREW SYSTEM</h3>
-            <p>Hire sailors at any port (400 gold each, 2 hold space, 50 gold/voyage wage). Crew improve cannon accuracy:</p>
+            <p>Hire sailors at any port (400 gold each, 2 hold space, 50 gold/voyage wage). Choose a <strong>role</strong> for each hire:</p>
             <table class="help-table">
-                <tr><th>CREW SIZE</th><th>ACCURACY BONUS</th></tr>
+                <tr><th>ROLE</th><th>EFFECT</th></tr>
+                <tr><td>🎯 GUNNER</td><td>Boosts cannon accuracy in combat</td></tr>
+                <tr><td>📦 MERCHANT</td><td>Lower buy prices / higher sell prices (up to −15% / +15%)</td></tr>
+                <tr><td>🔨 CARPENTER</td><td>Repairs 2% hull damage per voyage while sailing (max 12%)</td></tr>
+            </table>
+            <p style="margin-top:6px;"><strong>GUNNER ACCURACY BONUS (gunners only):</strong></p>
+            <table class="help-table">
+                <tr><th>GUNNERS</th><th>ACCURACY BONUS</th></tr>
                 <tr><td>1 – 2</td><td>+5%</td></tr>
                 <tr><td>3 – 4</td><td>+15%</td></tr>
                 <tr><td>5 – 6</td><td>+25%</td></tr>
@@ -1644,7 +1713,7 @@ function showHelp() {
             <ul style="padding-left:18px;font-size:0.85em;">
                 <li>DEBT compounds at 10% per voyage. Pay it off early!</li>
                 <li>BANK savings earn 2% per voyage.</li>
-                <li>Crew wages: 50 gold per crew member per voyage.</li>
+                <li>Crew wages: 50 gold per crew member per voyage (all roles).</li>
                 <li>Each cannon takes 10 hold capacity.</li>
                 <li>Pirate bounty: 200 gold per ship sunk (+30 per voyage milestone).</li>
             </ul>
