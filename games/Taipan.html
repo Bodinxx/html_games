@@ -22,6 +22,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
             --electric: #55aaff;
             --electric-dim: #2266aa;
             --explosive: #ff8c00;
+            --chain: #bbbbbb;
         }
 
         * {
@@ -332,6 +333,18 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         }
         .ammo-exp { border-color: var(--explosive); color: var(--explosive); }
         .ammo-elec { border-color: var(--electric); color: var(--electric); }
+        .ammo-chain { border-color: var(--chain); color: var(--chain); }
+        .btn-chain { border-color: var(--chain); color: var(--chain); }
+        .btn-chain:hover:not(:disabled) { background: var(--chain); color: var(--bg); }
+        .cannon-ball.chain { background: #999; box-shadow: 0 0 8px #bbb; width: 8px; height: 8px; border-radius: 20%; }
+
+        /* Player combat hull bar */
+        #player-combat-hull-bar { width: 100%; height: 8px; background: #111; border: 1px solid var(--green-dim); margin-top: 3px; }
+        #player-combat-hull-fill { height: 100%; transition: width 0.3s; }
+
+        /* Options screen toggles */
+        .option-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px dashed var(--border); font-size:0.85em; }
+        .option-row:last-child { border-bottom:none; }
     </style>
 </head>
 <body>
@@ -380,9 +393,10 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
             HULL: <span id="health">100</span>%
             <div class="hull-bar-container"><div id="player-hull-fill" class="hull-bar-fill" style="width:100%"></div></div>
         </div>
-        <div class="stat-item"><span class="stat-label">CREW:</span> <span id="crew-count">0</span>/10</div>
+        <div class="stat-item"><span class="stat-label">CREW:</span> <span id="crew-count">0</span>/<span id="crew-limit">10</span></div>
         <div class="stat-item"><span class="stat-label">EXP:</span> <span id="ammo-explosive">0</span> <span class="ammo-badge ammo-exp">EXPLOSIVE</span></div>
         <div class="stat-item"><span class="stat-label">ELEC:</span> <span id="ammo-electric">0</span> <span class="ammo-badge ammo-elec">ELECTRIC</span></div>
+        <div class="stat-item"><span class="stat-label">CHAIN:</span> <span id="ammo-chain">0</span> <span class="ammo-badge ammo-chain">CHAIN</span></div>
     </div>
 
     <div class="port-view">
@@ -405,6 +419,8 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         <button class="btn-main" id="warehouse-btn" onclick="visitWarehouse()">WAREHOUSE</button>
         <button class="btn-main" id="yard-btn" onclick="visitShipyard()">SHIPYARD</button>
         <button class="btn-main" onclick="visitCrew()">CREW</button>
+        <button class="btn-main" id="moneylender-btn" style="display:none;border-color:var(--gold);color:var(--gold);" onclick="visitMoneylender()">MONEYLENDER</button>
+        <button class="btn-main" onclick="visitOptions()" style="border-color:var(--green-dim);color:var(--green-dim);">OPTIONS</button>
         <button class="btn-main" style="border-color:var(--green-dim);color:var(--green-dim);" onclick="downloadSave()">EXPORT SAVE</button>
         <button class="btn-main" id="retire-btn" style="border-color:var(--gold);color:var(--gold);display:none;" onclick="retireGame()">RETIRE</button>
     </div>
@@ -440,7 +456,7 @@ const PORTS = [
     { name: "Hong Kong",  bank: true,  warehouse: true,  shipyard: "full",     desc: "Your home port. Elder Brother Wu's moneylenders hold court here." },
     { name: "Shanghai",   bank: false, warehouse: false, shipyard: null,        desc: "A great northern port bustling with silk and tea merchants." },
     { name: "Nagasaki",   bank: false, warehouse: false, shipyard: null,        desc: "A Japanese port famed for arms and fine lacquerware." },
-    { name: "Saigon",     bank: false, warehouse: false, shipyard: null,        desc: "Dense jungle trade — opium and ivory flow freely here." },
+    { name: "Saigon",     bank: false, warehouse: false, shipyard: null,        moneylender: true,  desc: "Dense jungle trade — opium and ivory flow freely here." },
     { name: "Manila",     bank: false, warehouse: false, shipyard: null,        desc: "Spanish galleons and prized goods pass through these docks." },
     { name: "Singapore",  bank: false, warehouse: false, shipyard: "electric",  desc: "A vital straits port. Unusual electrical weapons are available here." },
     { name: "Batavia",    bank: false, warehouse: false, shipyard: null,        desc: "Dutch colonial port — rich in general goods and spices." },
@@ -461,6 +477,13 @@ const SHIP_SPRITE = `
         <rect x="35" y="42" width="4" height="2" fill="var(--bg)" />
         <rect x="45" y="42" width="4" height="2" fill="var(--bg)" />
     </svg>`;
+
+// Balance / tuning constants
+const CREW_ABANDONMENT_CHANCE  = 0.45;   // probability crew leaves after unpaid wages
+const CREW_QUARTERS_BASE_COST  = 75000;  // minimum cost of first crew limit expansion
+const CREW_QUARTERS_MULTIPLIER = 8000;   // per-current-slot cost multiplier
+const CHAIN_SHOT_MIN_DMG       = 55;     // minimum damage per chain-shot hit
+const CHAIN_SHOT_DAMAGE_RANGE  = 30;     // added range; max dmg = MIN + RANGE = 85
 
 // =============================================
 //  GAME STATE
@@ -484,8 +507,10 @@ let state = {
     autoCombat: false,
     lastCombatAction: null,
     crew: { gunners: 0, merchants: 0, carpenters: 0 },
-    ammo: { explosive: 0, electric: 0 },
-    liYuenProtected: 0   // remaining voyages of Li Yuen protection
+    crewLimit: 10,
+    ammo: { explosive: 0, electric: 0, chain: 0 },
+    liYuenProtected: 0,   // remaining voyages of Li Yuen protection
+    settings: { showAvgPrices: false, soundEnabled: false }
 };
 
 // =============================================
@@ -620,8 +645,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function applyLoadedState(parsed) {
     state = parsed;
-    if (!state.ammo)                         state.ammo = { explosive: 0, electric: 0 };
+    if (!state.ammo)                         state.ammo = { explosive: 0, electric: 0, chain: 0 };
+    if (state.ammo.chain === undefined)       state.ammo.chain = 0;
     if (state.liYuenProtected === undefined) state.liYuenProtected = 0;
+    if (state.crewLimit === undefined)       state.crewLimit = 10;
+    if (!state.settings)                     state.settings = { showAvgPrices: false, soundEnabled: false };
+    if (state.settings.showAvgPrices === undefined) state.settings.showAvgPrices = false;
+    if (state.settings.soundEnabled === undefined)  state.settings.soundEnabled = false;
     // Migrate old numeric crew to role object
     if (typeof state.crew === 'number') {
         state.crew = { gunners: state.crew, merchants: 0, carpenters: 0 };
@@ -730,17 +760,23 @@ function render() {
     document.getElementById('hold-used').innerText   = getHoldUsed();
     document.getElementById('hold-total').innerText  = state.holdTotal;
     document.getElementById('crew-count').innerText  = getTotalCrew();
+    document.getElementById('crew-limit').innerText  = state.crewLimit;
     document.getElementById('ammo-explosive').innerText = state.ammo.explosive;
     document.getElementById('ammo-electric').innerText  = state.ammo.electric;
+    document.getElementById('ammo-chain').innerText     = state.ammo.chain;
     document.getElementById('location-display').innerText = `PORT: ${state.currentPort.toUpperCase()}`;
     document.getElementById('port-desc').innerText   = portData.desc;
 
-    // Market
+    // Market — optionally show average prices
     let mHtml = '';
     commodities.forEach(c => {
-        const p = state.prices[c.name];
+        const p   = state.prices[c.name];
+        const avg = Math.round((c.min + c.max) / 2);
+        const avgHtml = state.settings.showAvgPrices
+            ? ` <span style="color:var(--green-dim);font-size:0.85em;">(avg ${avg.toLocaleString()})</span>`
+            : '';
         mHtml += `<div class="market-item ${c.risky ? 'market-risky' : ''}">
-            <span>${c.name}: ${p.toLocaleString()}${c.risky ? ' ⚠' : ''}</span>
+            <span>${c.name}: ${p.toLocaleString()}${avgHtml}${c.risky ? ' ⚠' : ''}</span>
             <div>
                 <button onclick="openTradeModal('${c.name}','buy')">BUY</button>
                 <button onclick="openTradeModal('${c.name}','sell')">SELL</button>
@@ -762,10 +798,11 @@ function render() {
     document.getElementById('inventory-container').innerHTML = iHtml;
 
     // Show/hide context buttons
-    document.getElementById('bank-btn').style.display      = portData.bank      ? 'flex' : 'none';
-    document.getElementById('warehouse-btn').style.display = portData.warehouse  ? 'flex' : 'none';
-    document.getElementById('yard-btn').style.display      = portData.shipyard   ? 'flex' : 'none';
-    document.getElementById('retire-btn').style.display    = (portData.bank && state.voyageCount >= 5) ? 'flex' : 'none';
+    document.getElementById('bank-btn').style.display         = portData.bank         ? 'flex' : 'none';
+    document.getElementById('warehouse-btn').style.display    = portData.warehouse     ? 'flex' : 'none';
+    document.getElementById('yard-btn').style.display         = portData.shipyard      ? 'flex' : 'none';
+    document.getElementById('moneylender-btn').style.display  = portData.moneylender   ? 'flex' : 'none';
+    document.getElementById('retire-btn').style.display       = (portData.bank && state.voyageCount >= 5) ? 'flex' : 'none';
 }
 
 // =============================================
@@ -775,18 +812,24 @@ function openTradeModal(item, mode) {
     const basePrice = state.prices[item];
     const comData   = commodities.find(c => c.name === item);
     const merchants = state.crew.merchants || 0;
+    const portData  = getPortData(state.currentPort);
 
     let html = '';
     if (mode === 'buy') {
-        const effPrice = Math.max(1, Math.floor(basePrice * getMerchantDiscount()));
-        const used     = getHoldUsed();
-        const free     = state.holdTotal - used;
-        const maxBuy   = Math.min(free, Math.floor(state.cash / effPrice));
-        const discount = basePrice - effPrice;
+        const effPrice    = Math.max(1, Math.floor(basePrice * getMerchantDiscount()));
+        const used        = getHoldUsed();
+        const holdFree    = state.holdTotal - used;
+        const whFree      = portData.warehouse ? (state.warehouseTotal - getWarehouseUsed()) : 0;
+        const maxBuy      = Math.min(holdFree + whFree, Math.floor(state.cash / effPrice));
+        const discount    = basePrice - effPrice;
+        const whNote      = portData.warehouse && whFree > 0
+            ? `<p style="color:var(--green-dim);font-size:0.8em;">WAREHOUSE FREE: ${whFree}. OVERFLOW ABOVE HOLD CAPACITY STORED DIRECTLY.</p>`
+            : '';
         html = `<p>PURCHASING <strong>${item.toUpperCase()}</strong></p>
                 <p>MARKET PRICE: ${basePrice.toLocaleString()} GOLD</p>
                 ${merchants > 0 ? `<p style="color:var(--green-bright)">MERCHANT DISCOUNT: −${discount.toLocaleString()} → <strong>${effPrice.toLocaleString()} GOLD</strong></p>` : ''}
-                <p>MAX: ${maxBuy} UNITS</p>
+                <p>HOLD FREE: ${holdFree} &nbsp;|&nbsp; MAX BUY: ${maxBuy} UNITS</p>
+                ${whNote}
                 ${comData.risky ? `<p style="color:var(--danger)">⚠ WARNING: ${item.toUpperCase()} IS CONTRABAND — RISK OF SEIZURE ON ARRIVAL.</p>` : ''}
                 <div class="flex-center">
                     <input type="number" id="trade-qty" class="trans-input" min="1" max="${maxBuy}" value="${maxBuy}">
@@ -814,13 +857,24 @@ function executeTrade(item, price, dir) {
     const qty = parseInt(document.getElementById('trade-qty').value) || 0;
     if (qty <= 0) return;
     if (dir === 1) {
-        const cost  = qty * price;
-        const space = state.holdTotal - getHoldUsed();
-        if (qty > space)          { log("NOT ENOUGH SPACE IN THE HOLD."); return; }
-        if (cost > state.cash)    { log("YOU LACK THE NECESSARY GOLD."); return; }
+        const cost     = qty * price;
+        const holdFree = state.holdTotal - getHoldUsed();
+        const portData = getPortData(state.currentPort);
+        const whFree   = portData.warehouse ? (state.warehouseTotal - getWarehouseUsed()) : 0;
+        const totalFree = holdFree + whFree;
+        if (qty > totalFree)       { log("NOT ENOUGH SPACE IN HOLD OR WAREHOUSE."); return; }
+        if (cost > state.cash)     { log("YOU LACK THE NECESSARY GOLD."); return; }
         state.cash -= cost;
-        state.inventory[item] += qty;
-        log(`PURCHASED ${qty} UNITS OF ${item.toUpperCase()} FOR ${cost.toLocaleString()} GOLD.`);
+        // Fill hold first, overflow to warehouse
+        const intoHold = Math.min(qty, holdFree);
+        const intoWH   = qty - intoHold;
+        state.inventory[item] += intoHold;
+        if (intoWH > 0) {
+            state.warehouse[item] += intoWH;
+            log(`PURCHASED ${qty} UNITS OF ${item.toUpperCase()} FOR ${cost.toLocaleString()} GOLD. (${intoHold} IN HOLD, ${intoWH} TO WAREHOUSE)`);
+        } else {
+            log(`PURCHASED ${qty} UNITS OF ${item.toUpperCase()} FOR ${cost.toLocaleString()} GOLD.`);
+        }
     } else {
         if (qty > state.inventory[item]) { log("YOU DON'T HAVE THAT MANY UNITS."); return; }
         const earn = qty * price;
@@ -828,6 +882,7 @@ function executeTrade(item, price, dir) {
         state.inventory[item] -= qty;
         log(`SOLD ${qty} UNITS OF ${item.toUpperCase()} FOR ${earn.toLocaleString()} GOLD.`);
     }
+    playSound('purchase');
     closeModal();
     render();
 }
@@ -836,10 +891,16 @@ function executeTrade(item, price, dir) {
 //  NAVIGATION
 // =============================================
 function showTravel() {
-    let html = '<p style="color:var(--green-dim);margin-bottom:8px;">SELECT DESTINATION:</p><div class="actions">';
+    const holdUsed = getHoldUsed();
+    const overCap  = holdUsed > state.holdTotal;
+    let html = '';
+    if (overCap) {
+        html += `<p style="color:var(--danger);margin-bottom:8px;">⚠ HOLD OVERLOADED (${holdUsed}/${state.holdTotal})! MOVE CARGO TO WAREHOUSE OR SELL BEFORE DEPARTING.</p>`;
+    }
+    html += '<p style="color:var(--green-dim);margin-bottom:8px;">SELECT DESTINATION:</p><div class="actions">';
     PORTS.forEach(p => {
         const isCurrent = p.name === state.currentPort;
-        html += `<button class="btn-main" style="min-width:130px" ${isCurrent ? 'disabled' : ''} onclick="travel('${p.name}')">${p.name.toUpperCase()}</button>`;
+        html += `<button class="btn-main" style="min-width:130px" ${(isCurrent || overCap) ? 'disabled' : ''} onclick="travel('${p.name}')">${p.name.toUpperCase()}</button>`;
     });
     html += '</div>';
     showModal("NAVIGATION CHART", html, true);
@@ -848,6 +909,7 @@ function showTravel() {
 function travel(dest) {
     closeModal();
     log(`SAILS UNFURLED. SETTING COURSE FOR ${dest.toUpperCase()}.`);
+    playSound('sail');
     state.currentPort = dest;
 
     // Li Yuen protection reduces encounter chance
@@ -960,6 +1022,7 @@ function startEncounterWithFleet(fleetSize) {
     };
     state.autoCombat = false;
     state.lastCombatAction = null;
+    playSound('danger');
     renderCombat();
 }
 
@@ -977,12 +1040,15 @@ function renderCombat() {
         </div>`).join('');
 
     const crewBonus = Math.round(getCrewBonus() * 100);
+    const hullColor = state.health > 50 ? 'var(--green)' : state.health > 25 ? 'var(--gold)' : 'var(--danger)';
     const html = `
         <div id="fleet-visual">${fleetHTML}</div>
         <div id="combat-stats">
             ENEMY FLEET: ${alive.length} SHIPS REMAINING &nbsp;|&nbsp; SUNK: ${c.totalSunk}<br>
-            YOUR HULL: ${Math.round(state.health)}% &nbsp;|&nbsp; GUNS: ${state.guns} &nbsp;|&nbsp; GUNNERS: ${state.crew.gunners || 0} (+${crewBonus}% ACC)<br>
-            AMMO — EXP: ${state.ammo.explosive} &nbsp;·&nbsp; ELEC: ${state.ammo.electric}
+            YOUR HULL: ${Math.round(state.health)}%
+            <div id="player-combat-hull-bar"><div id="player-combat-hull-fill" style="width:${state.health}%;background:${hullColor}"></div></div>
+            GUNS: ${state.guns} &nbsp;|&nbsp; GUNNERS: ${state.crew.gunners || 0} (+${crewBonus}% ACC)<br>
+            AMMO — EXP: ${state.ammo.explosive} &nbsp;·&nbsp; ELEC: ${state.ammo.electric} &nbsp;·&nbsp; CHAIN: ${state.ammo.chain}
         </div>
         <p id="combat-status" style="font-size:0.85em;margin:4px 0;">${c.status}</p>
         <div id="combat-log-small">${c.logs.slice(-3).join('<br>')}</div>`;
@@ -993,6 +1059,7 @@ function renderCombat() {
         <button class="btn-main" id="btn-broadside" onclick="combatAction('broadside')" ${(busy || !hasGuns) ? 'disabled' : ''}>BROADSIDE</button>
         <button class="btn-main btn-explosive" id="btn-explosive" onclick="combatAction('explosive')" ${(busy || !hasGuns || state.ammo.explosive <= 0) ? 'disabled' : ''}>EXPLOSIVE FIRE (${state.ammo.explosive})</button>
         <button class="btn-main btn-electric" id="btn-electric" onclick="combatAction('electric')" ${(busy || state.ammo.electric <= 0) ? 'disabled' : ''}>ELECTRIC STRIKE (${state.ammo.electric})</button>
+        <button class="btn-main btn-chain" id="btn-chain" onclick="combatAction('chain')" ${(busy || !hasGuns || state.ammo.chain <= 0) ? 'disabled' : ''}>CHAIN SHOT (${state.ammo.chain})</button>
         <button class="btn-main" id="btn-run" onclick="combatAction('run')" ${busy ? 'disabled' : ''}>RUN</button>
         <button class="btn-main" id="btn-throw" onclick="combatAction('throw')" ${busy ? 'disabled' : ''}>THROW CARGO</button>
         <div class="switch-container">
@@ -1050,6 +1117,7 @@ async function combatAction(type) {
     }
     else if (type === 'explosive') {
         state.ammo.explosive--;
+        playSound('explosion');
         await fireBroadside('explosive');
         if (checkVictory()) return;
         await enemyVolley();
@@ -1057,7 +1125,16 @@ async function combatAction(type) {
     }
     else if (type === 'electric') {
         state.ammo.electric--;
+        playSound('electric');
         await fireElectric();
+        if (checkVictory()) return;
+        await enemyVolley();
+        checkMoraleBreak();
+    }
+    else if (type === 'chain') {
+        state.ammo.chain--;
+        playSound('cannon');
+        await fireChainShot();
         if (checkVictory()) return;
         await enemyVolley();
         checkMoraleBreak();
@@ -1159,6 +1236,7 @@ async function fireBroadside(ammoType) {
     const baseHitChance = isExplosive ? 0.70 + crewBonus : 0.48 + crewBonus;
     const minDmg = isExplosive ? 40 : 20;
     const maxDmg = isExplosive ? 85 : 60;
+    playSound(isExplosive ? 'explosion' : 'cannon');
 
     for (let i = 0; i < state.guns; i++) {
         const alive = c.ships.filter(s => s.alive).slice(0, 10);
@@ -1262,6 +1340,64 @@ async function fireElectric() {
     refreshFleetVisual();
 }
 
+async function fireChainShot() {
+    const c = state.combat;
+    const visual = document.getElementById('fleet-visual');
+    const crewBonus = getCrewBonus();
+    const hitChance = 0.65 + crewBonus;
+    let sunkCount = 0;
+
+    for (let i = 0; i < state.guns; i++) {
+        const alive = c.ships.filter(s => s.alive).slice(0, 10);
+        if (alive.length === 0) break;
+
+        const target = alive[Math.floor(Math.random() * alive.length)];
+        const targetEl = document.getElementById(`ship-${target.id}`);
+        if (!targetEl) { refreshFleetVisual(); i--; continue; }
+
+        // Animate chain shot cannonball
+        if (visual) {
+            const ball = document.createElement('div');
+            ball.className = 'cannon-ball chain';
+            visual.appendChild(ball);
+            const tRect = targetEl.getBoundingClientRect();
+            const vRect = visual.getBoundingClientRect();
+            const dx = (tRect.left + tRect.width / 2) - vRect.left;
+            const dy = (tRect.top  + tRect.height / 2) - vRect.top;
+            ball.style.transition = 'all 0.2s linear';
+            await new Promise(r => setTimeout(r, 10));
+            ball.style.transform = `translate(${dx - vRect.width / 2}px, ${dy - vRect.height}px)`;
+            await new Promise(r => setTimeout(r, 200));
+            ball.remove();
+        }
+
+        if (Math.random() < hitChance) {
+            const dmg = Math.floor(Math.random() * CHAIN_SHOT_DAMAGE_RANGE + CHAIN_SHOT_MIN_DMG);
+            target.health = Math.max(0, target.health - dmg);
+            const fillEl = document.getElementById(`health-fill-${target.id}`);
+            if (fillEl) fillEl.style.width = `${target.health}%`;
+            targetEl.classList.add('hit');
+            setTimeout(() => targetEl.classList.remove('hit'), 220);
+
+            if (target.health <= 0) {
+                target.alive = false;
+                targetEl.classList.add('sunk');
+                sunkCount++;
+                c.totalSunk++;
+
+                const remaining = c.ships.filter(s => s.alive).slice(0, 10);
+                if (remaining.length > 0 && alive.filter(s => s.alive).length === 0) {
+                    await new Promise(r => setTimeout(r, 350));
+                    refreshFleetVisual();
+                }
+            }
+        }
+        await new Promise(r => setTimeout(r, 65));
+    }
+    c.logs.push(`CHAIN SHOT VOLLEY SANK ${sunkCount} SHIP${sunkCount !== 1 ? 'S' : ''}.`);
+    playSound('cannon');
+}
+
 async function enemyVolley() {
     const c = state.combat;
     if (!c) return;
@@ -1276,6 +1412,13 @@ async function enemyVolley() {
 
     const fill = document.getElementById('player-hull-fill');
     if (fill) fill.style.width = `${state.health}%`;
+    // Also update the combat-specific hull bar
+    const combatFill = document.getElementById('player-combat-hull-fill');
+    if (combatFill) {
+        combatFill.style.width = `${state.health}%`;
+        combatFill.style.background = state.health > 50 ? 'var(--green)' : state.health > 25 ? 'var(--gold)' : 'var(--danger)';
+    }
+    if (hits > 0) playSound('hit');
 
     c.logs.push(`ENEMY FIRE STRIKES ${hits} TIMES. HULL AT ${Math.round(state.health)}%.`);
 
@@ -1328,8 +1471,26 @@ function arrive() {
     const totalCrew = getTotalCrew();
     if (totalCrew > 0) {
         const wages = totalCrew * 50;
-        state.cash = Math.max(0, state.cash - wages);
-        log(`PAID ${wages.toLocaleString()} GOLD IN CREW WAGES.`);
+        if (state.cash >= wages) {
+            state.cash -= wages;
+            log(`PAID ${wages.toLocaleString()} GOLD IN CREW WAGES.`);
+        } else {
+            // Can't fully pay — short by this much
+            const shortfall = wages - state.cash;
+            state.debt += shortfall;
+            state.cash = 0;
+            log(`UNABLE TO PAY FULL CREW WAGES! BORROWED ${shortfall.toLocaleString()} GOLD — DEBT INCREASED.`, "var(--danger)");
+            // Chance of crew abandonment
+            if (Math.random() < CREW_ABANDONMENT_CHANCE) {
+                const roles = ['gunners','merchants','carpenters'].filter(r => state.crew[r] > 0);
+                if (roles.length > 0) {
+                    const role = roles[Math.floor(Math.random() * roles.length)];
+                    const lost = Math.ceil(state.crew[role] * 0.5);
+                    state.crew[role] = Math.max(0, state.crew[role] - lost);
+                    log(`${lost} ${ROLE_LABELS[role]}${lost !== 1 ? 'S' : ''} ABANDONED SHIP OVER UNPAID WAGES!`, "var(--danger)");
+                }
+            }
+        }
     }
     // Carpenter hull repair during voyage
     const repair = getCarpenterRepair();
@@ -1494,7 +1655,9 @@ function visitShipyard() {
     const hullUpCost = state.holdTotal * 100;
     const whCost     = 2000;
     const expCost    = 2000;
+    const chainCost  = 1500;
     const elecCost   = 4000;
+    const crewQtrCost = Math.max(CREW_QUARTERS_BASE_COST, state.crewLimit * CREW_QUARTERS_MULTIPLIER); // very expensive, scales with limit
     const freeHold   = state.holdTotal - getHoldUsed();
 
     let html = `
@@ -1516,11 +1679,17 @@ function visitShipyard() {
                 ${state.cash < hullUpCost ? 'disabled' : ''}>UPGRADE HULL CAPACITY — ${hullUpCost.toLocaleString()} GOLD (+50 HOLD)</button>
             <button class="btn-main" onclick="shipyardAction('warehouse')"
                 ${(state.cash < whCost || state.warehouseTotal >= 10000) ? 'disabled' : ''}>EXPAND WAREHOUSE — ${whCost.toLocaleString()} GOLD (+1000)</button>
+            <button class="btn-main" onclick="shipyardAction('crewqtr')"
+                ${state.cash < crewQtrCost ? 'disabled' : ''}>EXPAND CREW QUARTERS — ${crewQtrCost.toLocaleString()} GOLD (+5 CREW LIMIT)
+                <br><small>Current limit: ${state.crewLimit} sailors. Elite captains only.</small></button>
             <hr class="section-divider">
             <p style="color:var(--explosive)">SPECIAL MUNITIONS — HONG KONG ARSENAL</p>
             <button class="btn-main btn-explosive" onclick="shipyardAction('explosive')"
                 ${state.cash < expCost ? 'disabled' : ''}>BUY EXPLOSIVE CHARGE — ${expCost.toLocaleString()} GOLD EACH
                 <br><small>High-accuracy, high-damage. AOE splash on kill. ${state.ammo.explosive} OWNED.</small></button>
+            <button class="btn-main btn-chain" onclick="shipyardAction('chain')"
+                ${state.cash < chainCost ? 'disabled' : ''}>BUY CHAIN SHOT — ${chainCost.toLocaleString()} GOLD EACH
+                <br><small>High damage (${CHAIN_SHOT_MIN_DMG}–${CHAIN_SHOT_MIN_DMG + CHAIN_SHOT_DAMAGE_RANGE}), no splash. 65%+ accuracy. ${state.ammo.chain} OWNED.</small></button>
         `;
     }
     if (isElectric) {
@@ -1545,33 +1714,53 @@ function shipyardAction(type) {
         state.cash  -= cost;
         state.health = Math.min(100, state.health + actual);
         log(`REPAIRS COMPLETED. HULL RESTORED BY ${actual.toFixed(1)}%.`);
+        playSound('purchase');
     }
     if (type === 'gun') {
         if (state.cash >= 1500 && (state.holdTotal - getHoldUsed()) >= 10) {
             state.cash -= 1500; state.guns++;
             log("NEW CANNON INSTALLED. BROADSIDE FIREPOWER INCREASED.");
+            playSound('purchase');
         }
     }
     if (type === 'hull') {
         const cost = state.holdTotal * 100;
-        if (state.cash >= cost) { state.cash -= cost; state.holdTotal += 50; log("HULL REINFORCED AND EXPANDED. CAPACITY +50."); }
+        if (state.cash >= cost) { state.cash -= cost; state.holdTotal += 50; log("HULL REINFORCED AND EXPANDED. CAPACITY +50."); playSound('purchase'); }
     }
     if (type === 'warehouse') {
         if (state.cash >= 2000 && state.warehouseTotal < 10000) {
             state.cash -= 2000; state.warehouseTotal = Math.min(10000, state.warehouseTotal + 1000);
             log("HONG KONG WAREHOUSE EXPANDED BY 1,000 UNITS.");
+            playSound('purchase');
+        }
+    }
+    if (type === 'crewqtr') {
+        const cost = Math.max(CREW_QUARTERS_BASE_COST, state.crewLimit * CREW_QUARTERS_MULTIPLIER);
+        if (state.cash >= cost) {
+            state.cash -= cost; state.crewLimit += 5;
+            log(`CREW QUARTERS EXPANDED. MAXIMUM CREW NOW ${state.crewLimit}.`, "var(--green-bright)");
+            playSound('purchase');
         }
     }
     if (type === 'explosive') {
         if (state.cash >= 2000) {
             state.cash -= 2000; state.ammo.explosive++;
             log("1 EXPLOSIVE CHARGE ACQUIRED. LETHAL IN BATTLE.", "var(--explosive)");
+            playSound('purchase');
+        }
+    }
+    if (type === 'chain') {
+        if (state.cash >= 1500) {
+            state.cash -= 1500; state.ammo.chain++;
+            log("1 CHAIN SHOT ACQUIRED. POWERFUL SINGLE-TARGET ATTACK.", "var(--chain)");
+            playSound('purchase');
         }
     }
     if (type === 'electric') {
         if (state.cash >= 4000) {
             state.cash -= 4000; state.ammo.electric++;
             log("1 ELECTRIC CHARGE ACQUIRED. STRIKES ALL ENEMY SHIPS.", "var(--electric)");
+            playSound('purchase');
         }
     }
     render();
@@ -1582,7 +1771,7 @@ function shipyardAction(type) {
 //  CREW
 // =============================================
 function visitCrew() {
-    const maxCrew  = 10;
+    const maxCrew  = state.crewLimit;
     const hireCost = 400;
     const total    = getTotalCrew();
     const spaceForCrew = Math.floor((state.holdTotal - getHoldUsed()) / 2);
@@ -1600,7 +1789,7 @@ function visitCrew() {
     let rolesHtml = '';
     roles.forEach(r => {
         const count   = state.crew[r.key] || 0;
-        const canHire = Math.min(canHireAny, maxCrew - total); // recalculated each row
+        const canHire = Math.min(canHireAny, maxCrew - total);
         rolesHtml += `
         <div style="background:#050f05;border:1px solid var(--border);padding:8px;margin-bottom:6px;border-radius:2px;">
             <p style="margin:0 0 3px;color:var(--green-bright);">${r.icon} ${r.label} &nbsp;·&nbsp; <span style="color:var(--green);">${count}</span> HIRED</p>
@@ -1618,7 +1807,7 @@ function visitCrew() {
 
     const html = `
         <p>CREW: ${total}/${maxCrew} &nbsp;|&nbsp; CARGO SPACE PER CREW: 2 &nbsp;|&nbsp; WAGE: 50 GOLD/VOYAGE</p>
-        <p>HIRING COST: ${hireCost} GOLD PER SAILOR</p>
+        <p>HIRING COST: ${hireCost} GOLD PER SAILOR &nbsp;|&nbsp; <span style="color:var(--green-dim);font-size:0.85em;">EXPAND CREW LIMIT AT HONG KONG SHIPYARD</span></p>
         ${canHireAny <= 0 ? '<p style="color:var(--danger);font-size:0.8em;">CANNOT HIRE: NO SPACE, GOLD, OR CREW SLOTS.</p>' : ''}
         <hr class="section-divider">
         ${rolesHtml}`;
@@ -1626,7 +1815,7 @@ function visitCrew() {
 }
 
 function crewAction(type, role) {
-    const maxCrew = 10;
+    const maxCrew = state.crewLimit;
     if (type === 'hire') {
         const inputId = `crew-hire-${role}`;
         const qty     = Math.max(0, parseInt(document.getElementById(inputId)?.value) || 0);
@@ -1637,6 +1826,7 @@ function crewAction(type, role) {
         state.cash         -= actual * 400;
         state.crew[role]    = (state.crew[role] || 0) + actual;
         log(`HIRED ${actual} ${ROLE_LABELS[role]}${actual !== 1 ? 'S' : ''}. CREW NOW ${getTotalCrew()}/${maxCrew}.`);
+        playSound('purchase');
     }
     if (type === 'fire') {
         const inputId = `crew-fire-${role}`;
@@ -1648,8 +1838,214 @@ function crewAction(type, role) {
 }
 
 // =============================================
-//  HELP / HANDBOOK
+//  MONEYLENDER (SAIGON)
 // =============================================
+function visitMoneylender() {
+    const maxLoan = Math.max(1000, Math.floor(state.cash * 2 + 2000));
+    const rateNote = "INTEREST: 10% PER VOYAGE (SAME AS ELDER BROTHER WU'S DEBT)";
+    const html = `
+        <p style="color:var(--gold)">THE SAIGON MONEYLENDER EYES YOUR SHIP APPRAISINGLY.</p>
+        <p>"I CAN ADVANCE YOU GOLD TODAY, CAPTAIN — AT A PRICE."</p>
+        <p>YOUR GOLD: ${state.cash.toLocaleString()} &nbsp;|&nbsp; CURRENT DEBT: <span style="color:var(--danger)">${state.debt.toLocaleString()}</span></p>
+        <p style="font-size:0.8em;color:var(--green-dim);">${rateNote}</p>
+        <hr class="section-divider">
+        <p>BORROW AMOUNT (MAX ${maxLoan.toLocaleString()})</p>
+        <div class="flex-center">
+            <input type="number" id="loan-amt" class="trans-input" value="1000" min="100" max="${maxLoan}">
+            <button onclick="document.getElementById('loan-amt').value=${maxLoan}">MAX</button>
+        </div>
+        <button class="btn-main" style="border-color:var(--gold);color:var(--gold);" onclick="takeLoan()">BORROW GOLD</button>
+        ${state.debt > 0 ? `
+        <hr class="section-divider">
+        <p>REPAY DEBT</p>
+        <div class="flex-center">
+            <input type="number" id="repay-amt" class="trans-input" value="${Math.min(state.cash, state.debt)}" min="0" max="${Math.min(state.cash, state.debt)}">
+            <button onclick="document.getElementById('repay-amt').value=${Math.min(state.cash, state.debt)}">MAX</button>
+        </div>
+        <button class="btn-main" onclick="repayLoan()">REPAY</button>` : ''}
+    `;
+    showModal("SAIGON MONEYLENDER", html, true);
+}
+
+function takeLoan() {
+    const amt = Math.max(0, parseInt(document.getElementById('loan-amt').value) || 0);
+    if (amt <= 0) return;
+    const maxLoan = Math.max(1000, Math.floor(state.cash * 2 + 2000));
+    const actual  = Math.min(amt, maxLoan);
+    state.cash   += actual;
+    state.debt   += actual;
+    log(`BORROWED ${actual.toLocaleString()} GOLD FROM THE SAIGON MONEYLENDER. DEBT NOW ${state.debt.toLocaleString()}.`, "var(--gold)");
+    playSound('purchase');
+    closeModal(); visitMoneylender();
+}
+
+function repayLoan() {
+    const amt    = Math.max(0, parseInt(document.getElementById('repay-amt').value) || 0);
+    const actual = Math.min(amt, state.cash, state.debt);
+    if (actual <= 0) return;
+    state.cash -= actual;
+    state.debt -= actual;
+    if (state.debt <= 0) { state.debt = 0; log("YOUR DEBT IS FULLY REPAID!", "var(--gold)"); }
+    else log(`REPAID ${actual.toLocaleString()} GOLD. DEBT REMAINING: ${state.debt.toLocaleString()}.`);
+    render(); closeModal(); visitMoneylender();
+}
+
+// =============================================
+//  OPTIONS SCREEN
+// =============================================
+function visitOptions() {
+    const s = state.settings;
+    const html = `
+        <div style="max-width:420px;">
+            <div class="option-row">
+                <span>SHOW AVERAGE PRICES ON MARKET</span>
+                <label class="switch">
+                    <input type="checkbox" id="opt-avgprice" ${s.showAvgPrices ? 'checked' : ''} onchange="toggleOption('showAvgPrices',this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p style="font-size:0.75em;color:var(--green-dim);margin:2px 0 10px;">Displays the historical average price next to each commodity to help gauge deals.</p>
+            <div class="option-row">
+                <span>SOUND EFFECTS</span>
+                <label class="switch">
+                    <input type="checkbox" id="opt-sound" ${s.soundEnabled ? 'checked' : ''} onchange="toggleOption('soundEnabled',this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p style="font-size:0.75em;color:var(--green-dim);margin:2px 0 10px;">Enables procedural audio cues for combat, trading, and events.</p>
+        </div>
+    `;
+    showModal("OPTIONS", html, true);
+}
+
+function toggleOption(key, value) {
+    state.settings[key] = value;
+    saveProgress();
+    if (key === 'showAvgPrices') render();
+    if (key === 'soundEnabled' && value) {
+        // Initialize audio context on first user interaction
+        getAudioCtx();
+        playSound('purchase');
+    }
+}
+
+// =============================================
+//  SOUND SYSTEM (Web Audio API)
+// =============================================
+let _audioCtx = null;
+function getAudioCtx() {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return _audioCtx;
+}
+
+function playSound(type) {
+    if (!state.settings || !state.settings.soundEnabled) return;
+    try {
+        const ctx = getAudioCtx();
+        if (ctx.state === 'suspended') ctx.resume();
+        const now = ctx.currentTime;
+
+        switch (type) {
+            case 'cannon': {
+                // Low thud + noise burst
+                const buf = ctx.createBuffer(1, ctx.sampleRate * 0.35, ctx.sampleRate);
+                const data = buf.getChannelData(0);
+                for (let i = 0; i < data.length; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.08));
+                }
+                const src = ctx.createBufferSource();
+                src.buffer = buf;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                src.connect(gain); gain.connect(ctx.destination);
+                src.start(now); src.stop(now + 0.35);
+                break;
+            }
+            case 'explosion': {
+                const buf = ctx.createBuffer(1, ctx.sampleRate * 0.6, ctx.sampleRate);
+                const data = buf.getChannelData(0);
+                for (let i = 0; i < data.length; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.15));
+                }
+                const src = ctx.createBufferSource();
+                src.buffer = buf;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.7, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass'; filter.frequency.value = 800;
+                src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+                src.start(now); src.stop(now + 0.6);
+                break;
+            }
+            case 'electric': {
+                const osc = ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(now); osc.stop(now + 0.4);
+                break;
+            }
+            case 'hit': {
+                const osc = ctx.createOscillator();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(60, now + 0.2);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(now); osc.stop(now + 0.2);
+                break;
+            }
+            case 'purchase': {
+                // Quick ascending blip
+                [0, 0.08].forEach((t, i) => {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.value = 660 + i * 220;
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.15, now + t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.1);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(now + t); osc.stop(now + t + 0.1);
+                });
+                break;
+            }
+            case 'sail': {
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(330, now);
+                osc.frequency.exponentialRampToValueAtTime(220, now + 0.5);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(now); osc.stop(now + 0.5);
+                break;
+            }
+            case 'danger': {
+                [0, 0.15, 0.3].forEach(t => {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'square';
+                    osc.frequency.value = 200;
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.2, now + t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.12);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(now + t); osc.stop(now + t + 0.12);
+                });
+                break;
+            }
+            default: break;
+        }
+    } catch(e) { console.warn('Audio error:', e.message); }
+}
 function showHelp() {
     const html = `
         <div style="text-align:left;line-height:1.7;">
@@ -1661,24 +2057,25 @@ function showHelp() {
                 ${PORTS.map(p => `
                 <tr>
                     <td>${p.name.toUpperCase()}</td>
-                    <td>${[p.bank?'BANK':'',p.warehouse?'WAREHOUSE':'',p.shipyard==='full'?'FULL SHIPYARD':p.shipyard==='electric'?'SHIPYARD (ELEC)':''].filter(Boolean).join(', ') || '—'}</td>
+                    <td>${[p.bank?'BANK':'',p.warehouse?'WAREHOUSE':'',p.moneylender?'MONEYLENDER':'',p.shipyard==='full'?'FULL SHIPYARD':p.shipyard==='electric'?'SHIPYARD (ELEC)':''].filter(Boolean).join(', ') || '—'}</td>
                     <td style="font-size:0.85em;color:var(--green-dim)">${p.desc}</td>
                 </tr>`).join('')}
             </table>
 
             <h3 style="margin-top:12px;color:var(--green-bright);">COMMODITY PRICE GUIDE</h3>
             <table class="help-table">
-                <tr><th>COMMODITY</th><th>MIN PRICE</th><th>MAX PRICE</th><th>NOTES</th></tr>
+                <tr><th>COMMODITY</th><th>MIN PRICE</th><th>AVG PRICE</th><th>MAX PRICE</th><th>NOTES</th></tr>
                 ${commodities.map(c => `
                 <tr class="${c.risky ? 'risky' : ''}">
                     <td>${c.name.toUpperCase()}${c.risky ? ' ⚠' : ''}</td>
                     <td>${c.min.toLocaleString()}</td>
+                    <td>${Math.round((c.min + c.max) / 2).toLocaleString()}</td>
                     <td>${c.max.toLocaleString()}</td>
                     <td>${c.risky ? 'CONTRABAND — RISK OF SEIZURE' : 'Legal goods'}</td>
                 </tr>`).join('')}
             </table>
             <p style="color:var(--danger);font-size:0.8em;">⚠ Contraband may be seized by customs with a 20% gold fine. High risk, high reward.</p>
-            <p style="font-size:0.8em;">Market events can push prices 40% below minimum or 80% above maximum.</p>
+            <p style="font-size:0.8em;">Market events can push prices 40% below minimum or 80% above maximum. Enable "Show Average Prices" in OPTIONS to see averages on the main market screen.</p>
 
             <h3 style="margin-top:12px;color:var(--green-bright);">CREW SYSTEM</h3>
             <p>Hire sailors at any port (400 gold each, 2 hold space, 50 gold/voyage wage). Choose a <strong>role</strong> for each hire:</p>
@@ -1688,6 +2085,7 @@ function showHelp() {
                 <tr><td>📦 MERCHANT</td><td>Lower buy prices / higher sell prices (up to −15% / +15%)</td></tr>
                 <tr><td>🔨 CARPENTER</td><td>Repairs 2% hull damage per voyage while sailing (max 12%)</td></tr>
             </table>
+            <p style="margin-top:6px;font-size:0.85em;">Default crew limit is 10. Expand crew quarters at the Hong Kong Shipyard for +5 slots (very expensive).</p>
             <p style="margin-top:6px;"><strong>GUNNER ACCURACY BONUS (gunners only):</strong></p>
             <table class="help-table">
                 <tr><th>GUNNERS</th><th>ACCURACY BONUS</th></tr>
@@ -1695,13 +2093,14 @@ function showHelp() {
                 <tr><td>3 – 4</td><td>+15%</td></tr>
                 <tr><td>5 – 6</td><td>+25%</td></tr>
                 <tr><td>7 – 8</td><td>+35%</td></tr>
-                <tr><td>9 – 10</td><td>+45%</td></tr>
+                <tr><td>9+</td><td>+45%</td></tr>
             </table>
 
             <h3 style="margin-top:12px;color:var(--green-bright);">SPECIAL MUNITIONS</h3>
             <table class="help-table">
                 <tr><th>AMMO TYPE</th><th>COST</th><th>WHERE TO BUY</th><th>EFFECT</th></tr>
                 <tr class="risky"><td>EXPLOSIVE CHARGE</td><td>2,000</td><td>HONG KONG</td><td>+70% base accuracy, 40–85 dmg/gun, 40% AOE splash on sunk ship</td></tr>
+                <tr style="color:var(--chain)"><td>CHAIN SHOT</td><td>1,500</td><td>HONG KONG</td><td>+65% base accuracy, 55–85 dmg/gun. No splash. High single-target impact.</td></tr>
                 <tr style="color:var(--electric)"><td>ELECTRIC CHARGE</td><td>4,000</td><td>SINGAPORE</td><td>Simultaneously hits ALL enemy ships (12–34 dmg, 52%+ hit chance each)</td></tr>
             </table>
 
@@ -1714,6 +2113,8 @@ function showHelp() {
                 <li>Pay tribute to Li Yuen for 3 voyages of reduced pirate encounters.</li>
                 <li>Electric charges bypass individual targeting — ideal vs large fleets.</li>
                 <li>Explosive charges excel against tough individual ships and trigger splash damage.</li>
+                <li>Chain shot deals massive single-target damage — ideal for finishing off tough ships.</li>
+                <li>The combat hull bar changes colour: green (safe), gold (caution), red (critical).</li>
             </ul>
 
             <h3 style="margin-top:12px;color:var(--green-bright);">ECONOMY</h3>
@@ -1721,8 +2122,17 @@ function showHelp() {
                 <li>DEBT compounds at 10% per voyage. Pay it off early!</li>
                 <li>BANK savings earn 2% per voyage.</li>
                 <li>Crew wages: 50 gold per crew member per voyage (all roles).</li>
+                <li>Unpaid wages accrue as debt — and crew may abandon ship!</li>
+                <li>Borrow gold from the MONEYLENDER in Saigon (10% compounding interest).</li>
                 <li>Each cannon takes 10 hold capacity.</li>
                 <li>Pirate bounty: 200 gold per ship sunk (+30 per voyage milestone).</li>
+                <li>At warehouse ports, you can buy commodities directly into the warehouse if the hold is full.</li>
+            </ul>
+
+            <h3 style="margin-top:12px;color:var(--green-bright);">OPTIONS</h3>
+            <ul style="padding-left:18px;font-size:0.85em;">
+                <li>Open OPTIONS from the main screen to toggle sound effects and average price display.</li>
+                <li>Average prices show mid-range for each commodity to help gauge whether the current price is good or bad.</li>
             </ul>
 
             <h3 style="margin-top:12px;color:var(--green-bright);">WINNING</h3>
