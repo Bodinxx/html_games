@@ -482,7 +482,7 @@ class XpsRenderer {
   async readXml(path) {
     path = this.norm(path);
     const f = this.zip.file(path);
-    if (!f) throw new Error('File not found in archive: ' + path);
+    if (!f) throw new Error('File not found in archive: ' + path + '. Please ensure this is a valid OXPS/XPS file.');
     const text = await f.async('string');
     return new DOMParser().parseFromString(text, 'text/xml');
   }
@@ -625,7 +625,7 @@ class XpsRenderer {
 
     const { fillRule, svgD } = this.parsePathData(dataAttr);
     let path2d;
-    try { path2d = new Path2D(svgD); } catch (_) { return; }
+    try { path2d = new Path2D(svgD); } catch (err) { console.warn('Invalid path data:', err); return; }
 
     const lj = el.getAttribute('StrokeLineJoin');
     if (lj) ctx.lineJoin = lj.toLowerCase();
@@ -750,7 +750,7 @@ class XpsRenderer {
     const stops = this.gatherGradientStops(el, 'LinearGradientBrush', opacity);
     if (!stops.length) return null;
     const grad  = ctx.createLinearGradient(sp[0]*pw, sp[1]*ph, ep[0]*pw, ep[1]*ph);
-    for (const s of stops) try { grad.addColorStop(Math.min(1, Math.max(0, s.offset)), s.color); } catch(_) {}
+    for (const s of stops) try { grad.addColorStop(Math.min(1, Math.max(0, s.offset)), s.color); } catch(err) { console.warn('Invalid gradient stop:', s, err); }
     return grad;
   }
 
@@ -761,7 +761,7 @@ class XpsRenderer {
     const stops = this.gatherGradientStops(el, 'RadialGradientBrush', opacity);
     if (!stops.length) return null;
     const grad  = ctx.createRadialGradient(orig[0]*pw, orig[1]*ph, 0, ctr[0]*pw, ctr[1]*ph, rx*pw);
-    for (const s of stops) try { grad.addColorStop(Math.min(1, Math.max(0, s.offset)), s.color); } catch(_) {}
+    for (const s of stops) try { grad.addColorStop(Math.min(1, Math.max(0, s.offset)), s.color); } catch(err) { console.warn('Invalid gradient stop:', s, err); }
     return grad;
   }
 
@@ -790,10 +790,7 @@ class XpsRenderer {
       URL.revokeObjectURL(url);
       this.imgCache.set(path, img);
       return img;
-    } catch (_) { return null; }
-  }
-
-  // ─── glyph / text rendering ────────────────────────────────
+    } catch (err) { console.warn('Failed to load image from archive:', path, err); return null; }
   async renderGlyphs(el, ctx, res, baseDir) {
     const text = el.getAttribute('UnicodeString');
     if (!text) return;
@@ -883,6 +880,8 @@ class XpsRenderer {
           ...gRaw.slice(8, 16)
         ];
         for (let i = 0; i < Math.min(32, data.length); i++) {
+          // XOR each of the first 32 font bytes with the key traversed in reverse
+          // order, cycling through the 16-byte key twice — per ECMA-376 §10.2.7.4
           data[i] ^= key[15 - (i % 16)];
         }
       }
@@ -895,10 +894,7 @@ class XpsRenderer {
       document.fonts.add(face);
       URL.revokeObjectURL(url);
       return familyName;
-    } catch (_) { return null; }
-  }
-
-  // ─── resource dictionary ───────────────────────────────────
+    } catch (err) { console.warn('Failed to load/deobfuscate font:', path, err); return null; }
   async collectRes(propEl, res, baseDir, ctx, pw, ph) {
     const scan = async parent => {
       for (const child of parent.children) {
