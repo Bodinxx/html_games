@@ -1,6 +1,6 @@
 <!-- 
 CATEGORY: Games
-DESCRIPTION: Taipan! A deep maritime trading game set in the South China Sea. Navigate 10 historical Far Eastern ports to trade opium, silk, arms, tea, ivory, and general goods. Manage debt to Elder Brother Wu, bank profits in Hong Kong or Macau, and upgrade your ship at the shipyard with cannons, explosive charges, and electric charges. Hire crew to boost combat accuracy in this faithful upgrade of the classic Apple IIc game.
+DESCRIPTION: Taipan! A deep maritime trading game set in the South China Sea. Navigate 10 historical Far Eastern ports to trade opium, silk, arms, tea, ivory, and general goods. Manage debt to Elder Brother Wu, bank profits in Hong Kong or Macau, and upgrade your ship at the shipyard with cannons, explosive charges, and electric charges. Hire specialist crew — gunners improve cannon accuracy, merchants negotiate better trade prices, and carpenters repair the hull while sailing — in this faithful upgrade of the classic Apple IIc game.
 TAGS: Strategy, Simulation, Trading, Adventure, Old School
 -->
 <!DOCTYPE html>
@@ -424,6 +424,9 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
 // =============================================
 const SAVE_KEY = 'taipan_v2_save';
 
+// Singular display labels for crew roles
+const ROLE_LABELS = { gunners: 'GUNNER', merchants: 'MERCHANT', carpenters: 'CARPENTER' };
+
 const commodities = [
     { name: "Opium",   min: 1000, max: 9000, risky: true,  riskMsg: "CUSTOMS SEIZED YOUR OPIUM AND LEVIED A FINE!" },
     { name: "Silk",    min: 200,  max: 1200, risky: false, riskMsg: "" },
@@ -625,9 +628,9 @@ function applyLoadedState(parsed) {
     } else if (!state.crew || typeof state.crew !== 'object') {
         state.crew = { gunners: 0, merchants: 0, carpenters: 0 };
     } else {
-        if (state.crew.gunners   === undefined) state.crew.gunners   = 0;
-        if (state.crew.merchants === undefined) state.crew.merchants = 0;
-        if (state.crew.carpenters=== undefined) state.crew.carpenters= 0;
+        if (state.crew.gunners    === undefined) state.crew.gunners    = 0;
+        if (state.crew.merchants  === undefined) state.crew.merchants  = 0;
+        if (state.crew.carpenters === undefined) state.crew.carpenters = 0;
     }
     document.getElementById('setup-container').style.display = 'none';
     document.getElementById('game-container').style.display  = 'block';
@@ -1278,7 +1281,7 @@ async function enemyVolley() {
         if (occupied.length > 0) {
             const role = occupied[Math.floor(Math.random() * occupied.length)];
             state.crew[role]--;
-            c.logs.push(`A ${role.slice(0,-1).toUpperCase()} FALLS IN BATTLE!`);
+            c.logs.push(`A ${ROLE_LABELS[role]} FALLS IN BATTLE!`);
         }
     }
     // Gun damaged
@@ -1629,13 +1632,13 @@ function crewAction(type, role) {
         if (actual <= 0) { log("CANNOT HIRE CREW — CHECK GOLD AND HOLD SPACE."); closeModal(); return; }
         state.cash         -= actual * 400;
         state.crew[role]    = (state.crew[role] || 0) + actual;
-        log(`HIRED ${actual} ${role.slice(0,-1).toUpperCase()}${actual !== 1 ? 'S' : ''}. CREW NOW ${getTotalCrew()}/${maxCrew}.`);
+        log(`HIRED ${actual} ${ROLE_LABELS[role]}${actual !== 1 ? 'S' : ''}. CREW NOW ${getTotalCrew()}/${maxCrew}.`);
     }
     if (type === 'fire') {
         const inputId = `crew-fire-${role}`;
         const qty     = Math.max(0, Math.min(parseInt(document.getElementById(inputId)?.value) || 0, state.crew[role] || 0));
         state.crew[role] = Math.max(0, (state.crew[role] || 0) - qty);
-        log(`DISMISSED ${qty} ${role.slice(0,-1).toUpperCase()}${qty !== 1 ? 'S' : ''}. CREW NOW ${getTotalCrew()}/${maxCrew}.`);
+        log(`DISMISSED ${qty} ${ROLE_LABELS[role]}${qty !== 1 ? 'S' : ''}. CREW NOW ${getTotalCrew()}/${maxCrew}.`);
     }
     render(); visitCrew();
 }
