@@ -791,6 +791,8 @@ class XpsRenderer {
       this.imgCache.set(path, img);
       return img;
     } catch (err) { console.warn('Failed to load image from archive:', path, err); return null; }
+  }
+
   async renderGlyphs(el, ctx, res, baseDir) {
     const text = el.getAttribute('UnicodeString');
     if (!text) return;
@@ -895,6 +897,8 @@ class XpsRenderer {
       URL.revokeObjectURL(url);
       return familyName;
     } catch (err) { console.warn('Failed to load/deobfuscate font:', path, err); return null; }
+  }
+
   async collectRes(propEl, res, baseDir, ctx, pw, ph) {
     const scan = async parent => {
       for (const child of parent.children) {
