@@ -357,6 +357,8 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
 
         <button class="btn-main" onclick="startGame()">BEGIN VOYAGE</button>
         <button class="btn-main" id="continue-btn" style="display:none; border-color:var(--green); font-weight:bold;" onclick="continueGame()">CONTINUE JOURNEY</button>
+        <button class="btn-main" id="export-btn" style="display:none; border-color:var(--green-dim); color:var(--green-dim);" onclick="downloadSave()">EXPORT SAVE FILE</button>
+        <button class="btn-main" style="border-color:var(--green-dim); color:var(--green-dim);" onclick="loadSaveFile()">LOAD SAVE FILE</button>
         <button class="btn-main" style="border-color:var(--green-dim); color:var(--green-dim);" onclick="showHelp()">HANDBOOK &amp; PRICE GUIDE</button>
     </div>
 </div>
@@ -403,6 +405,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         <button class="btn-main" id="warehouse-btn" onclick="visitWarehouse()">WAREHOUSE</button>
         <button class="btn-main" id="yard-btn" onclick="visitShipyard()">SHIPYARD</button>
         <button class="btn-main" onclick="visitCrew()">CREW</button>
+        <button class="btn-main" style="border-color:var(--green-dim);color:var(--green-dim);" onclick="downloadSave()">EXPORT SAVE</button>
         <button class="btn-main" id="retire-btn" style="border-color:var(--gold);color:var(--gold);display:none;" onclick="retireGame()">RETIRE</button>
     </div>
 
@@ -509,21 +512,114 @@ function continueGame() {
     try {
         const saved = localStorage.getItem(SAVE_KEY);
         if (saved) {
-            state = JSON.parse(saved);
-            // Ensure new fields exist in older saves
-            if (!state.ammo)           state.ammo = { explosive: 0, electric: 0 };
-            if (state.crew === undefined) state.crew = 0;
-            if (state.liYuenProtected === undefined) state.liYuenProtected = 0;
-            document.getElementById('setup-container').style.display = 'none';
-            document.getElementById('game-container').style.display = 'block';
-            document.getElementById('merchant-name-display').innerText = state.playerName;
-            init();
+            let parsed;
+            // Support both old plain-JSON saves and new encrypted saves
+            try {
+                const wrap = JSON.parse(saved);
+                parsed = (wrap && wrap.v === 1 && wrap.d) ? decryptState(wrap.d) : wrap;
+            } catch(e) {
+                parsed = JSON.parse(saved); // legacy plain fallback
+            }
+            applyLoadedState(parsed);
         }
     } catch(e) { console.error("Load failed", e); }
 }
 
 function saveProgress() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch(e) {}
+    try {
+        const enc = encryptState(state);
+        localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, d: enc }));
+    } catch(e) {}
+}
+
+// =============================================
+//  SAVE FILE ENCRYPTION
+// =============================================
+const CIPHER_KEY = 'TaipanSouthChinaSea1842VoyageKey';
+
+function encryptState(obj) {
+    const src = encodeURIComponent(JSON.stringify(obj));
+    let out = '';
+    for (let i = 0; i < src.length; i++) {
+        out += String.fromCharCode(src.charCodeAt(i) ^ CIPHER_KEY.charCodeAt(i % CIPHER_KEY.length));
+    }
+    return Array.from(out, c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+}
+
+function decryptState(hex) {
+    let xored = '';
+    for (let i = 0; i < hex.length; i += 2) {
+        xored += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16));
+    }
+    let src = '';
+    for (let i = 0; i < xored.length; i++) {
+        src += String.fromCharCode(xored.charCodeAt(i) ^ CIPHER_KEY.charCodeAt(i % CIPHER_KEY.length));
+    }
+    return JSON.parse(decodeURIComponent(src));
+}
+
+// =============================================
+//  SAVE FILE EXPORT / IMPORT
+// =============================================
+function downloadSave() {
+    saveProgress(); // ensure latest state is captured
+    const enc = encryptState(state);
+    const payload = JSON.stringify({ v: 1, d: enc });
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `taipan_${(state.playerName || 'save').toLowerCase().replace(/\s+/g,'_')}.taipan`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    // Log only if we're in-game
+    const gameContainer = document.getElementById('game-container');
+    if (gameContainer && gameContainer.style.display !== 'none') {
+        log("CAPTAIN'S JOURNAL EXPORTED TO FILE.", "var(--green-dim)");
+    }
+}
+
+function loadSaveFile() {
+    document.getElementById('save-file-input').click();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('save-file-input').addEventListener('change', function() {
+        const file = this.files && this.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const wrap = JSON.parse(e.target.result);
+                if (!wrap || wrap.v !== 1 || !wrap.d) {
+                    alert('INVALID SAVE FILE: Not a valid Taipan save.');
+                    return;
+                }
+                const loaded = decryptState(wrap.d);
+                applyLoadedState(loaded);
+                log("CAPTAIN'S JOURNAL LOADED FROM FILE. WELCOME BACK!", "var(--green-bright)");
+            } catch(err) {
+                alert('CORRUPTED SAVE FILE: Could not read the save data.');
+                console.error(err);
+            }
+        };
+        reader.readAsText(file);
+        this.value = ''; // reset so same file can be reloaded
+    });
+});
+
+function applyLoadedState(parsed) {
+    state = parsed;
+    // Ensure new fields exist in older saves
+    if (!state.ammo)                    state.ammo = { explosive: 0, electric: 0 };
+    if (state.crew === undefined)       state.crew = 0;
+    if (state.liYuenProtected === undefined) state.liYuenProtected = 0;
+    document.getElementById('setup-container').style.display = 'none';
+    document.getElementById('game-container').style.display = 'block';
+    document.getElementById('merchant-name-display').innerText = state.playerName;
+    init();
 }
 
 function init() {
@@ -1627,9 +1723,13 @@ function closeModal() {
 // =============================================
 window.onload = () => {
     const saved = localStorage.getItem(SAVE_KEY);
-    if (saved) document.getElementById('continue-btn').style.display = 'block';
+    if (saved) {
+        document.getElementById('continue-btn').style.display = 'block';
+        document.getElementById('export-btn').style.display   = 'block';
+    }
 };
 </script>
 <a href="https://web-mage.ca/games/"><img src="WebMage-sm.webp" alt="Visit WebMage Games" style="position:fixed;right:16px;bottom:16px;height:50px;z-index:9999;pointer-events:auto;"></a>
+<input type="file" id="save-file-input" accept=".taipan" style="display:none">
 </body>
 </html>
