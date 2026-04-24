@@ -533,7 +533,10 @@ function saveProgress() {
 }
 
 // =============================================
-//  SAVE FILE ENCRYPTION
+//  SAVE FILE ENCRYPTION (obfuscation only)
+//  XOR + hex encoding makes saves unreadable
+//  in a text editor but provides no cryptographic
+//  security — the key is intentionally in source.
 // =============================================
 const CIPHER_KEY = 'TaipanSouthChinaSea1842VoyageKey';
 
@@ -562,19 +565,18 @@ function decryptState(hex) {
 //  SAVE FILE EXPORT / IMPORT
 // =============================================
 function downloadSave() {
-    saveProgress(); // ensure latest state is captured
-    const enc = encryptState(state);
+    saveProgress();
+    const enc     = encryptState(state);
     const payload = JSON.stringify({ v: 1, d: enc });
-    const blob = new Blob([payload], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `taipan_${(state.playerName || 'save').toLowerCase().replace(/\s+/g,'_')}.taipan`;
+    const blob    = new Blob([payload], { type: 'application/json' });
+    const url     = URL.createObjectURL(blob);
+    const a       = document.createElement('a');
+    a.href        = url;
+    a.download    = `taipan_${(state.playerName || 'save').toLowerCase().replace(/\s+/g, '_')}.taipan`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    // Log only if we're in-game
     const gameContainer = document.getElementById('game-container');
     if (gameContainer && gameContainer.style.display !== 'none') {
         log("CAPTAIN'S JOURNAL EXPORTED TO FILE.", "var(--green-dim)");
@@ -582,11 +584,14 @@ function downloadSave() {
 }
 
 function loadSaveFile() {
-    document.getElementById('save-file-input').click();
+    const inp = document.getElementById('save-file-input');
+    if (inp) inp.click();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('save-file-input').addEventListener('change', function() {
+    const inp = document.getElementById('save-file-input');
+    if (!inp) return;
+    inp.addEventListener('change', function() {
         const file = this.files && this.files[0];
         if (!file) return;
         const reader = new FileReader();
@@ -594,30 +599,29 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const wrap = JSON.parse(e.target.result);
                 if (!wrap || wrap.v !== 1 || !wrap.d) {
-                    alert('INVALID SAVE FILE: Not a valid Taipan save.');
+                    showModal("INVALID SAVE FILE", "<p>This does not appear to be a valid Taipan save file.</p>", true);
                     return;
                 }
                 const loaded = decryptState(wrap.d);
                 applyLoadedState(loaded);
                 log("CAPTAIN'S JOURNAL LOADED FROM FILE. WELCOME BACK!", "var(--green-bright)");
             } catch(err) {
-                alert('CORRUPTED SAVE FILE: Could not read the save data.');
+                showModal("CORRUPTED SAVE FILE", "<p>The save file could not be read. It may be corrupted or from an incompatible version.</p>", true);
                 console.error(err);
             }
         };
         reader.readAsText(file);
-        this.value = ''; // reset so same file can be reloaded
+        this.value = '';
     });
 });
 
 function applyLoadedState(parsed) {
     state = parsed;
-    // Ensure new fields exist in older saves
-    if (!state.ammo)                    state.ammo = { explosive: 0, electric: 0 };
-    if (state.crew === undefined)       state.crew = 0;
+    if (!state.ammo)                         state.ammo = { explosive: 0, electric: 0 };
+    if (state.crew === undefined)            state.crew = 0;
     if (state.liYuenProtected === undefined) state.liYuenProtected = 0;
     document.getElementById('setup-container').style.display = 'none';
-    document.getElementById('game-container').style.display = 'block';
+    document.getElementById('game-container').style.display  = 'block';
     document.getElementById('merchant-name-display').innerText = state.playerName;
     init();
 }
