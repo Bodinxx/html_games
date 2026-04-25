@@ -726,7 +726,7 @@ class DungeonGen {
         const [r, c] = queue.shift();
         for (const d of DIRS) {
           const nr = r+DIR[d].r, nc = c+DIR[d].c;
-          if (nr<0||nr>=this.n_rows||nc<0||nc>=this.n_cols) continue;
+          if (nr<0||nr>this.n_rows||nc<0||nc>this.n_cols) continue;
           const key = `${nr},${nc}`;
           if (visited.has(key)) continue;
           if (isOpen(this.cell[nr][nc])) { visited.add(key); queue.push([nr,nc]); }
@@ -981,7 +981,7 @@ class ContentGen {
   _genCorridorNotes() {
     const features = DATA.corridorFeatures || INLINE_CORRIDOR_FEATURES;
     const notes = [];
-    // Sample ~20% of features to sprinkle as corridor observations
+    // Sample ~30% of features to sprinkle as corridor observations
     const count = Math.max(2, Math.floor(features.length * 0.3));
     const pool = this.rng.shuffle(features.slice()).slice(0, count);
     pool.forEach((f, i) => notes.push({ id: i+1, text: f }));
