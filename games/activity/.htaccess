@@ -1,0 +1,11 @@
+# Block direct access to JSON files
+<FilesMatch "\.json$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Ensure PHP files in api/ work normally
+<FilesMatch "\.php$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>

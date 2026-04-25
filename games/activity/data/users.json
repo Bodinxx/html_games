@@ -1,0 +1,42 @@
+{
+    "ryank": {
+        "password_hash": "$2y$12$hnnQdo8OFPZGavCtrgsD4.Lt1q1v9c\/2irqXHak5\/uuNOthVD4366",
+        "last_login": "2026-04-20 20:35:21",
+        "theme": "industrial",
+        "role": "admin",
+        "goals": {
+            "avg_steps": 2000,
+            "workout_hours": 3,
+            "sleep_goal": 7,
+            "clean_meals_goal": 7,
+            "activity_points_goal": 150
+        },
+        "profile": {
+            "full_name": "Ryan Krawchuk",
+            "weight": 149.69,
+            "height": 170.2,
+            "age": 51,
+            "gender": "m"
+        }
+    },
+    "jcg777": {
+        "password_hash": "$2y$12$vlNfAm6RTVM0NuUdz1Pjge8RQIarq1coS17umGRByqa62vLZohNdK",
+        "last_login": null,
+        "theme": "dark",
+        "role": "user",
+        "goals": {
+            "avg_steps": 6000,
+            "workout_hours": 5,
+            "sleep_goal": 7,
+            "clean_meals_goal": 14,
+            "activity_points_goal": 300
+        },
+        "profile": {
+            "full_name": "Jayde Gravel",
+            "weight": 80,
+            "height": 175,
+            "age": 35,
+            "gender": "f"
+        }
+    }
+}

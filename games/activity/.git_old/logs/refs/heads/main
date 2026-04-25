@@ -1,0 +1,3 @@
+0000000000000000000000000000000000000000 0b51e8daca9aa91d62f091ed18f8abb05e2c45bb Ryan Krawchuk <ryan.krawchuk@edmonton.ca> 1776174024 -0600	clone: from https://github.com/Bodinxx/Activity_Tracker.git
+0b51e8daca9aa91d62f091ed18f8abb05e2c45bb 6306a671e73790ae21491ee140ff9ac5fbe5c100 Ryan Krawchuk <ryan.krawchuk@edmonton.ca> 1776174710 -0600	commit: Update pathing issue.
+6306a671e73790ae21491ee140ff9ac5fbe5c100 28fb53445c2343a28410dd8484fc40864d370259 Ryan Krawchuk <ryan.krawchuk@edmonton.ca> 1776175302 -0600	commit: feat: enhance profile form with weight and height unit selection and tooltips
