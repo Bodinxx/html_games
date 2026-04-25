@@ -1,0 +1,28 @@
+{
+  "traps": [
+    { "name": "Pit Trap",               "dc": 12, "dmg": "1d6 bludgeoning",          "effect": "Falls 10 ft into a pit. DC 12 DEX to grab the edge." },
+    { "name": "Spiked Pit Trap",        "dc": 14, "dmg": "1d6 + 2d6 piercing",       "effect": "10 ft pit lined with iron spikes. DC 14 DEX or fall in." },
+    { "name": "Tripwire Arrow Trap",    "dc": 13, "dmg": "1d6 piercing",             "effect": "Arrows fire from hidden wall slots. Attacks 1d4 targets in 10 ft." },
+    { "name": "Swinging Log Trap",      "dc": 11, "dmg": "2d8 bludgeoning",          "effect": "Heavy log swings across the corridor. DC 12 DEX or knocked prone." },
+    { "name": "Pressure Plate Darts",   "dc": 13, "dmg": "1d4 piercing + poison",    "effect": "DC 12 CON or poisoned for 1 hour." },
+    { "name": "Scything Blade",         "dc": 14, "dmg": "2d6 slashing",             "effect": "Blade sweeps the floor at ankle height. DC 14 DEX or hit." },
+    { "name": "Falling Net",            "dc": 14, "dmg": "—",                        "effect": "DC 13 STR to escape; restrained until freed. Net has AC 10, HP 20." },
+    { "name": "Collapsing Ceiling",     "dc": 15, "dmg": "4d10 bludgeoning",         "effect": "DC 13 DEX for half; blocks the passage until cleared (8 hours)." },
+    { "name": "Fire Jets",              "dc": 14, "dmg": "3d6 fire",                 "effect": "Jets erupt from wall vents in a 15 ft line. DC 14 DEX half." },
+    { "name": "Magic Glyph (Blast)",    "dc": 16, "dmg": "5d8 thunder",              "effect": "20 ft radius burst centered on trigger rune. DC 16 DEX half." },
+    { "name": "Acid Flask Droppers",    "dc": 13, "dmg": "2d6 acid",                 "effect": "Ceramic flasks drop from a hidden ceiling mount. DC 13 DEX half." },
+    { "name": "Alarm Glyph",            "dc": 15, "dmg": "—",                        "effect": "Alerts all creatures within 300 ft. Likely triggers a wandering monster check." },
+    { "name": "Gravity Inversion",      "dc": 17, "dmg": "1d6 bludgeoning",          "effect": "Room gravity reverses for 1 round. Creatures fall to ceiling (1d6), then back (1d6)." },
+    { "name": "Paralysis Gas Canister", "dc": 14, "dmg": "—",                        "effect": "DC 14 CON or paralyzed for 1 minute. Canister is visible with DC 15 Perception." },
+    { "name": "Rolling Boulder",        "dc": 15, "dmg": "4d10 bludgeoning",         "effect": "DC 14 DEX or knocked prone and buried under rubble (DC 20 Athletics to escape)." },
+    { "name": "Teleportation Sigil",    "dc": 16, "dmg": "—",                        "effect": "Teleports the trigger creature to a random room in the dungeon." },
+    { "name": "Web Shooter",            "dc": 12, "dmg": "—",                        "effect": "DC 12 STR to escape; restrained and flammable. Burns for 2d4 fire if ignited." },
+    { "name": "Spectral Hands Trap",    "dc": 15, "dmg": "2d6 necrotic",             "effect": "Ghostly hands burst from the walls. DC 15 CON or lose 1 max HP until long rest." },
+    { "name": "Sleep Gas Trap",         "dc": 14, "dmg": "—",                        "effect": "DC 14 CON or fall unconscious for 1 hour. Woken by damage or a loud noise." },
+    { "name": "Lightning Rod Floor",    "dc": 15, "dmg": "3d8 lightning",            "effect": "Metal floor tiles complete a circuit when stepped on. DC 15 DEX half." },
+    { "name": "Polymorph Trap",         "dc": 17, "dmg": "—",                        "effect": "DC 17 WIS or polymorph into a random beast (CR 1 or lower) for 1 hour." },
+    { "name": "Cursed Mirror",          "dc": 14, "dmg": "—",                        "effect": "Creature that looks at mirror: DC 14 WIS or be Frightened of their own reflection for 1 minute." },
+    { "name": "Pendulum Axe",           "dc": 13, "dmg": "2d10 slashing",            "effect": "Giant axe swings from the ceiling. +8 to hit; DC 13 DEX or take damage." },
+    { "name": "Flooding Room",          "dc": 13, "dmg": "1d6 cold per round",       "effect": "Doors seal and water fills the room. 1 foot per round; room fills in 10 rounds." }
+  ]
+}

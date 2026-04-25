@@ -1,0 +1,100 @@
+{
+  "standard": [
+    "Crumbling stone walls", "Torch sconces (unlit)", "Broken furniture", "Damp floor",
+    "Faded tapestries", "Scattered bones", "Dusty crates", "A collapsed section of ceiling",
+    "Crude graffiti in Goblin", "Rusted chains bolted to the wall", "Mold covering the north wall",
+    "A smashed barrel of salted pork", "Dried blood stains", "Scratched tally marks on the wall",
+    "A cracked flagstone floor", "Arrow slits overlooking the corridor", "A charred fire pit",
+    "Heaps of filthy straw", "Collapsed shelving", "A clay water jug (empty)",
+    "Cobwebs thick in the corners", "A bent iron portcullis, stuck open", "A rough-hewn stone bench"
+  ],
+  "undead": [
+    "Coffins stacked against the wall", "Bones etched with runes", "Cold blue torchlight",
+    "A faint wailing from inside the walls", "Grave goods scattered across the floor",
+    "Tattered burial shrouds", "A crumbling epitaph in Old Common", "Necrotic energy darkens the air",
+    "A rotting floral wreath", "Skulls stacked in alcoves", "Claw marks on the inner door",
+    "An open sarcophagus, empty", "Black candles melted to stubs", "Funeral incense smell (faint)"
+  ],
+  "goblinoid": [
+    "Crude wooden barricade", "Stolen adventuring gear in a pile", "Greasy cooking pot over dead coals",
+    "Crude drawing of a human being stabbed", "Piles of gnawed bones", "Rope ladder leading to a loft",
+    "A net trap (already sprung)", "A half-assembled crossbow", "Furs and pelts nailed to the walls",
+    "Smashed clay figurines (trophies)", "Dung smeared on the floor (territorial marking)",
+    "A leaky waterskin hanging on a peg", "Crude dice carved from teeth"
+  ],
+  "arcane": [
+    "Glowing runes on the floor", "Shelves of strange components", "Floating dust motes that follow movement",
+    "A blackened summoning circle", "Crystal vials of unidentified liquid", "A broken orrery",
+    "Arcane notation chalked on the walls", "A staff missing its crystal head", "Levitating stones",
+    "Wards carved into every surface", "A humming obelisk (inert)", "Bookshelves with water damage",
+    "A chalkboard covered in equations", "Preserved specimens floating in jars"
+  ],
+  "underdark": [
+    "Bioluminescent fungus", "Dripping stalactites", "Blind cave fish in a pool",
+    "Web-covered passage", "Deep chasm (3d6×10 ft deep)", "Glowing purple lichen",
+    "Drow patrol markings on the wall", "Calcified pool of mineral water", "Subterranean insect nests",
+    "Pale eyeless creatures flee at approach", "Walls of shimmering faerzress",
+    "A cave-in blocks one passage (DC 16 Athletics to clear)"
+  ],
+  "draconic": [
+    "Claw gouges on the stone floor", "Acid-scarred walls", "A charred skeleton of a knight",
+    "Scales scattered across the floor", "Intense heat radiates from below", "Hoarded junk: tin pots, bent weapons",
+    "The smell of sulfur", "Discarded dragon eggshell fragments", "Gem dust glittering on the floor",
+    "A shattered suit of draconic-patterned armor", "Scorch marks on the ceiling"
+  ],
+  "demonic": [
+    "Blood-soaked altar stones", "Chains hanging from the ceiling", "Screaming faces in the stone walls",
+    "Pools of black ichor", "Glowing red runes", "Severed demonic limbs (old, dried)",
+    "A cage of bones", "The temperature drops 10 degrees", "Arcane fire burns in a pit",
+    "Shattered mirror fragments on the floor", "A pentagram burned into the floor"
+  ],
+  "infernal": [
+    "Brass and iron fixtures", "Hellish contracts pinned to the wall", "Brimstone smell",
+    "Iron chains etched with law", "A ledger of sins written in blood", "The walls feel hot to the touch",
+    "Statues of devils in ceremonial poses", "A fire that casts no light (magical)", "Devilish insignia",
+    "A mosaic of damned souls in the floor tiles", "A clock that counts down to something"
+  ],
+  "elemental_fire": [
+    "Cracks in the floor with lava glow below", "Scorched walls", "Ash piles",
+    "A permanent flame jet (harmless if fire resistant)", "Heat shimmer distorts vision",
+    "Obsidian formations", "Slag pools of cooled lava", "Embers drifting from the ceiling",
+    "A forge that never goes cold", "Soot-blackened everything", "Sulfurous smoke"
+  ],
+  "elemental_cold": [
+    "Frost-covered walls", "Ice formations blocking one exit", "Frozen corpses preserved in crystal",
+    "Howling wind from below", "Icicles hanging from the ceiling", "A frozen underground lake",
+    "Snow drifts (inside)", "Frozen breath of previous explorers visible on walls",
+    "Slick ice floor (difficult terrain)", "A blizzard in miniature inside a shattered glass orb"
+  ],
+  "fey": [
+    "Strange flowers that glow faintly", "A mirror that shows an alternate version of the room",
+    "Tiny tracks that lead nowhere", "Music from an unseen source", "A miniature forest of mushrooms",
+    "Time moves strangely (felt, not measurable)", "Riddle carved in Sylvan above the door",
+    "Pixie dust on the floor", "A door to nowhere (portal, inactive)", "Trees growing through the stone"
+  ],
+  "nature": [
+    "Tree roots breaking through the ceiling", "An underground stream", "Moss-covered everything",
+    "A natural chimney open to the sky", "Animal den (empty)", "Large mushrooms used as furniture",
+    "Druid circle scratched in the floor", "Bones of animals, not people", "Crystal-clear pool",
+    "Fireflies (underground, magical)", "A bird's nest in the rafters (long abandoned)"
+  ],
+  "aquatic": [
+    "Ankle-deep standing water", "Tide-worn stone", "Barnacles on the walls",
+    "A partially submerged passage", "Kelp (freshwater variety)", "Bioluminescent plankton",
+    "Rusted anchors", "The smell of salt", "Waterlogged crates from a shipwreck", "Crab tracks",
+    "Tide marks at 4 ft on the walls"
+  ],
+  "giant": [
+    "Furniture scaled for 20-ft creatures", "A table with a half-eaten cow on it",
+    "Door handles 10 ft off the ground", "Giant-sized weapons mounted on the wall",
+    "Footprints the size of wagon wheels", "A cauldron large enough to cook a horse",
+    "Massive stone columns", "A pile of boulders (ranged ammunition for giants)", "Rune-carved pillars",
+    "A throne carved from a single boulder"
+  ],
+  "construct": [
+    "Mechanical arms affixed to the walls", "Gears and pistons visible in the floor",
+    "A conveyor belt (stopped)", "Oil stains", "Half-assembled automatons",
+    "A control panel of levers (purpose unclear)", "Sparking wires", "Metal shavings",
+    "Blueprints nailed to the wall", "Steam vents (currently inactive)", "A ticking clockwork mechanism in the ceiling"
+  ]
+}

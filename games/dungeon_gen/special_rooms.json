@@ -1,0 +1,97 @@
+{
+  "standard": [
+    { "name": "Shrine",           "desc": "A stone altar to an unnamed god. Praying grants advantage on the next saving throw (one creature, once per long rest)." },
+    { "name": "Armory",           "desc": "Weapon racks with mundane arms. 2d6 javelins, 1d4 shields, a rusted longsword, a bundle of crossbow bolts." },
+    { "name": "Barracks",         "desc": "Crude sleeping quarters. 1d4 locked footlockers (DC 13), 2d4 straw pallets, a crudely drawn guard schedule." },
+    { "name": "Torture Chamber",  "desc": "Iron maiden, rack, and brazier. A key hangs on the wall (opens a random locked door in the dungeon)." },
+    { "name": "Prison Cell",      "desc": "Three iron-barred cells. One contains a skeletal prisoner clutching a water-damaged journal with dungeon notes." },
+    { "name": "Kitchen",          "desc": "Cold hearth, rotten provisions. A hidden compartment (DC 14 Investigation) holds preserved rations and 15 gp." },
+    { "name": "Trophy Room",      "desc": "Mounted monster heads and adventurer skulls. Searching finds a non-magical weapon of fine quality (+1 to hit, no magic)." },
+    { "name": "Guard Post",       "desc": "Murder holes overlook the corridor. Creatures defending here have three-quarters cover against ranged attacks." },
+    { "name": "Library",          "desc": "Shelves of crumbling tomes. DC 15 Investigation: one random spell scroll (1st–3rd level)." },
+    { "name": "Forge",            "desc": "Cold forge and bellows. With 1 hour of work, a skilled smith (DC 15 tools) can repair a broken magic weapon." },
+    { "name": "Map Room",         "desc": "A rough map of the dungeon is scratched into the wall. DM reveals the layout to players." },
+    { "name": "Scrying Pool",     "desc": "A still basin of black water. DC 14 Arcana to use as a scrying sensor (1 min, concentration)." }
+  ],
+  "undead": [
+    { "name": "Crypt",            "desc": "Row of stone sarcophagi sealed with wax. Breaking any has a 50% chance to release a Ghoul." },
+    { "name": "Bone Yard",        "desc": "Bones piled floor to ceiling. Moving through costs a full action per 5 ft. DC 12 STR or gain one level of exhaustion." },
+    { "name": "Soul Well",        "desc": "A pit radiating negative energy. Undead within 30 ft heal 1d4 HP/turn. Living must pass DC 13 CON or gain one exhaustion level." },
+    { "name": "Vampire's Sanctum","desc": "Silk-draped coffin, ornate mirror (shows nothing). 1d4 Vampire Spawn lurk in the shadows." },
+    { "name": "Mausoleum Shrine", "desc": "Altar to Myrkul. A cleric can cast Speak with Dead without components once per day here." }
+  ],
+  "arcane": [
+    { "name": "Wizard's Study",   "desc": "Desk with half-completed spell research. DC 14 Arcana: one random 1st-level spell scroll discovered in the drawer." },
+    { "name": "Alchemy Lab",      "desc": "Bubbling alembics. 1d4 random potions on the shelf; 25% chance one is explosive if dropped (2d6 fire, 10 ft radius)." },
+    { "name": "Teleportation Circle","desc":"Permanent circle etched in the floor. Its destination is unknown (DM determines)." },
+    { "name": "Golem Workshop",   "desc": "Inert stone and clay husks. One incomplete golem can be animated with a spell slot of 6th level or higher." },
+    { "name": "Spell Mirror",     "desc": "A 7-ft mirror that reflects spells. First spell targeting a creature before it is redirected at the caster (once per day)." }
+  ],
+  "demonic": [
+    { "name": "Summoning Circle", "desc": "Blood-drawn circle. Still active—any creature stepping inside must pass DC 16 WIS or be compelled to complete the ritual." },
+    { "name": "Desecrated Altar", "desc": "Altar to Orcus, slicked with blood. Undead within 10 ft regain 2d6 HP per round." },
+    { "name": "Torture Pit",      "desc": "A 20-ft pit of boiling ichor. DC 15 CON against fumes (1d6 poison/round adjacent; no save in pit)." },
+    { "name": "Idol Chamber",     "desc": "A 10-ft obsidian statue of a demon lord. Smashing it (DC 18 Athletics) causes 4d10 thunder to all within 30 ft." }
+  ],
+  "goblinoid": [
+    { "name": "War Room",         "desc": "Crude tactical maps on animal hides. Studying them grants advantage on one Insight or Perception check about the dungeon." },
+    { "name": "Trophy Pile",      "desc": "Stolen gear from past adventurers. Roll d6: 1–2 mundane item; 3–4 +1 magic item (DM's choice); 5 cursed item; 6 key to locked door." },
+    { "name": "Pen",              "desc": "1d4 captured humanoids (commoners). They know the rough layout of 1d4 rooms." },
+    { "name": "Fungal Garden",    "desc": "Bioluminescent mushrooms. Three varieties: edible; mildly psychedelic (1 hour); violently poisonous (DC 13 CON or 3d6 poison)." }
+  ],
+  "nature": [
+    { "name": "Underground Spring","desc": "Fresh water source. Drinking heals 1d4 HP (once per creature per day)." },
+    { "name": "Druid Grove",      "desc": "Impossible circle of trees underground. Druid spells cast here have doubled duration." },
+    { "name": "Predator Den",     "desc": "Bones of prey animals. A large predator has nested here—tracks suggest it left recently and will return." },
+    { "name": "Crystal Formation","desc": "Quartz veins worth 2d6×10 gp if carefully extracted (2 hours work, mining tools required)." }
+  ],
+  "underdark": [
+    { "name": "Drow Outpost",     "desc": "Collapsed webbing and a broken hand crossbow. A message in Elvish warns of a Drow patrol arriving in 4 hours." },
+    { "name": "Aboleth Pool",     "desc": "A 30-ft underground lake. An Aboleth may lair here. DC 16 Perception to notice the ripples beneath the dark surface." },
+    { "name": "Faerzress Node",   "desc": "Wild magic zone. All spell slots are random tier (DM rolls d4 for slot level). Wild magic surges on any d20 roll of 1–10." },
+    { "name": "Myconid Colony",   "desc": "Myconids tend to purple mushroom patches. They will trade dungeon information for surface food or 'novel experiences'." },
+    { "name": "Darkmantle Roost", "desc": "Ceiling covered in dormant darkmantles (appear as stalactites). Loud noise or any light source of 20+ ft radius wakes them all." }
+  ],
+  "draconic": [
+    { "name": "Hoard Chamber",    "desc": "Piles of gold coins (see treasure for total). Disturbing the hoard triggers a DC 18 Perception check for any nearby dragon." },
+    { "name": "Egg Chamber",      "desc": "1d4 dragon eggs on a heated stone shelf, carefully arranged. Each is worth 2,500 gp to collectors or dragon cults." },
+    { "name": "Shrine to Tiamat", "desc": "Five-headed altar. Non-evil creatures must pass DC 14 CHA or be frightened for 1 minute on first sight." },
+    { "name": "Drake Pen",        "desc": "Guard Drakes (treat as Wyverns without flight) chained here. Chains have 30 HP, AC 17." }
+  ],
+  "fey": [
+    { "name": "Faerie Court",     "desc": "A tiny throne of twisted silver. Any creature who sits must pass DC 15 WIS or compulsively perform a minor task for the invisible court." },
+    { "name": "Time Bubble",      "desc": "Time moves differently here. Each hour spent inside ages the creature 1d4 years (reversible with Greater Restoration)." },
+    { "name": "Dream Pool",       "desc": "A pool of liquid moonlight. Touching it triggers a vivid vision relevant to the current quest (DM's discretion)." },
+    { "name": "Riddle Door",      "desc": "A sealed fey archway that poses a riddle. Correct answer opens it; wrong answer causes 2d8 psychic damage and resets." }
+  ],
+  "elemental_fire": [
+    { "name": "Magma Forge",      "desc": "A forge fed by natural magma. Weapons crafted here gain the 'Heated' property (deals +1d4 fire damage for 1 hour after forging)." },
+    { "name": "Fire Shrine",      "desc": "Altar to Kossuth. Fire-resistant creatures may commune here to gain immunity to fire for 1 hour (once per day)." },
+    { "name": "Salamander Nest",  "desc": "A heated burrow. 2d4 salamander eggs are present; each is worth 50 gp to the right buyer." }
+  ],
+  "elemental_cold": [
+    { "name": "Ice Vault",        "desc": "Frozen in the walls are preserved treasures from a previous age. DC 16 Athletics to break open; contents as per treasure table." },
+    { "name": "Frost Shrine",     "desc": "Altar of shimmering blue ice. Cold-immune creatures may commune here to gain advantage on CON saves for 24 hours." },
+    { "name": "Permafrost Cave",  "desc": "Bodies of explorers perfectly preserved in ice. DC 14 Investigation reveals valuables still on their persons." }
+  ],
+  "infernal": [
+    { "name": "Contract Chamber", "desc": "Walls lined with infernal contracts bound in flesh. Reading them reveals the fates of previous dungeon occupants." },
+    { "name": "Soul Cage",        "desc": "A brass lantern containing a trapped soul. Releasing it grants a favor from the freed spirit; keeping it angers powerful infernal beings." },
+    { "name": "Devil's Throne",   "desc": "A throne of black iron. Sitting upon it and speaking a command word summons 1d4 Imps who must obey for 1 hour." }
+  ],
+  "aquatic": [
+    { "name": "Sunken Treasury",  "desc": "A submerged vault with a pressurized lock (DC 16 Athletics). Treasure inside is wet but intact." },
+    { "name": "Tidal Cave",       "desc": "Filled and drained by tides every 6 hours. When flooded, the entire room is 10 ft underwater." },
+    { "name": "Pearl Grotto",     "desc": "Giant clams line the walls. 1d4 contain non-magical pearls worth 50–100 gp each; 1 contains a Pearl of Power." }
+  ],
+  "giant": [
+    { "name": "Giant's Larder",   "desc": "A pantry stocked with giant-sized provisions. Among the giant food is an ordinary chest containing 200 gp and a +1 weapon." },
+    { "name": "Trophy Hall",      "desc": "Dragon skulls and hero armor mounted as trophies. One set of armor is still functional (scale mail +1, sized for Medium creatures)." },
+    { "name": "Giant Throne",     "desc": "An enormous throne carved from a single boulder. Beneath the seat cushion (DC 12 Investigation) is a giant's personal hoard (500 gp)." }
+  ],
+  "construct": [
+    { "name": "Control Room",     "desc": "A bank of levers and dials. DC 15 Arcana to understand the controls; success lets you lock/unlock any 2 doors in the dungeon." },
+    { "name": "Golem Storage",    "desc": "Three dormant golems stand in alcoves. They activate if attacked or if anyone moves a stored item without the correct command word." },
+    { "name": "Assembly Floor",   "desc": "Half-assembled automatons on workbenches. DC 14 Investigation finds a functional Clockwork Amulet (+1 to ability checks involving clocks)." }
+  ]
+}

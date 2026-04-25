@@ -1,0 +1,1687 @@
+<!--
+CATEGORY: TTRPG Tools
+DESCRIPTION: Advanced procedural dungeon generator v2. Donjon-style bitmask algorithm with proper room wall padding, rich door types, D&D 5e content, relative encounter CR, PDF export, and external JSON data support.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dungeon Generator v2</title>
+<style>
+:root {
+  --bg: #1a1a2e; --panel: #16213e; --panel2: #0f3460;
+  --accent: #e94560; --accent2: #4a90d9;
+  --text: #e0e0e0; --text-dim: #888; --border: #2a2a4a;
+  --input-bg: #0d1b2a;
+  --tag-monster:#c0392b; --tag-treasure:#d4a017; --tag-trap:#7f8c8d;
+  --tag-special:#8e44ad; --tag-empty:#2c3e50; --tag-stairs:#2980b9;
+  --tag-boss:#c0392b; --tag-trivial:#2c7a2c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:var(--panel2);padding:0.6rem 1rem;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--accent);flex-shrink:0}
+header h1{font-size:1.2rem;color:var(--accent);letter-spacing:1px}
+header span{font-size:0.75rem;color:var(--text-dim)}
+.app{display:flex;flex:1;overflow:hidden}
+.sidebar{width:210px;min-width:210px;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;padding:0.6rem;display:flex;flex-direction:column;gap:0.35rem}
+.sidebar h2{font-size:0.65rem;text-transform:uppercase;letter-spacing:2px;color:var(--accent2);padding:0.35rem 0 0.15rem;border-bottom:1px solid var(--border);margin-top:0.2rem}
+.cg{display:flex;flex-direction:column;gap:0.12rem}
+.cg label{font-size:0.68rem;color:var(--text-dim);font-weight:600}
+.row2{display:flex;gap:5px}
+.row2 .cg{flex:1}
+select,input[type=text],input[type=number]{background:var(--input-bg);border:1px solid var(--border);color:var(--text);padding:0.25rem 0.35rem;border-radius:4px;font-size:0.78rem;width:100%}
+select:focus,input:focus{outline:1px solid var(--accent2)}
+input[type=range]{width:100%;accent-color:var(--accent2)}
+.btn{padding:0.3rem 0.5rem;border:none;border-radius:4px;cursor:pointer;font-size:0.78rem;font-weight:600;transition:filter 0.15s;width:100%}
+.btn:hover{filter:brightness(1.15)}
+.btn-primary{background:var(--accent);color:#fff;margin-top:0.3rem;padding:0.45rem}
+.btn-secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
+.btn-group{display:flex;gap:4px;flex-wrap:wrap;margin-top:0.2rem}
+.btn-group .btn{flex:1;min-width:55px;font-size:0.72rem}
+.seed-display{font-size:0.68rem;color:var(--text-dim);font-family:monospace;min-height:1em}
+.canvas-area{flex:1;overflow:auto;background:#0a0a14;display:flex;align-items:flex-start;justify-content:flex-start;padding:20px;position:relative}
+#dungeon-canvas{image-rendering:pixelated;display:block;cursor:crosshair}
+.canvas-area.pan-mode{cursor:grab}
+.canvas-area.pan-mode:active{cursor:grabbing}
+.legend{width:330px;min-width:330px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.legend-header{background:var(--panel2);padding:0.45rem 0.8rem;font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--accent2);border-bottom:1px solid var(--border);flex-shrink:0}
+.legend-body{flex:1;overflow-y:auto;padding:0.5rem}
+/* Symbol Legend */
+.sym-legend{background:var(--input-bg);border-radius:4px;padding:0.4rem 0.5rem;margin-bottom:0.5rem;font-size:0.7rem}
+.sym-legend-title{color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:0.65rem;margin-bottom:0.3rem}
+.sym-row{display:flex;align-items:center;gap:0.4rem;padding:0.1rem 0;color:var(--text-dim)}
+.sym-row .sym{width:18px;height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700}
+.sym-door{background:#c8960c;border-radius:2px;color:#000}
+.sym-locked{background:#c8960c;border-radius:2px;color:#f44;font-size:0.6rem}
+.sym-arch{background:rgba(255,220,100,0.15);border:1px solid rgba(255,220,100,0.4);border-radius:2px;color:rgba(255,220,100,0.8);font-size:0.55rem}
+.sym-secret{background:#2a4a2a;border:1px dashed #4a8a4a;border-radius:2px;color:#4a8a4a}
+.sym-portc{background:#333;border-radius:2px;color:#888}
+.sym-stair-up{background:rgba(74,144,217,0.2);border:1px solid #4a90d9;border-radius:50%;color:#4a90d9;font-size:0.6rem}
+.sym-stair-dn{background:rgba(233,69,96,0.2);border:1px solid #e94560;border-radius:50%;color:#e94560;font-size:0.6rem}
+/* Room entries */
+.room-entry{padding:0.45rem;margin-bottom:0.35rem;background:var(--input-bg);border-radius:4px;border-left:3px solid var(--border);cursor:pointer;transition:border-color 0.15s}
+.room-entry:hover{border-color:var(--accent2)}
+.room-entry.highlighted{border-color:var(--accent);background:#1a0a10}
+.room-entry h3{font-size:0.78rem;display:flex;align-items:center;gap:0.3rem;margin-bottom:0.2rem;flex-wrap:wrap}
+.tag{font-size:0.6rem;padding:1px 5px;border-radius:3px;font-weight:700;text-transform:uppercase}
+.tag-monster{background:var(--tag-monster);color:#fff}
+.tag-treasure{background:var(--tag-treasure);color:#000}
+.tag-trap{background:var(--tag-trap);color:#fff}
+.tag-special{background:var(--tag-special);color:#fff}
+.tag-empty{background:var(--tag-empty);color:var(--text-dim)}
+.tag-stairs{background:var(--tag-stairs);color:#fff}
+.tag-boss{background:var(--tag-boss);color:#fff}
+.tag-trivial{background:var(--tag-trivial);color:#fff}
+.tag-easy{background:#2a6e2a;color:#fff}
+.tag-medium{background:#8a6000;color:#fff}
+.tag-hard{background:#8a3000;color:#fff}
+.tag-deadly{background:#6a0000;color:#fff}
+.room-entry ul{list-style:none;padding:0;margin:0;font-size:0.72rem;color:var(--text-dim)}
+.room-entry ul li::before{content:'› ';color:var(--accent2)}
+.door-detail{font-size:0.68rem;color:var(--text-dim);font-style:italic;padding-left:0.8rem}
+.wmt{background:var(--panel2);border-radius:4px;margin-bottom:0.5rem}
+.wmt-header{padding:0.35rem 0.6rem;font-size:0.68rem;text-transform:uppercase;letter-spacing:1px;color:var(--accent)}
+.wmt table{width:100%;border-collapse:collapse;font-size:0.7rem}
+.wmt td{padding:0.18rem 0.6rem;border-top:1px solid var(--border)}
+.wmt td:first-child{color:var(--accent2);width:50px}
+#loading{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:1rem;color:var(--text)}
+#loading.show{display:flex}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--panel)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚔ Dungeon Generator v2</h1>
+  <span id="stats-display">No dungeon generated</span>
+</header>
+<div id="loading"><div class="spinner"></div><span>Generating dungeon…</span></div>
+<div class="app">
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+    <h2>Map Settings</h2>
+    <div class="row2">
+      <div class="cg">
+        <label>Size</label>
+        <select id="dungeon-size">
+          <option value="tiny">Tiny (40×40)</option>
+          <option value="small">Small (60×60)</option>
+          <option value="medium" selected>Medium (80×80)</option>
+          <option value="large">Large (100×100)</option>
+          <option value="huge">Huge (120×120)</option>
+        </select>
+      </div>
+      <div class="cg">
+        <label>Tile px</label>
+        <select id="tile-size">
+          <option value="10">10</option>
+          <option value="14" selected>14</option>
+          <option value="18">18</option>
+          <option value="24">24</option>
+        </select>
+      </div>
+    </div>
+    <div class="cg">
+      <label>Layout Algorithm</label>
+      <select id="layout">
+        <option value="dungeon">Dungeon (maze + rooms)</option>
+        <option value="cavern">Cavern (organic)</option>
+        <option value="rooms">Rooms Only (sparse)</option>
+        <option value="bsp">BSP (structured)</option>
+      </select>
+    </div>
+    <div class="cg">
+      <label>Dungeon Shape</label>
+      <select id="dungeon-shape">
+        <option value="square" selected>Square</option>
+        <option value="rectangle">Rectangle (wide)</option>
+        <option value="cross">Cross</option>
+        <option value="ring">Ring (outer)</option>
+        <option value="round">Round</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="cg">
+        <label>Room Size</label>
+        <select id="room-size">
+          <option value="small">Small</option>
+          <option value="medium" selected>Medium</option>
+          <option value="large">Large</option>
+          <option value="huge">Huge</option>
+          <option value="mix">Mixed</option>
+        </select>
+      </div>
+      <div class="cg">
+        <label>Room Count</label>
+        <select id="room-count">
+          <option value="few">Few</option>
+          <option value="some" selected>Some</option>
+          <option value="many">Many</option>
+          <option value="packed">Packed</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="cg">
+        <label>Room Layout</label>
+        <select id="room-layout">
+          <option value="scattered" selected>Scattered</option>
+          <option value="sparse">Sparse</option>
+          <option value="dense">Dense</option>
+          <option value="symmetric">Symmetric</option>
+        </select>
+      </div>
+      <div class="cg">
+        <label>Corridor Width</label>
+        <select id="corridor-width">
+          <option value="1" selected>5 ft (1 tile)</option>
+          <option value="2">10 ft (2 tiles)</option>
+          <option value="3">15 ft (3 tiles)</option>
+        </select>
+      </div>
+    </div>
+    <div class="cg">
+      <label>Corridor Style</label>
+      <select id="corridor-style">
+        <option value="labyrinthine">Labyrinthine (maze-filled)</option>
+        <option value="errant">Errant (wandering)</option>
+        <option value="straight">Straight</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="cg">
+        <label>Dead Ends</label>
+        <select id="remove-deadends">
+          <option value="0">Keep all</option>
+          <option value="50" selected>Half</option>
+          <option value="75">Most</option>
+          <option value="100">All</option>
+        </select>
+      </div>
+      <div class="cg">
+        <label>Doors</label>
+        <select id="add-stairs">
+          <option value="yes" selected>Yes</option>
+          <option value="no">None</option>
+        </select>
+      </div>
+    </div>
+    <div class="cg">
+      <label>Egress (Exits)</label>
+      <select id="egress">
+        <option value="normal" selected>Normal</option>
+        <option value="none">None (closed)</option>
+        <option value="many">Many</option>
+      </select>
+    </div>
+
+    <h2>D&D Content</h2>
+    <div class="row2">
+      <div class="cg">
+        <label>Level</label>
+        <input type="number" id="dungeon-level" value="3" min="1" max="20">
+      </div>
+      <div class="cg">
+        <label>Party Size</label>
+        <input type="number" id="party-size" value="4" min="1" max="10">
+      </div>
+    </div>
+    <div class="cg">
+      <label>Difficulty</label>
+      <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+        <option value="deadly">Deadly</option>
+      </select>
+    </div>
+    <div class="cg">
+      <label>Theme / Motif</label>
+      <select id="motif">
+        <option value="standard">Standard</option>
+        <option value="undead">Undead Crypt</option>
+        <option value="goblinoid">Goblinoid Warren</option>
+        <option value="aberrant">Aberrant/Far Realm</option>
+        <option value="underdark">Underdark</option>
+        <option value="draconic">Draconic Lair</option>
+        <option value="demonic">Demonic Temple</option>
+        <option value="infernal">Infernal Fortress</option>
+        <option value="elemental_fire">Elemental Fire</option>
+        <option value="elemental_cold">Elemental Cold</option>
+        <option value="fey">Fey / Feywild</option>
+        <option value="arcane">Arcane Laboratory</option>
+        <option value="nature">Natural Cave</option>
+        <option value="aquatic">Aquatic / Sunken</option>
+        <option value="giant">Giant Hall</option>
+        <option value="construct">Construct Forge</option>
+      </select>
+    </div>
+    <div class="cg">
+      <label>Special Rooms</label>
+      <select id="special-rooms">
+        <option value="some" selected>Some</option>
+        <option value="many">Many</option>
+        <option value="none">None</option>
+      </select>
+    </div>
+
+    <h2>Display</h2>
+    <div class="cg">
+      <label>Color Scheme</label>
+      <select id="color-scheme">
+        <option value="parchment">Parchment (classic)</option>
+        <option value="dark" selected>Dark (dungeon)</option>
+        <option value="blueprint">Blueprint</option>
+        <option value="sepia">Sepia</option>
+        <option value="cave">Cave (stone)</option>
+        <option value="vellum">Vellum (old paper)</option>
+      </select>
+    </div>
+    <div class="cg">
+      <label>Grid</label>
+      <select id="grid-style">
+        <option value="full">Full grid</option>
+        <option value="dot">Dot grid</option>
+        <option value="none">None</option>
+      </select>
+    </div>
+    <div class="cg">
+      <label>Zoom: <span id="zoom-label">100%</span></label>
+      <input type="range" id="zoom" min="25" max="300" value="100" step="5">
+    </div>
+    <div class="cg">
+      <label>Seed (blank = random)</label>
+      <input type="text" id="seed" placeholder="e.g. dragons-lair">
+      <div class="seed-display" id="seed-display"></div>
+    </div>
+    <button class="btn btn-primary" id="btn-generate">⚙ Generate Dungeon</button>
+
+    <h2>Export</h2>
+    <div class="btn-group">
+      <button class="btn btn-secondary" id="btn-png">PNG Map</button>
+      <button class="btn btn-secondary" id="btn-pdf">PDF</button>
+      <button class="btn btn-secondary" id="btn-txt">TXT Key</button>
+      <button class="btn btn-secondary" id="btn-json-save">Save JSON</button>
+      <button class="btn btn-secondary" id="btn-json-load">Load JSON</button>
+    </div>
+    <input type="file" id="file-input" accept=".json" style="display:none">
+  </div>
+
+  <!-- ── Canvas ── -->
+  <div class="canvas-area" id="canvas-area">
+    <canvas id="dungeon-canvas"></canvas>
+  </div>
+
+  <!-- ── Legend / Room Key ── -->
+  <div class="legend">
+    <div class="legend-header">Room Key</div>
+    <div class="legend-body" id="legend-body">
+      <p style="color:var(--text-dim);font-size:0.8rem;padding:0.5rem">Generate a dungeon to see the room key.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════
+// CELL FLAGS (bitmask)
+// ═══════════════════════════════════════════════════════════
+const NOTHING   = 0x00000000;
+const BLOCKED   = 0x00000001;
+const ROOM      = 0x00000002;
+const CORRIDOR  = 0x00000004;
+const PERIMETER = 0x00000010;
+const ENTRANCE  = 0x00000020;
+const ARCH      = 0x40000000;
+const DOOR      = 0x20000000;
+const LOCKED    = 0x10000000;
+const TRAPPED   = 0x08000000;
+const SECRET    = 0x04000000;
+const PORTC     = 0x02000000;
+const STAIR_DN  = 0x01000000;
+const STAIR_UP  = 0x00800000;
+const ROOM_ID_MASK  = 0x0000FFC0;
+const ROOM_ID_SHIFT = 6;
+const OPEN_SPACE = ROOM | CORRIDOR;
+
+const DIR = {
+  n:{ r:-1, c: 0, wall_r:-1, wall_c: 0, next_r:-2, next_c: 0 },
+  s:{ r: 1, c: 0, wall_r: 1, wall_c: 0, next_r: 2, next_c: 0 },
+  e:{ r: 0, c: 1, wall_r: 0, wall_c: 1, next_r: 0, next_c: 2 },
+  w:{ r: 0, c:-1, wall_r: 0, wall_c:-1, next_r: 0, next_c:-2 },
+};
+const DIRS = ['n','s','e','w'];
+
+// ═══════════════════════════════════════════════════════════
+// SEEDED RNG
+// ═══════════════════════════════════════════════════════════
+class RNG {
+  constructor(seed) {
+    if (typeof seed === 'string') {
+      let h = 0;
+      for (let i = 0; i < seed.length; i++) h = Math.imul(31, h) + seed.charCodeAt(i) | 0;
+      seed = Math.abs(h);
+    }
+    this.seed = seed || Date.now();
+    this._seed = this.seed;
+  }
+  next() { this._seed = (this._seed * 1664525 + 1013904223) & 0xffffffff; return (this._seed >>> 0) / 0x100000000; }
+  int(lo, hi) { return lo + Math.floor(this.next() * (hi - lo + 1)); }
+  pick(arr)   { return arr[Math.floor(this.next() * arr.length)]; }
+  chance(pct) { return this.next() < pct / 100; }
+  shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(this.next() * (i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+    return a;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DUNGEON GENERATOR
+// ═══════════════════════════════════════════════════════════
+class DungeonGen {
+  constructor(cfg) {
+    this.cfg = cfg;
+    this.rng = new RNG(cfg.seed);
+    this.n_rows = cfg.n_rows | 1;
+    this.n_cols = cfg.n_cols | 1;
+
+    const RS = { small:[2,4], medium:[3,7], large:[4,10], huge:[6,14], mix:[2,12] };
+    const [rMin, rMax] = RS[cfg.roomSize] || RS.medium;
+    this.room_min = rMin; this.room_max = rMax;
+    const RC = { few:50, some:100, many:200, packed:400 };
+    this.room_tries = RC[cfg.roomCount] || 100;
+    this.cell = [];
+    this.rooms = [];
+    this.doors = [];
+    this.stairs = [];
+    for (let r = 0; r <= this.n_rows; r++) this.cell[r] = new Int32Array(this.n_cols + 1);
+  }
+
+  generate() {
+    this._init_cells();
+    this._place_rooms();
+    const lay = this.cfg.layout;
+    if (lay === 'dungeon' || lay === 'cavern') this._corridors();
+    else if (lay === 'bsp') this._bsp_corridors();
+    else this._bsp_corridors(); // rooms-only
+    this._open_rooms();
+    this._label_rooms();
+    if (this.cfg.removeDeadEnds > 0) this._remove_deadends();
+    this._fix_doors();
+    this._emplace_stairs();
+    if (parseInt(this.cfg.corridorWidth) > 1) this._widen_corridors(parseInt(this.cfg.corridorWidth));
+    return this;
+  }
+
+  // ── Shape mask ─────────────────────────────────────────
+  _inShape(r, c) {
+    const nr = this.n_rows, nc = this.n_cols;
+    const rel_r = r / nr, rel_c = c / nc;
+    const cr = rel_r - 0.5, cc = rel_c - 0.5;
+    switch (this.cfg.dungeonShape) {
+      case 'rectangle': return rel_r >= 0.1 && rel_r <= 0.9 && rel_c >= 0.05 && rel_c <= 0.95;
+      case 'cross': return (rel_c >= 0.3 && rel_c <= 0.7) || (rel_r >= 0.3 && rel_r <= 0.7);
+      case 'ring': { const d = Math.sqrt(cr*cr + cc*cc); return d >= 0.18 && d <= 0.44; }
+      case 'round': return Math.sqrt(cr*cr + cc*cc) <= 0.44;
+      default: return true;
+    }
+  }
+
+  // ── Init ───────────────────────────────────────────────
+  _init_cells() {
+    for (let r = 0; r <= this.n_rows; r++)
+      for (let c = 0; c <= this.n_cols; c++)
+        if (r === 0 || r === this.n_rows || c === 0 || c === this.n_cols)
+          this.cell[r][c] = BLOCKED;
+  }
+
+  // ── Room placement ─────────────────────────────────────
+  _place_rooms() {
+    const max_rooms = this.room_tries;
+    let attempts = 0;
+    const symmetric = this.cfg.roomLayout === 'symmetric';
+
+    while (this.rooms.length < max_rooms && attempts < max_rooms * 8) {
+      attempts++;
+      let h = this.rng.int(this.room_min, this.room_max);
+      let w = this.rng.int(this.room_min, this.room_max);
+      if (this.cfg.layout === 'cavern') {
+        h = Math.max(this.room_min, Math.round(h * (0.7 + this.rng.next() * 0.6)));
+        w = Math.max(this.room_min, Math.round(w * (0.7 + this.rng.next() * 0.6)));
+      }
+      let r = this.rng.int(1, this.n_rows - h - 2) | 1;
+      let c = this.rng.int(1, this.n_cols - w - 2) | 1;
+
+      if (!this._inShape(r + h/2, c + w/2)) continue;
+      if (!this._room_overlaps(r, c, h, w)) {
+        this._emplace_room(r, c, h, w);
+        if (symmetric && this.rooms.length % 2 === 0) {
+          const mr = this.n_rows - r - h;
+          const mc = this.n_cols - c - w;
+          if (mr > 0 && mc > 0 && !this._room_overlaps(mr, mc, h, w))
+            this._emplace_room(mr, mc, h, w);
+        }
+      }
+    }
+  }
+
+  _room_overlaps(r, c, h, w) {
+    for (let rr = r - 2; rr <= r + h + 2; rr++)
+      for (let cc = c - 2; cc <= c + w + 2; cc++) {
+        if (rr < 0 || rr > this.n_rows || cc < 0 || cc > this.n_cols) return true;
+        if (this.cell[rr][cc] & ROOM) return true;
+      }
+    return false;
+  }
+
+  _emplace_room(r, c, h, w) {
+    const id = this.rooms.length + 1;
+    const room = { id, r1:r, c1:c, r2:r+h-1, c2:c+w-1, area:h*w, doors:[] };
+    this.rooms.push(room);
+    const encoded = (id << ROOM_ID_SHIFT) & ROOM_ID_MASK;
+    for (let rr = r; rr < r+h; rr++)
+      for (let cc = c; cc < c+w; cc++)
+        this.cell[rr][cc] = ROOM | encoded;
+    // Mark 1-cell perimeter OUTSIDE the room
+    for (let rr = Math.max(0, r-1); rr <= Math.min(this.n_rows, r+h); rr++)
+      for (let cc = Math.max(0, c-1); cc <= Math.min(this.n_cols, c+w); cc++)
+        if (!(this.cell[rr][cc] & ROOM))
+          this.cell[rr][cc] |= PERIMETER;
+  }
+
+  // ── Labyrinthine corridors (recursive backtracker) ─────
+  // KEY FIX: corridors SKIP PERIMETER cells → rooms always have 1-cell wall buffer
+  _corridors() {
+    for (let r = 1; r < this.n_rows; r += 2)
+      for (let c = 1; c < this.n_cols; c += 2)
+        if (this.cell[r][c] === NOTHING && this._inShape(r, c))
+          this._corridor_from(r, c);
+  }
+
+  _corridor_from(r0, c0) {
+    const stack = [[r0, c0]];
+    this.cell[r0][c0] = (this.cell[r0][c0] & ~PERIMETER) | CORRIDOR;
+    while (stack.length) {
+      const [r, c] = stack[stack.length - 1];
+      const dirs = this.rng.shuffle(DIRS);
+      let moved = false;
+      for (const d of dirs) {
+        const { next_r, next_c, wall_r, wall_c } = DIR[d];
+        const nr = r + next_r, nc = c + next_c;
+        const wr = r + wall_r, wc = c + wall_c;
+        if (nr < 1 || nr >= this.n_rows-1 || nc < 1 || nc >= this.n_cols-1) continue;
+        const nv = this.cell[nr][nc];
+        const wv = this.cell[wr][wc];
+        // FIXED: skip PERIMETER cells — corridors never carve into room buffers
+        if (nv & (ROOM | CORRIDOR | BLOCKED | ENTRANCE | PERIMETER)) continue;
+        if (wv & (ROOM | BLOCKED | ENTRANCE | PERIMETER)) continue;
+        this.cell[wr][wc] = (this.cell[wr][wc] & ~PERIMETER) | CORRIDOR;
+        this.cell[nr][nc] = (nv & ~PERIMETER) | CORRIDOR;
+        stack.push([nr, nc]);
+        moved = true;
+        break;
+      }
+      if (!moved) stack.pop();
+    }
+  }
+
+  // ── BSP / L-shaped corridors ───────────────────────────
+  _bsp_corridors() {
+    const centers = this.rooms.map(rm => ({
+      id: rm.id,
+      r: Math.floor((rm.r1 + rm.r2) / 2),
+      c: Math.floor((rm.c1 + rm.c2) / 2),
+    }));
+    if (centers.length < 2) return;
+    const connected = new Set([0]);
+    while (connected.size < centers.length) {
+      let bestDist = Infinity, bestA = -1, bestB = -1;
+      for (const a of connected)
+        for (let b = 0; b < centers.length; b++) {
+          if (connected.has(b)) continue;
+          const d = Math.abs(centers[a].r-centers[b].r) + Math.abs(centers[a].c-centers[b].c);
+          if (d < bestDist) { bestDist=d; bestA=a; bestB=b; }
+        }
+      this._carve_corridor(centers[bestA], centers[bestB]);
+      connected.add(bestB);
+    }
+    const extras = Math.floor(this.rooms.length * 0.2);
+    for (let i = 0; i < extras; i++) {
+      const a = this.rng.int(0, centers.length-1), b = this.rng.int(0, centers.length-1);
+      if (a !== b) this._carve_corridor(centers[a], centers[b]);
+    }
+  }
+
+  _carve_corridor(a, b) {
+    if (this.rng.chance(50)) { this._carve_h(a.r, a.c, b.c); this._carve_v(b.c, a.r, b.r); }
+    else                     { this._carve_v(a.c, a.r, b.r); this._carve_h(b.r, a.c, b.c); }
+  }
+
+  _carve_h(row, c1, c2) {
+    const lo = Math.min(c1,c2), hi = Math.max(c1,c2);
+    for (let c = lo; c <= hi; c++) {
+      const v = this.cell[row][c];
+      if (v & (ROOM | PERIMETER)) continue; // respect room walls
+      this.cell[row][c] = (v & ~PERIMETER) | CORRIDOR;
+    }
+  }
+
+  _carve_v(col, r1, r2) {
+    const lo = Math.min(r1,r2), hi = Math.max(r1,r2);
+    for (let r = lo; r <= hi; r++) {
+      const v = this.cell[r][col];
+      if (v & (ROOM | PERIMETER)) continue;
+      this.cell[r][col] = (v & ~PERIMETER) | CORRIDOR;
+    }
+  }
+
+  // ── Open rooms into corridors ──────────────────────────
+  _open_rooms() { for (const room of this.rooms) this._open_room(room); }
+
+  _open_room(room) {
+    const sills = this._door_sills(room);
+    if (!sills.length) return;
+    const shuffle = this.rng.shuffle(sills);
+    const egress = this.cfg.egress || 'normal';
+    let n_opens = egress === 'none' ? 0 : egress === 'many'
+      ? this.rng.int(2, Math.min(6, sills.length))
+      : this.rng.int(1, Math.min(4, Math.ceil(sills.length / 2)));
+    const used = new Set();
+    for (let i = 0; i < shuffle.length && room.doors.length < n_opens; i++) {
+      const sill = shuffle[i];
+      const key = sill.door_r + ',' + sill.door_c;
+      if (used.has(key)) continue;
+      used.add(key);
+      let door_type = ARCH;
+      const rr = this.rng.next();
+      if (rr < 0.04) door_type = SECRET;
+      else if (rr < 0.07) door_type = PORTC;
+      else if (rr < 0.22) door_type = LOCKED | DOOR;
+      else if (rr < 0.55) door_type = DOOR;
+      const encoded = (room.id << ROOM_ID_SHIFT) & ROOM_ID_MASK;
+      this.cell[sill.door_r][sill.door_c] =
+        (this.cell[sill.door_r][sill.door_c] & ~PERIMETER) |
+        CORRIDOR | ENTRANCE | door_type | encoded;
+      room.doors.push({ r:sill.door_r, c:sill.door_c, type:door_type, dir:sill.dir });
+      this.doors.push({ r:sill.door_r, c:sill.door_c, type:door_type, room_id:room.id });
+    }
+  }
+
+  // FIXED: look for sills 2 cells away (through perimeter wall) for labyrinthine,
+  //        AND 1 cell away (direct) for BSP/L-shape corridors.
+  _door_sills(room) {
+    const sills = [];
+    const seen = new Set();
+    for (let r = room.r1; r <= room.r2; r++) {
+      for (let c = room.c1; c <= room.c2; c++) {
+        if (!(this.cell[r][c] & ROOM)) continue;
+        for (const d of DIRS) {
+          const { r: dr, c: dc } = DIR[d];
+          const wr = r + dr, wc = c + dc; // wall/perimeter cell
+          if (wr < 1 || wr >= this.n_rows || wc < 1 || wc >= this.n_cols) continue;
+          const wv = this.cell[wr][wc];
+          if (wv & (ROOM | BLOCKED | ENTRANCE)) continue;
+          // Case A: corridor directly adjacent (BSP)
+          if (wv & CORRIDOR) {
+            const key = `${wr},${wc}`;
+            if (!seen.has(key)) { seen.add(key); sills.push({ door_r:wr, door_c:wc, dir:d }); }
+            continue;
+          }
+          // Case B: corridor 2 cells away, separated by perimeter (labyrinthine fix)
+          const cr = r + dr*2, cc = c + dc*2;
+          if (cr < 1 || cr >= this.n_rows || cc < 1 || cc >= this.n_cols) continue;
+          if (this.cell[cr][cc] & CORRIDOR) {
+            const key = `${wr},${wc}`;
+            if (!seen.has(key)) { seen.add(key); sills.push({ door_r:wr, door_c:wc, dir:d }); }
+          }
+        }
+      }
+    }
+    return sills;
+  }
+
+  // ── Label rooms ─────────────────────────────────────────
+  _label_rooms() {
+    for (const room of this.rooms) {
+      room.center_r = Math.floor((room.r1 + room.r2) / 2);
+      room.center_c = Math.floor((room.c1 + room.c2) / 2);
+    }
+  }
+
+  // ── Remove dead ends ────────────────────────────────────
+  _remove_deadends() {
+    const pct = this.cfg.removeDeadEnds;
+    let removed = true;
+    while (removed) {
+      removed = false;
+      for (let r = 1; r < this.n_rows; r++)
+        for (let c = 1; c < this.n_cols; c++) {
+          const cv = this.cell[r][c];
+          if (!(cv & CORRIDOR) || cv & (ENTRANCE|ROOM|STAIR_UP|STAIR_DN)) continue;
+          let neighbors = 0;
+          for (const d of DIRS) {
+            const nr = r+DIR[d].r, nc = c+DIR[d].c;
+            if (nr<0||nr>this.n_rows||nc<0||nc>this.n_cols) continue;
+            if (this.cell[nr][nc] & (OPEN_SPACE|ENTRANCE)) neighbors++;
+          }
+          if (neighbors === 1 && this.rng.chance(pct)) { this.cell[r][c] = NOTHING; removed = true; }
+        }
+    }
+  }
+
+  _fix_doors() {
+    for (const d of this.doors) {
+      if (!(this.cell[d.r][d.c] & (CORRIDOR|ROOM|ENTRANCE)))
+        this.cell[d.r][d.c] |= CORRIDOR;
+    }
+  }
+
+  // ── Stairs / Egress ─────────────────────────────────────
+  _emplace_stairs() {
+    if (this.cfg.addStairs === 'no') return;
+    const shuffled = this.rng.shuffle(this.rooms.slice());
+    if (shuffled.length >= 1) {
+      const rm = shuffled[0];
+      this.cell[rm.center_r][rm.center_c] |= STAIR_UP;
+      this.stairs.push({ r:rm.center_r, c:rm.center_c, dir:'up', room_id:rm.id });
+    }
+    if (shuffled.length >= 2) {
+      const rm = shuffled[shuffled.length - 1];
+      this.cell[rm.center_r][rm.center_c] |= STAIR_DN;
+      this.stairs.push({ r:rm.center_r, c:rm.center_c, dir:'down', room_id:rm.id });
+    }
+  }
+
+  // ── Widen corridors (post-process) ──────────────────────
+  _widen_corridors(width) {
+    if (width < 2) return;
+    const extra = width - 1;
+    const snapshot = this.cell.map(row => new Int32Array(row));
+    for (let r = 1; r < this.n_rows - 1; r++)
+      for (let c = 1; c < this.n_cols - 1; c++) {
+        if (!(snapshot[r][c] & CORRIDOR)) continue;
+        if (snapshot[r][c] & (ENTRANCE|ROOM)) continue;
+        for (let dr = 0; dr <= extra; dr++)
+          for (let dc = 0; dc <= extra; dc++) {
+            const nr = r+dr, nc = c+dc;
+            if (nr >= this.n_rows-1 || nc >= this.n_cols-1) continue;
+            const v = snapshot[nr][nc];
+            if (v & (ROOM|ENTRANCE|BLOCKED)) continue;
+            this.cell[nr][nc] = (v & ~PERIMETER) | CORRIDOR;
+          }
+      }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ENCOUNTER CR CALCULATOR
+// ═══════════════════════════════════════════════════════════
+const XP_THRESHOLDS = [
+  null,
+  [25,50,75,100],[50,100,150,200],[75,150,225,400],[125,250,375,500],
+  [250,500,750,1100],[300,600,900,1400],[350,750,1100,1700],[450,900,1400,2100],
+  [550,1100,1600,2400],[600,1200,1900,2800],[800,1600,2400,3600],[1000,2000,3000,4500],
+  [1100,2200,3400,5100],[1250,2500,3800,5700],[1400,2800,4300,6400],[1600,3200,4800,7200],
+  [2000,3900,5900,8800],[2100,4200,6300,9500],[2400,4900,7300,10900],[2800,5700,8500,12700],
+];
+
+function calcEncounterRating(monsters, partySize, partyLevel) {
+  if (!monsters || !monsters.length) return null;
+  const totalXP = monsters.reduce((s, m) => s + m.xp * m.count, 0);
+  const totalMonsters = monsters.reduce((s, m) => s + m.count, 0);
+  let mult = totalMonsters === 1 ? 1 : totalMonsters === 2 ? 1.5 : totalMonsters <= 6 ? 2 : totalMonsters <= 10 ? 2.5 : totalMonsters <= 14 ? 3 : 4;
+  if (partySize <= 2) mult *= 1.5;
+  else if (partySize >= 6) mult *= 0.8;
+  const adjXP = Math.floor(totalXP * mult);
+  const thresh = XP_THRESHOLDS[Math.min(partyLevel, 20)];
+  const party = thresh.map(t => t * partySize);
+  let rating = adjXP < party[0] ? 'Trivial' : adjXP < party[1] ? 'Easy' : adjXP < party[2] ? 'Medium' : adjXP < party[3] ? 'Hard' : 'Deadly';
+  return { rating, adjXP, totalXP, mult };
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONTENT GENERATOR
+// ═══════════════════════════════════════════════════════════
+class ContentGen {
+  constructor(dungeon, cfg) {
+    this.dungeon = dungeon;
+    this.cfg = cfg;
+    this.rng = new RNG(dungeon.rng.seed + '_content');
+    this.level = cfg.level;
+    this.partySize = cfg.partySize;
+    this.motif = cfg.motif;
+    this.difficulty = cfg.difficulty;
+  }
+
+  generate() {
+    const rooms = this.dungeon.rooms;
+    const diffPcts = { easy:0.25, medium:0.40, hard:0.55, deadly:0.70 };
+    const monsterPct = diffPcts[this.difficulty] || 0.40;
+    const treasurePct = 0.22;
+    const trapPct = 0.12;
+    const specialPct = this.cfg.specialRooms === 'many' ? 0.15 : this.cfg.specialRooms === 'none' ? 0 : 0.08;
+    const sorted = rooms.slice().sort((a, b) => b.area - a.area);
+    const bossRoom = sorted[0];
+
+    for (const room of rooms) {
+      let content;
+      if (room === bossRoom && rooms.length > 2) content = this._genBoss(room);
+      else {
+        const r = this.rng.next();
+        if (r < monsterPct) content = this._genMonster(room);
+        else if (r < monsterPct + treasurePct) content = this._genTreasure(room);
+        else if (r < monsterPct + treasurePct + trapPct) content = this._genTrap(room);
+        else if (r < monsterPct + treasurePct + trapPct + specialPct) content = this._genSpecial(room);
+        else content = this._genEmpty(room);
+      }
+      room.content = content;
+      // Generate door details for each door
+      for (const door of room.doors) {
+        door.detail = this._genDoorDetail(door.type);
+      }
+    }
+    this.wandering = this._genWanderingTable();
+    return rooms;
+  }
+
+  _budget() {
+    const xpByLevel = [0,25,50,75,100,150,200,250,300,400,500,600,800,1000,1100,1250,1400,1600,2000,2200,2500];
+    const base = (xpByLevel[Math.min(this.level, 20)] || 100) * this.partySize;
+    return Math.floor(base * ({ easy:0.5, medium:1.0, hard:1.5, deadly:2.5 }[this.difficulty] || 1.0));
+  }
+
+  _monstersForMotif() {
+    const all = DATA.monsters.filter(m => {
+      if (this.motif === 'standard') return true;
+      return m.tags && (m.tags.includes(this.motif) || m.tags.includes('standard'));
+    });
+    return all.length ? all : DATA.monsters;
+  }
+
+  _genMonster(room) {
+    const budget = this._budget();
+    const pool = this._monstersForMotif().filter(m => m.xp <= budget * 1.5);
+    if (!pool.length) return this._genEmpty(room);
+    const monsters = [];
+    let remaining = budget;
+    let attempts = 0;
+    while (remaining > 0 && attempts < 20) {
+      attempts++;
+      const affordable = pool.filter(m => m.xp <= remaining * 1.2);
+      if (!affordable.length) break;
+      const m = this.rng.pick(affordable);
+      const existing = monsters.find(x => x.name === m.name);
+      if (existing) existing.count++;
+      else monsters.push({ name:m.name, cr:m.cr, xp:m.xp, count:1, spellcaster:m.spellcaster, spells:m.spells });
+      remaining -= m.xp;
+    }
+    const totalXP = monsters.reduce((s, m) => s + m.xp * m.count, 0);
+    const desc = monsters.map(m => m.count > 1 ? `${m.count}× ${m.name}` : m.name).join(', ');
+    const features = [this.rng.pick(DATA.roomFeatures[this.motif] || DATA.roomFeatures.standard)];
+    if (this.rng.chance(30)) features.push(...this._smallTreasure());
+    const enc = calcEncounterRating(monsters, this.partySize, this.level);
+    return { type:'monster', monsters, desc, totalXP, features, enc, description:`Encounter: ${desc} (${totalXP} XP)` };
+  }
+
+  _genBoss(room) {
+    const pool = this._monstersForMotif();
+    pool.sort((a, b) => b.xp - a.xp);
+    const boss = pool[0];
+    const minions_pool = pool.filter(m => m.xp <= boss.xp * 0.3);
+    const minions = [];
+    if (minions_pool.length && this.rng.chance(70)) {
+      const m = this.rng.pick(minions_pool);
+      minions.push({ name:m.name, cr:m.cr, xp:m.xp, count:this.rng.int(2,6), spellcaster:m.spellcaster });
+    }
+    const totalXP = boss.xp + minions.reduce((s, m) => s + m.xp * m.count, 0);
+    const monsters = [{ name:boss.name, cr:boss.cr, xp:boss.xp, count:1, spellcaster:boss.spellcaster, spells:boss.spells }, ...minions];
+    const desc = monsters.map(m => m.count > 1 ? `${m.count}× ${m.name}` : m.name).join(', ');
+    const treasure = this._richTreasure();
+    const enc = calcEncounterRating(monsters, this.partySize, this.level);
+    return { type:'monster', boss:true, monsters, desc, totalXP, features:['Boss chamber', ...treasure], enc, description:`BOSS: ${desc} (${totalXP} XP)` };
+  }
+
+  _genTreasure(room) {
+    const items = this._richTreasure();
+    return { type:'treasure', features:items, description:`Treasure: ${items.join(', ')}` };
+  }
+
+  _smallTreasure() {
+    const tier = Math.min(Math.ceil(this.level / 5) - 1, 3);
+    return [this.rng.pick(DATA.treasures[tier].items)];
+  }
+
+  _richTreasure() {
+    const tier = Math.min(Math.ceil(this.level / 5) - 1, 3);
+    const t = DATA.treasures[tier];
+    const gp = this.rng.int(t.gp[0], t.gp[1]);
+    const items = [`${gp} gp`];
+    for (let i = 0; i < this.rng.int(1,3); i++) items.push(this.rng.pick(t.items));
+    return items;
+  }
+
+  _genTrap(room) {
+    const trap = this.rng.pick(DATA.traps);
+    const features = [this.rng.pick(DATA.roomFeatures[this.motif] || DATA.roomFeatures.standard)];
+    return { type:'trap', trap, features, description:`Trap: ${trap.name} (DC ${trap.dc})` };
+  }
+
+  _genSpecial(room) {
+    const pool = DATA.specialRooms[this.motif] || DATA.specialRooms.standard;
+    const special = this.rng.pick(pool);
+    return { type:'special', special, features:[special.desc], description:`Special: ${special.name}` };
+  }
+
+  _genEmpty(room) {
+    const feature = this.rng.pick(DATA.roomFeatures[this.motif] || DATA.roomFeatures.standard);
+    return { type:'empty', features:[feature], description:`Empty: ${feature}` };
+  }
+
+  _genDoorDetail(doorType) {
+    const doors = DATA.doors;
+    if (!doors) return null;
+    const material  = this.rng.pick(doors.materials);
+    let mechanism   = this.rng.pick(doors.mechanisms);
+
+    if (doorType & PORTC)  mechanism = doors.mechanisms.find(m => m.id === 'guillotine') || mechanism;
+    if (doorType & SECRET) mechanism = doors.mechanisms.find(m => m.id === 'sliding_pocket') || this.rng.pick([doors.mechanisms.find(m=>m.id==='pivot'), doors.mechanisms.find(m=>m.id==='sliding_pocket')].filter(Boolean)) || mechanism;
+
+    let specialType = null;
+    if (doorType & SECRET) {
+      const secretPool = doors.special_types.filter(s => ['false_door','phase_door','illusionary'].includes(s.id));
+      specialType = this.rng.pick(secretPool.length ? secretPool : doors.special_types);
+    } else if (this.rng.chance(8)) {
+      specialType = this.rng.pick(doors.special_types.filter(s => !['mimic','false_door','phase_door','illusionary'].includes(s.id)));
+    }
+
+    let lock = null;
+    if (doorType & LOCKED) lock = this.rng.pick(doors.lock_types);
+
+    const trapped = this.rng.chance(12);
+    const trapInfo = trapped ? this.rng.pick(DATA.traps) : null;
+
+    return { material:material.name, materialNotes:material.notes, mechanism:mechanism.name, mechanismNotes:mechanism.notes, specialType, lock, trapped, trapInfo };
+  }
+
+  _genWanderingTable() {
+    const pool = this._monstersForMotif();
+    const rolls = [[1,2],[3,4],[5,8],[9,12],[13,15],[16,18],[19,20]];
+    return rolls.map(([lo,hi]) => {
+      const m = this.rng.pick(pool);
+      const cnt = this.rng.int(1,4);
+      return { roll: lo===hi ? `${lo}` : `${lo}–${hi}`, encounter: cnt>1 ? `${cnt}× ${m.name}` : m.name };
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// COLOR SCHEMES
+// ═══════════════════════════════════════════════════════════
+const COLOR_SCHEMES = {
+  dark:      { void:'#0a0a0f', wall:'#1a1a2e', wallFace:'#2a2a4a', floor:'#2d2d3d', corridor:'#252535', grid:'rgba(100,100,150,0.12)', outline:'#111', door:'#8b6914', doorFill:'#c8960c', secret:'#2a4a2a', portc:'#555', stairUp:'#4a90d9', stairDn:'#e94560', roomNum:'rgba(200,200,255,0.7)', entrance:'rgba(255,220,100,0.6)' },
+  parchment: { void:'#c4a882', wall:'#8b6914', wallFace:'#6b4f0e', floor:'#f5e8c0', corridor:'#e8d8a0', grid:'rgba(100,70,20,0.15)', outline:'#4a3000', door:'#6b4f0e', doorFill:'#8b6914', secret:'#5a7a2a', portc:'#666', stairUp:'#2255aa', stairDn:'#aa2222', roomNum:'rgba(60,30,0,0.8)', entrance:'rgba(200,150,50,0.7)' },
+  blueprint: { void:'#0a1628', wall:'#0e2244', wallFace:'#1a3a6a', floor:'#132850', corridor:'#0e2040', grid:'rgba(100,150,255,0.12)', outline:'#4488ff', door:'#6699ff', doorFill:'#88aaff', secret:'#336633', portc:'#4466aa', stairUp:'#aaccff', stairDn:'#ff9966', roomNum:'rgba(150,200,255,0.9)', entrance:'rgba(100,180,255,0.7)' },
+  sepia:     { void:'#3d2b1f', wall:'#5c3d2e', wallFace:'#4a2e1f', floor:'#d4b896', corridor:'#c4a882', grid:'rgba(80,50,20,0.15)', outline:'#3d2b1f', door:'#7a4f28', doorFill:'#9e6633', secret:'#3a5a2a', portc:'#666', stairUp:'#4455aa', stairDn:'#994422', roomNum:'rgba(50,20,0,0.8)', entrance:'rgba(180,120,40,0.7)' },
+  cave:      { void:'#111214', wall:'#1e1e22', wallFace:'#2e2e35', floor:'#3a3842', corridor:'#2f2d38', grid:'rgba(120,110,140,0.1)', outline:'#0a0a0d', door:'#7a6030', doorFill:'#a88040', secret:'#1a3a1a', portc:'#444', stairUp:'#5577cc', stairDn:'#cc4455', roomNum:'rgba(180,180,220,0.65)', entrance:'rgba(220,180,80,0.5)' },
+  vellum:    { void:'#b8a070', wall:'#8a6820', wallFace:'#6a4e10', floor:'#f8f0d0', corridor:'#eee0b0', grid:'rgba(80,50,10,0.18)', outline:'#5a3800', door:'#7a5020', doorFill:'#aa7030', secret:'#4a6a1a', portc:'#777', stairUp:'#336699', stairDn:'#993333', roomNum:'rgba(40,20,0,0.85)', entrance:'rgba(180,130,40,0.75)' },
+};
+
+// ═══════════════════════════════════════════════════════════
+// RENDERER
+// ═══════════════════════════════════════════════════════════
+class DungeonRenderer {
+  constructor(canvas, dungeon, cfg) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.dungeon = dungeon;
+    this.cfg = cfg;
+    this.T = cfg.tileSize;
+    this.colors = COLOR_SCHEMES[cfg.colorScheme] || COLOR_SCHEMES.dark;
+    this.highlightRoom = null;
+  }
+
+  render() {
+    const { n_rows, n_cols, cell } = this.dungeon;
+    const T = this.T, C = this.colors, ctx = this.ctx;
+    this.canvas.width  = n_cols * T;
+    this.canvas.height = n_rows * T;
+
+    // Background
+    ctx.fillStyle = C.void;
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Floors
+    for (let r = 0; r < n_rows; r++)
+      for (let c = 0; c < n_cols; c++) {
+        const v = cell[r][c];
+        const x = c*T, y = r*T;
+        if (v & ROOM) {
+          const isHl = this.highlightRoom === ((v & ROOM_ID_MASK) >> ROOM_ID_SHIFT);
+          ctx.fillStyle = isHl ? '#3a1a2a' : C.floor;
+          ctx.fillRect(x, y, T, T);
+        } else if (v & (CORRIDOR | ENTRANCE)) {
+          ctx.fillStyle = C.corridor;
+          ctx.fillRect(x, y, T, T);
+        }
+      }
+
+    // Grid
+    if (this.cfg.gridStyle !== 'none') {
+      ctx.strokeStyle = C.grid;
+      ctx.lineWidth = 0.5;
+      for (let r = 0; r < n_rows; r++)
+        for (let c = 0; c < n_cols; c++) {
+          const v = cell[r][c];
+          if (!(v & OPEN_SPACE) && !(v & ENTRANCE)) continue;
+          const x = c*T, y = r*T;
+          if (this.cfg.gridStyle === 'dot') { ctx.fillStyle = C.grid; ctx.fillRect(x, y, 1, 1); }
+          else ctx.strokeRect(x, y, T, T);
+        }
+    }
+
+    // Wall faces (cells adjacent to open space, not open themselves)
+    for (let r = 0; r < n_rows; r++)
+      for (let c = 0; c < n_cols; c++) {
+        const v = cell[r][c];
+        if (v & (OPEN_SPACE | ENTRANCE)) continue;
+        let hasOpen = false;
+        for (const d of DIRS) {
+          const nr = r+DIR[d].r, nc = c+DIR[d].c;
+          if (nr<0||nr>=n_rows||nc<0||nc>=n_cols) continue;
+          if (cell[nr][nc] & (OPEN_SPACE|ENTRANCE)) { hasOpen = true; break; }
+        }
+        if (hasOpen) { ctx.fillStyle = C.wallFace; ctx.fillRect(c*T, r*T, T, T); }
+      }
+
+    // Wall outlines
+    ctx.strokeStyle = C.outline;
+    ctx.lineWidth = 1.5;
+    for (let r = 0; r < n_rows; r++)
+      for (let c = 0; c < n_cols; c++) {
+        const v = cell[r][c];
+        if (!(v & OPEN_SPACE) && !(v & ENTRANCE)) continue;
+        const x = c*T, y = r*T;
+        const edges = [
+          { dr:-1,dc:0, x1:x,   y1:y,   x2:x+T, y2:y   },
+          { dr: 1,dc:0, x1:x,   y1:y+T, x2:x+T, y2:y+T },
+          { dr:0,dc:-1, x1:x,   y1:y,   x2:x,   y2:y+T },
+          { dr:0,dc: 1, x1:x+T, y1:y,   x2:x+T, y2:y+T },
+        ];
+        for (const e of edges) {
+          const nr = r+e.dr, nc = c+e.dc;
+          const nv = (nr>=0&&nr<n_rows&&nc>=0&&nc<n_cols) ? cell[nr][nc] : NOTHING;
+          if (nv & (OPEN_SPACE|ENTRANCE)) continue;
+          ctx.beginPath(); ctx.moveTo(e.x1,e.y1); ctx.lineTo(e.x2,e.y2); ctx.stroke();
+        }
+      }
+
+    // Doors
+    for (const door of this.dungeon.doors) this._drawDoor(door);
+    // Stairs
+    for (const stair of this.dungeon.stairs) this._drawStair(stair);
+    // Room numbers
+    for (const room of this.dungeon.rooms) this._drawRoomLabel(room);
+  }
+
+  _drawDoor(door) {
+    const { r, c, type } = door;
+    const T = this.T, C = this.colors, ctx = this.ctx;
+    const x = c*T, y = r*T, cx2 = x+T/2, cy2 = y+T/2;
+
+    if (type & SECRET) {
+      ctx.strokeStyle = C.secret; ctx.lineWidth = 1;
+      ctx.setLineDash([2,2]); ctx.strokeRect(x+1,y+1,T-2,T-2); ctx.setLineDash([]);
+      ctx.fillStyle = C.secret; ctx.font = `bold ${Math.max(8,T*0.5)}px monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('S', cx2, cy2); return;
+    }
+
+    if (type & PORTC) {
+      ctx.strokeStyle = C.portc; ctx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) { const bx = x+(T*i/4); ctx.beginPath(); ctx.moveTo(bx,y+2); ctx.lineTo(bx,y+T-2); ctx.stroke(); }
+      ctx.beginPath(); ctx.moveTo(x+2,cy2); ctx.lineTo(x+T-2,cy2); ctx.stroke(); return;
+    }
+
+    if (type & ARCH) {
+      // Open arch — subtle highlight
+      ctx.fillStyle = 'rgba(255,220,100,0.12)';
+      ctx.fillRect(x,y,T,T); return;
+    }
+
+    // Standard / locked door
+    const cell = this.dungeon.cell;
+    const nOpen = r>0 && (cell[r-1][c] & (OPEN_SPACE|ENTRANCE));
+    const sOpen = r<this.dungeon.n_rows-1 && (cell[r+1][c] & (OPEN_SPACE|ENTRANCE));
+    const horiz = !(nOpen || sOpen);
+    const pad = Math.max(2, T*0.12);
+
+    ctx.fillStyle = C.doorFill;
+    if (horiz) ctx.fillRect(x+pad, cy2-T*0.12, T-pad*2, T*0.24);
+    else        ctx.fillRect(cx2-T*0.12, y+pad, T*0.24, T-pad*2);
+
+    // Door border lines
+    ctx.strokeStyle = C.door; ctx.lineWidth = 1;
+    if (horiz) { ctx.strokeRect(x+pad, cy2-T*0.12, T-pad*2, T*0.24); }
+    else       { ctx.strokeRect(cx2-T*0.12, y+pad, T*0.24, T-pad*2); }
+
+    if (type & LOCKED) {
+      ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx2-T*0.13,cy2-T*0.13); ctx.lineTo(cx2+T*0.13,cy2+T*0.13);
+      ctx.moveTo(cx2+T*0.13,cy2-T*0.13); ctx.lineTo(cx2-T*0.13,cy2+T*0.13);
+      ctx.stroke();
+    }
+  }
+
+  _drawStair(stair) {
+    const T=this.T, ctx=this.ctx;
+    const x=stair.c*T, y=stair.r*T, cx2=x+T/2, cy2=y+T/2;
+    const color = stair.dir==='up' ? this.colors.stairUp : this.colors.stairDn;
+    ctx.fillStyle = color+'44';
+    ctx.beginPath(); ctx.arc(cx2,cy2,T*0.4,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cx2,cy2,T*0.4,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle = color; ctx.font = `bold ${Math.max(7,T*0.55)}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(stair.dir==='up'?'▲':'▼', cx2, cy2);
+  }
+
+  _drawRoomLabel(room) {
+    const T=this.T, ctx=this.ctx;
+    const cx2 = room.center_c*T+T/2, cy2 = room.center_r*T+T/2;
+    const fs = Math.max(6, Math.min(T*0.6, 12));
+    ctx.fillStyle = this.colors.roomNum; ctx.font = `bold ${fs}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(room.id.toString(), cx2, cy2);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// LEGEND RENDERER
+// ═══════════════════════════════════════════════════════════
+function renderLegend(rooms, wandering, highlightId, cfg) {
+  const body = document.getElementById('legend-body');
+
+  // ── Symbol Key ──────────────────────────────────────────
+  let html = `<div class="sym-legend">
+    <div class="sym-legend-title">Map Symbol Key</div>
+    <div class="sym-row"><span class="sym sym-door">█</span><span>Door (wooden/standard)</span></div>
+    <div class="sym-row"><span class="sym sym-locked">✕</span><span>Locked door (red X)</span></div>
+    <div class="sym-row"><span class="sym sym-arch">▭</span><span>Open arch (no door)</span></div>
+    <div class="sym-row"><span class="sym sym-secret">S</span><span>Secret door (dashed outline)</span></div>
+    <div class="sym-row"><span class="sym sym-portc">⊞</span><span>Portcullis (vertical bars)</span></div>
+    <div class="sym-row"><span class="sym sym-stair-up">▲</span><span>Stairs up / entrance</span></div>
+    <div class="sym-row"><span class="sym sym-stair-dn">▼</span><span>Stairs down / exit</span></div>
+    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#2d2d3d;border:1px solid #555;flex-shrink:0"></span><span>Room floor</span></div>
+    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#252535;border:1px solid #333;flex-shrink:0"></span><span>Corridor</span></div>
+    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#2a2a4a;flex-shrink:0"></span><span>Wall</span></div>
+  </div>`;
+
+  // ── Wandering Monsters ──────────────────────────────────
+  html += '<div class="wmt"><div class="wmt-header">Wandering Monsters (d20)</div><table>';
+  for (const row of wandering) html += `<tr><td>${row.roll}</td><td>${row.encounter}</td></tr>`;
+  html += '</table></div>';
+
+  // ── Room Entries ────────────────────────────────────────
+  const level = parseInt(cfg?.level) || 3;
+  const partySize = parseInt(cfg?.partySize) || 4;
+
+  for (const room of rooms) {
+    const c = room.content || { type:'empty', features:[], description:'' };
+    const tagMap = { monster:'tag-monster', treasure:'tag-treasure', trap:'tag-trap', special:'tag-special', empty:'tag-empty' };
+    const tagClass = tagMap[c.type] || 'tag-empty';
+    const bossTag = c.boss ? '<span class="tag tag-boss">BOSS</span>' : '';
+    const hlClass = highlightId === room.id ? ' highlighted' : '';
+
+    // Encounter difficulty tag
+    let encTag = '';
+    if (c.enc) {
+      const ratingClass = { Trivial:'tag-trivial', Easy:'tag-easy', Medium:'tag-medium', Hard:'tag-hard', Deadly:'tag-deadly' }[c.enc.rating] || 'tag-empty';
+      encTag = `<span class="tag ${ratingClass}">${c.enc.rating}</span>`;
+    }
+
+    html += `<div class="room-entry${hlClass}" data-room="${room.id}">`;
+    html += `<h3>Room ${room.id} <span class="tag ${tagClass}">${c.type.toUpperCase()}</span>${bossTag}${encTag}</h3>`;
+    html += '<ul>';
+
+    const w = room.c2-room.c1+1, h = room.r2-room.r1+1;
+    html += `<li>${w}×${h} tiles (${w*5}×${h*5} ft)</li>`;
+
+    if (c.type === 'monster') {
+      html += `<li>${c.desc}</li>`;
+      html += `<li>XP: ${c.totalXP}`;
+      if (c.enc) html += ` — <strong>${c.enc.rating}</strong> for ${partySize} × Lv${level} (adj. ${c.enc.adjXP} XP)`;
+      html += '</li>';
+      // Spellcasters
+      const casters = (c.monsters || []).filter(m => m.spellcaster && m.spells?.length);
+      for (const m of casters)
+        html += `<li><em>${m.name} spells:</em> ${m.spells.join(', ')}</li>`;
+    }
+    if (c.type === 'trap') {
+      html += `<li>${c.trap.name} (DC ${c.trap.dc})</li>`;
+      html += `<li>${c.trap.dmg} — ${c.trap.effect}</li>`;
+    }
+    if (c.type === 'special') {
+      html += `<li>${c.special.name}</li>`;
+      html += `<li>${c.special.desc}</li>`;
+    }
+    for (const f of (c.features || [])) html += `<li>${f}</li>`;
+
+    // Doors with full detail
+    if (room.doors?.length) {
+      html += '<li>Exits:</li>';
+      for (const door of room.doors) {
+        let label = door.type & SECRET ? 'Secret door' : door.type & PORTC ? 'Portcullis' : door.type & LOCKED ? 'Locked door' : door.type & DOOR ? 'Door' : 'Open arch';
+        html += `<li style="padding-left:0.6rem"><strong>${label}</strong>`;
+        const det = door.detail;
+        if (det) {
+          html += `<br><span class="door-detail">${det.material}`;
+          if (det.materialNotes) html += ` — ${det.materialNotes}`;
+          html += `; ${det.mechanism}`;
+          if (det.mechanismNotes) html += ` (${det.mechanismNotes})`;
+          if (det.specialType) html += `<br><em>Special: ${det.specialType.name} — ${det.specialType.effect}</em>`;
+          if (det.lock) html += `<br><em>Lock: ${det.lock.name} (DC ${det.lock.dc}) — ${det.lock.notes}</em>`;
+          if (det.trapped && det.trapInfo) html += `<br><em>Trap: ${det.trapInfo.name} (DC ${det.trapInfo.dc}) — ${det.trapInfo.effect}</em>`;
+          html += '</span>';
+        }
+        html += '</li>';
+      }
+    }
+    html += '</ul></div>';
+  }
+
+  body.innerHTML = html;
+  body.querySelectorAll('.room-entry').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = parseInt(el.dataset.room);
+      if (window._currentDungeon) highlightRoomOnMap(id);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// APP
+// ═══════════════════════════════════════════════════════════
+let _dungeon = null, _renderer = null, _content = null, _lastCfg = null;
+
+function highlightRoomOnMap(roomId) {
+  if (!_renderer) return;
+  _renderer.highlightRoom = _renderer.highlightRoom === roomId ? null : roomId;
+  _renderer.render();
+  renderLegend(_dungeon.rooms, _content.wandering, _renderer.highlightRoom, _lastCfg);
+}
+
+function buildConfig() {
+  const sizes = { tiny:[39,39], small:[59,59], medium:[79,79], large:[99,99], huge:[119,119] };
+  const [rows, cols] = sizes[document.getElementById('dungeon-size').value] || [79,79];
+  const seedInput = document.getElementById('seed').value.trim();
+  const seed = seedInput || String(Math.floor(Math.random() * 9999999));
+  document.getElementById('seed-display').textContent = 'Seed: ' + seed;
+  return {
+    n_rows:rows, n_cols:cols, seed,
+    layout:         document.getElementById('layout').value,
+    dungeonShape:   document.getElementById('dungeon-shape').value,
+    roomSize:       document.getElementById('room-size').value,
+    roomCount:      document.getElementById('room-count').value,
+    roomLayout:     document.getElementById('room-layout').value,
+    corridorWidth:  document.getElementById('corridor-width').value,
+    corridorStyle:  document.getElementById('corridor-style').value,
+    removeDeadEnds: parseInt(document.getElementById('remove-deadends').value),
+    addStairs:      document.getElementById('add-stairs').value,
+    egress:         document.getElementById('egress').value,
+    level:          parseInt(document.getElementById('dungeon-level').value),
+    partySize:      parseInt(document.getElementById('party-size').value),
+    difficulty:     document.getElementById('difficulty').value,
+    motif:          document.getElementById('motif').value,
+    specialRooms:   document.getElementById('special-rooms').value,
+    colorScheme:    document.getElementById('color-scheme').value,
+    gridStyle:      document.getElementById('grid-style').value,
+    tileSize:       parseInt(document.getElementById('tile-size').value),
+  };
+}
+
+function generateDungeon() {
+  const loading = document.getElementById('loading');
+  loading.classList.add('show');
+  setTimeout(() => {
+    try {
+      const cfg = buildConfig();
+      _lastCfg = cfg;
+      const dungeon = new DungeonGen(cfg).generate();
+      _dungeon = dungeon;
+      window._currentDungeon = dungeon;
+      const cgen = new ContentGen(dungeon, cfg);
+      cgen.generate();
+      _content = cgen;
+      const canvas = document.getElementById('dungeon-canvas');
+      _renderer = new DungeonRenderer(canvas, dungeon, cfg);
+      _renderer.render();
+      applyZoom(parseInt(document.getElementById('zoom').value));
+      renderLegend(dungeon.rooms, cgen.wandering, null, cfg);
+      document.getElementById('stats-display').textContent = `${dungeon.rooms.length} rooms · ${dungeon.doors.length} doors · seed: ${cfg.seed}`;
+    } catch(e) { console.error(e); alert('Generation error: ' + e.message); }
+    loading.classList.remove('show');
+  }, 30);
+}
+
+function applyZoom(pct) {
+  const canvas = document.getElementById('dungeon-canvas');
+  canvas.style.transform = `scale(${pct/100})`;
+  canvas.style.transformOrigin = 'top left';
+  document.getElementById('zoom-label').textContent = pct + '%';
+}
+
+// Canvas click
+document.getElementById('dungeon-canvas').addEventListener('click', (e) => {
+  if (!_dungeon || !_renderer) return;
+  const canvas = document.getElementById('dungeon-canvas');
+  const scale = parseInt(document.getElementById('zoom').value) / 100;
+  const rect = canvas.getBoundingClientRect();
+  const col = Math.floor((e.clientX-rect.left)/scale / _renderer.T);
+  const row = Math.floor((e.clientY-rect.top) /scale / _renderer.T);
+  if (row<0||row>=_dungeon.n_rows||col<0||col>=_dungeon.n_cols) return;
+  const cv = _dungeon.cell[row][col];
+  if (cv & ROOM) {
+    const id = (cv & ROOM_ID_MASK) >> ROOM_ID_SHIFT;
+    highlightRoomOnMap(id);
+    document.querySelector(`[data-room="${id}"]`)?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+});
+
+document.getElementById('zoom').addEventListener('input', e => applyZoom(parseInt(e.target.value)));
+document.getElementById('btn-generate').addEventListener('click', generateDungeon);
+
+// ── PNG Export ──────────────────────────────────────────
+document.getElementById('btn-png').addEventListener('click', () => {
+  if (!_dungeon) return alert('Generate a dungeon first.');
+  const a = document.createElement('a');
+  a.href = document.getElementById('dungeon-canvas').toDataURL('image/png');
+  a.download = `dungeon_${_dungeon.rng.seed}.png`;
+  a.click();
+});
+
+// ── PDF Export ──────────────────────────────────────────
+document.getElementById('btn-pdf').addEventListener('click', () => {
+  if (!_dungeon) return alert('Generate a dungeon first.');
+  const canvas = document.getElementById('dungeon-canvas');
+  const imgData = canvas.toDataURL('image/png');
+  const level = _lastCfg?.level || 3;
+  const partySize = _lastCfg?.partySize || 4;
+
+  let html = `<!DOCTYPE html><html><head><title>Dungeon – Seed ${_dungeon.rng.seed}</title>
+<style>
+body{font-family:Georgia,serif;margin:1.5cm;color:#111;font-size:10pt}
+h1{font-size:16pt;margin-bottom:6pt;border-bottom:2px solid #333;padding-bottom:4pt}
+h2{font-size:12pt;margin:12pt 0 4pt}
+.map-img{max-width:100%;page-break-after:always;display:block;margin-bottom:1cm}
+.room{margin-bottom:10pt;page-break-inside:avoid;border-left:3px solid #ccc;padding-left:8pt}
+.room h3{font-size:10pt;margin-bottom:3pt}
+ul{margin:2pt 0;padding-left:14pt}
+li{margin-bottom:1pt}
+.tag{font-size:8pt;font-weight:bold;padding:1px 4px;border-radius:2px;margin-left:4pt}
+.wmt{margin-bottom:14pt}
+.wmt table{border-collapse:collapse;font-size:9pt}
+.wmt td{padding:2pt 8pt;border:1px solid #ccc}
+.door-detail{font-size:8.5pt;font-style:italic;color:#444}
+@media print{.room{page-break-inside:avoid}}
+</style></head><body>`;
+
+  html += `<h1>Dungeon Map — Seed: ${_dungeon.rng.seed}</h1>`;
+  html += `<p style="font-size:9pt;color:#555">Rooms: ${_dungeon.rooms.length} · Doors: ${_dungeon.doors.length} · Level ${level} · Party of ${partySize} · Theme: ${(_lastCfg?.motif||'standard')}</p>`;
+  html += `<img class="map-img" src="${imgData}" alt="Dungeon Map">`;
+
+  html += '<h1>Room Key</h1>';
+
+  // Wandering monsters
+  html += '<div class="wmt"><h2>Wandering Monsters (d20)</h2><table>';
+  for (const row of (_content?.wandering||[])) html += `<tr><td>${row.roll}</td><td>${row.encounter}</td></tr>`;
+  html += '</table></div>';
+
+  for (const room of _dungeon.rooms) {
+    const c = room.content || {};
+    const w = room.c2-room.c1+1, h = room.r2-room.r1+1;
+    const typeLabel = (c.type||'empty').toUpperCase();
+    const bossLabel = c.boss ? ' [BOSS]' : '';
+    let encLabel = '';
+    if (c.enc) encLabel = ` [${c.enc.rating.toUpperCase()} — adj. ${c.enc.adjXP} XP]`;
+
+    html += `<div class="room"><h3>Room ${room.id} — <span class="tag">${typeLabel}</span>${bossLabel}${encLabel}</h3><ul>`;
+    html += `<li>${w}×${h} tiles (${w*5}×${h*5} ft)</li>`;
+
+    if (c.type === 'monster') {
+      html += `<li>${c.desc}</li><li>Total XP: ${c.totalXP}`;
+      if (c.enc) html += ` (${c.enc.rating} encounter for party of ${partySize} at level ${level})`;
+      html += '</li>';
+      const casters = (c.monsters||[]).filter(m => m.spellcaster && m.spells?.length);
+      for (const m of casters) html += `<li><em>${m.name} spells:</em> ${m.spells.join(', ')}</li>`;
+    }
+    if (c.type === 'trap') html += `<li>${c.trap.name} (DC ${c.trap.dc}) — ${c.trap.dmg}: ${c.trap.effect}</li>`;
+    if (c.type === 'special') html += `<li>${c.special.name}: ${c.special.desc}</li>`;
+    for (const f of (c.features||[])) html += `<li>${f}</li>`;
+
+    if (room.doors?.length) {
+      html += '<li>Exits:';
+      for (const door of room.doors) {
+        let label = door.type&SECRET?'Secret door':door.type&PORTC?'Portcullis':door.type&LOCKED?'Locked door':door.type&DOOR?'Door':'Open arch';
+        html += `<br>&nbsp;&nbsp;• <strong>${label}</strong>`;
+        const det = door.detail;
+        if (det) {
+          html += ` — <span class="door-detail">${det.material}`;
+          if (det.materialNotes) html += ` (${det.materialNotes})`;
+          html += `; ${det.mechanism}`;
+          if (det.mechanismNotes) html += ` (${det.mechanismNotes})`;
+          if (det.specialType) html += `; Special: ${det.specialType.name} — ${det.specialType.effect}`;
+          if (det.lock) html += `; Lock: ${det.lock.name} DC ${det.lock.dc} — ${det.lock.notes}`;
+          if (det.trapped && det.trapInfo) html += `; TRAP: ${det.trapInfo.name} DC ${det.trapInfo.dc} — ${det.trapInfo.effect}`;
+          html += '</span>';
+        }
+      }
+      html += '</li>';
+    }
+    html += '</ul></div>';
+  }
+  html += '</body></html>';
+
+  const w = window.open('','_blank');
+  if (!w) return alert('Pop-up blocked. Please allow pop-ups for this page.');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 600);
+});
+
+// ── TXT Export ──────────────────────────────────────────
+document.getElementById('btn-txt').addEventListener('click', () => {
+  if (!_dungeon) return alert('Generate a dungeon first.');
+  let txt = `DUNGEON KEY\nSeed: ${_dungeon.rng.seed}\nRooms: ${_dungeon.rooms.length}\n\n`;
+  for (const room of _dungeon.rooms) {
+    const c = room.content || {};
+    const w = room.c2-room.c1+1, h2 = room.r2-room.r1+1;
+    txt += `ROOM ${room.id}\n  Size: ${w}×${h2} (${w*5}×${h2*5} ft)\n  Type: ${c.type||'empty'}\n  ${c.description||''}\n`;
+    if (c.enc) txt += `  Encounter Difficulty: ${c.enc.rating} (adj. ${c.enc.adjXP} XP)\n`;
+    for (const f of (c.features||[])) txt += `  - ${f}\n`;
+    if (room.doors?.length) {
+      for (const door of room.doors) {
+        const label = door.type&SECRET?'Secret':door.type&PORTC?'Portcullis':door.type&LOCKED?'Locked':door.type&DOOR?'Door':'Open Arch';
+        txt += `  [${label}]`;
+        const det = door.detail;
+        if (det) { txt += ` ${det.material}; ${det.mechanism}`; if (det.lock) txt += `; Lock DC ${det.lock.dc}`; if (det.trapped&&det.trapInfo) txt += `; TRAP: ${det.trapInfo.name}`; }
+        txt += '\n';
+      }
+    }
+    txt += '\n';
+  }
+  txt += '\nWANDERING MONSTERS (d20)\n';
+  for (const row of (_content?.wandering||[])) txt += `  ${row.roll}: ${row.encounter}\n`;
+  const blob = new Blob([txt],{type:'text/plain'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `dungeon_${_dungeon.rng.seed}.txt`; a.click();
+});
+
+// ── JSON Save/Load ──────────────────────────────────────
+document.getElementById('btn-json-save').addEventListener('click', () => {
+  if (!_dungeon) return alert('Generate a dungeon first.');
+  const data = { seed:_dungeon.rng.seed, n_rows:_dungeon.n_rows, n_cols:_dungeon.n_cols, rooms:_dungeon.rooms, doors:_dungeon.doors, stairs:_dungeon.stairs, wandering:_content?.wandering, cfg:_lastCfg };
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`dungeon_${_dungeon.rng.seed}.json`; a.click();
+});
+document.getElementById('btn-json-load').addEventListener('click', () => document.getElementById('file-input').click());
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      alert(`Loaded dungeon (seed: ${data.seed}, ${data.rooms?.length} rooms). Set the seed field to reproduce.`);
+      if (data.cfg) { document.getElementById('seed').value = data.seed; }
+    } catch(err) { alert('Invalid JSON file.'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ═══════════════════════════════════════════════════════════
+// DATA — inline fallback (also loaded from dungeon_gen/*.json)
+// ═══════════════════════════════════════════════════════════
+const INLINE_MONSTERS = [
+  { name:'Commoner',cr:'0',xp:10,tags:['standard','goblinoid'] },
+  { name:'Rat',cr:'0',xp:10,tags:['standard','nature'] },
+  { name:'Bat',cr:'0',xp:10,tags:['standard','undead','nature'] },
+  { name:'Bandit',cr:'1/8',xp:25,tags:['standard','goblinoid'] },
+  { name:'Cultist',cr:'1/8',xp:25,tags:['standard','demonic','infernal'] },
+  { name:'Guard',cr:'1/8',xp:25,tags:['standard','construct'] },
+  { name:'Kobold',cr:'1/8',xp:25,tags:['standard','goblinoid','draconic'] },
+  { name:'Stirge',cr:'1/8',xp:25,tags:['standard','nature','underdark'] },
+  { name:'Skeleton',cr:'1/4',xp:50,tags:['undead','standard'] },
+  { name:'Zombie',cr:'1/4',xp:50,tags:['undead','standard'] },
+  { name:'Goblin',cr:'1/4',xp:50,tags:['standard','goblinoid'] },
+  { name:'Shadow Demon',cr:'1/4',xp:50,tags:['demonic','undead'] },
+  { name:'Centipede Swarm',cr:'1/2',xp:100,tags:['standard','nature'] },
+  { name:'Cockatrice',cr:'1/2',xp:100,tags:['standard','nature'] },
+  { name:'Gnoll',cr:'1/2',xp:100,tags:['standard','goblinoid'] },
+  { name:'Gray Ooze',cr:'1/2',xp:100,tags:['standard','underdark','nature'] },
+  { name:'Hobgoblin',cr:'1/2',xp:100,tags:['standard','goblinoid'] },
+  { name:'Lizardfolk',cr:'1/2',xp:100,tags:['standard','aquatic','nature'] },
+  { name:'Orc',cr:'1/2',xp:100,tags:['standard','goblinoid'] },
+  { name:'Rust Monster',cr:'1/2',xp:100,tags:['standard','underdark'] },
+  { name:'Shadow',cr:'1/2',xp:100,tags:['undead'] },
+  { name:'Bugbear',cr:'1',xp:200,tags:['standard','goblinoid'] },
+  { name:'Ghoul',cr:'1',xp:200,tags:['undead'] },
+  { name:'Giant Spider',cr:'1',xp:200,tags:['standard','underdark','nature'] },
+  { name:'Imp',cr:'1',xp:200,tags:['infernal','demonic'] },
+  { name:'Specter',cr:'1',xp:200,tags:['undead'] },
+  { name:'Gargoyle',cr:'2',xp:450,tags:['standard','construct','elemental_fire'] },
+  { name:'Gelatinous Cube',cr:'2',xp:450,tags:['standard','underdark'] },
+  { name:'Ghast',cr:'2',xp:450,tags:['undead'] },
+  { name:'Mimic',cr:'2',xp:450,tags:['standard','underdark'] },
+  { name:'Ogre',cr:'2',xp:450,tags:['standard','giant'] },
+  { name:'Priest',cr:'2',xp:450,tags:['standard','demonic','infernal','undead'],spellcaster:true,spells:['Sacred Flame','Bless','Hold Person','Spiritual Weapon','Dispel Magic'] },
+  { name:'Cultist Fanatic',cr:'2',xp:450,tags:['standard','demonic','infernal'],spellcaster:true,spells:['Inflict Wounds','Hold Person','Spiritual Weapon'] },
+  { name:'Bugbear Chief',cr:'3',xp:700,tags:['goblinoid'] },
+  { name:'Hell Hound',cr:'3',xp:700,tags:['infernal','elemental_fire'] },
+  { name:'Hobgoblin Captain',cr:'3',xp:700,tags:['goblinoid'] },
+  { name:'Minotaur',cr:'3',xp:700,tags:['standard','nature','demonic'] },
+  { name:'Mummy',cr:'3',xp:700,tags:['undead'] },
+  { name:'Veteran',cr:'3',xp:700,tags:['standard'] },
+  { name:'Werewolf',cr:'3',xp:700,tags:['standard','nature'] },
+  { name:'Banshee',cr:'4',xp:1100,tags:['undead','fey'] },
+  { name:'Black Pudding',cr:'4',xp:1100,tags:['standard','underdark'] },
+  { name:'Ghost',cr:'4',xp:1100,tags:['undead'] },
+  { name:'Red Dragon Wyrmling',cr:'4',xp:1100,tags:['draconic','elemental_fire'] },
+  { name:'Air Elemental',cr:'5',xp:1800,tags:['standard'] },
+  { name:'Earth Elemental',cr:'5',xp:1800,tags:['standard','underdark'] },
+  { name:'Fire Elemental',cr:'5',xp:1800,tags:['elemental_fire'] },
+  { name:'Flesh Golem',cr:'5',xp:1800,tags:['construct','arcane','undead'] },
+  { name:'Troll',cr:'5',xp:1800,tags:['standard','giant','nature'] },
+  { name:'Vampire Spawn',cr:'5',xp:1800,tags:['undead'] },
+  { name:'Wraith',cr:'5',xp:1800,tags:['undead'] },
+  { name:'Mage',cr:'6',xp:2300,tags:['standard','arcane'],spellcaster:true,spells:['Fire Bolt','Misty Step','Counterspell','Fireball','Lightning Bolt','Cone of Cold'] },
+  { name:'Medusa',cr:'6',xp:2300,tags:['standard','arcane','undead'] },
+  { name:'Young Black Dragon',cr:'7',xp:2900,tags:['draconic'] },
+  { name:'Mind Flayer',cr:'7',xp:2900,tags:['aberrant','underdark'],spellcaster:true,spells:['Detect Thoughts','Levitate','Dominate Monster','Plane Shift'] },
+  { name:'Frost Giant',cr:'8',xp:3900,tags:['giant','elemental_cold'] },
+  { name:'Hydra',cr:'8',xp:3900,tags:['standard','aquatic','nature'] },
+  { name:'Young Blue Dragon',cr:'9',xp:5000,tags:['draconic'] },
+  { name:'Young Red Dragon',cr:'10',xp:5900,tags:['draconic','elemental_fire'] },
+  { name:'Behir',cr:'11',xp:7200,tags:['standard','nature','draconic'] },
+  { name:'Vampire',cr:'13',xp:10000,tags:['undead'],spellcaster:true,spells:['Hold Person','Animate Dead','Life Transference','Modify Memory'] },
+  { name:'Beholder',cr:'13',xp:10000,tags:['aberrant','underdark'] },
+  { name:'Adult Red Dragon',cr:'17',xp:18000,tags:['draconic','elemental_fire'] },
+  { name:'Death Knight',cr:'17',xp:18000,tags:['undead'],spellcaster:true,spells:['Fireball','Hold Person','Destructive Wave','Wall of Ice','Animate Dead'] },
+  { name:'Lich',cr:'21',xp:33000,tags:['undead','arcane'],spellcaster:true,spells:['Magic Missile','Counterspell','Lightning Bolt','Wall of Force','Finger of Death','Power Word Kill','Time Stop'] },
+];
+
+const INLINE_TRAPS = [
+  { name:'Pit Trap',dc:12,dmg:'1d6 bludgeoning',effect:'Falls 10 ft' },
+  { name:'Spiked Pit Trap',dc:14,dmg:'1d6+2d6 piercing',effect:'10 ft pit with iron spikes' },
+  { name:'Tripwire Arrow Trap',dc:13,dmg:'1d6 piercing',effect:'Arrows fire from wall slots' },
+  { name:'Scything Blade',dc:14,dmg:'2d6 slashing',effect:'Blade sweeps floor at ankle height' },
+  { name:'Falling Net',dc:14,dmg:'—',effect:'DC 13 STR to escape; restrained' },
+  { name:'Collapsing Ceiling',dc:15,dmg:'4d10 bludgeoning',effect:'DC 13 DEX half; blocks passage' },
+  { name:'Fire Jets',dc:14,dmg:'3d6 fire',effect:'15 ft line from wall vents' },
+  { name:'Magic Glyph (Blast)',dc:16,dmg:'5d8 thunder',effect:'20 ft radius burst on trigger rune' },
+  { name:'Alarm Glyph',dc:15,dmg:'—',effect:'Alerts all creatures within 300 ft' },
+  { name:'Paralysis Gas',dc:14,dmg:'—',effect:'DC 14 CON or paralyzed 1 minute' },
+  { name:'Rolling Boulder',dc:15,dmg:'4d10 bludgeoning',effect:'DC 14 DEX or knocked prone and buried' },
+  { name:'Teleportation Sigil',dc:16,dmg:'—',effect:'Teleports triggerer to random room' },
+  { name:'Web Shooter',dc:12,dmg:'—',effect:'DC 12 STR to escape; restrained; flammable' },
+];
+
+const INLINE_TREASURES = [
+  { gp:[10,80],  items:['Potion of Healing','Scroll of Magic Missile','Gem (10 gp)','Silver dagger','Vial of antitoxin','Potion of Climbing','Cloak of Elvenkind','Eyes of the Eagle','Handaxe +1','Scroll of Fog Cloud'] },
+  { gp:[80,300], items:['Potion of Greater Healing','Scroll of Fireball','Weapon +1','Bag of Holding','Gem (50 gp)','Boots of Speed','Ring of Protection','Pearl of Power','Rope of Climbing','Necklace of Adaptation','Wand of Magic Missiles'] },
+  { gp:[300,1000],items:['Weapon +2','Armor +1','Gem (100 gp)','Ring of Evasion','Cloak of Displacement','Wand of Fireballs','Helm of Telepathy','Robe of Eyes','Sword of Wounding','Staff of Striking'] },
+  { gp:[1000,5000],items:['Weapon +3','Armor +3','Vorpal Sword','Holy Avenger','Staff of the Magi','Sphere of Annihilation','Ring of Three Wishes','Robe of the Archmagi','Luck Blade','Deck of Many Things'] },
+];
+
+const INLINE_SPECIAL_ROOMS = {
+  standard:[
+    { name:'Shrine', desc:'A stone altar to an unnamed god. Praying grants advantage on the next saving throw (once per long rest).' },
+    { name:'Armory', desc:'Weapon racks. 2d6 javelins, 1d4 shields, a rusted longsword.' },
+    { name:'Torture Chamber', desc:'Iron maiden, rack, and brazier. A key hangs on the wall (opens a random locked door).' },
+    { name:'Prison Cell', desc:'Three iron-barred cells. One contains a skeletal prisoner with a dungeon journal.' },
+    { name:'Library', desc:'Shelves of crumbling tomes. DC 15 Investigation: one random spell scroll (1st–3rd level).' },
+    { name:'Map Room', desc:'A rough map of the dungeon is scratched into the wall. DM reveals the layout.' },
+  ],
+  undead:[
+    { name:'Crypt', desc:'Stone sarcophagi. Breaking any has 50% chance to release a Ghoul.' },
+    { name:'Soul Well', desc:'A pit of negative energy. Undead heal 1d4 HP/turn within 30 ft; living must pass DC 13 CON.' },
+    { name:"Vampire's Sanctum", desc:'Silk-draped coffin, ornate mirror (shows nothing). 1d4 Spawn lurk here.' },
+  ],
+  arcane:[
+    { name:"Wizard's Study", desc:'DC 14 Arcana: one random 1st-level spell scroll discovered.' },
+    { name:'Alchemy Lab', desc:'1d4 random potions; 25% chance one is explosive if dropped.' },
+    { name:'Teleportation Circle', desc:'Permanent circle. Its destination is unknown (DM determines).' },
+  ],
+  demonic:[
+    { name:'Summoning Circle', desc:'Still active—any creature stepping inside must pass DC 16 WIS or complete the ritual.' },
+    { name:'Desecrated Altar', desc:'Altar to Orcus. Undead within 10 ft regain 2d6 HP per round.' },
+  ],
+  goblinoid:[
+    { name:'War Room', desc:'Crude tactical maps. Studying grants advantage on one Insight/Perception check about the dungeon.' },
+    { name:'Fungal Garden', desc:'Three mushroom varieties: edible; psychedelic (1 hour); poisonous (DC 13 CON, 3d6).' },
+  ],
+};
+['nature','underdark','draconic','fey','elemental_fire','elemental_cold','infernal','aquatic','giant','construct','aberrant'].forEach(m => {
+  if (!INLINE_SPECIAL_ROOMS[m]) INLINE_SPECIAL_ROOMS[m] = INLINE_SPECIAL_ROOMS.standard;
+});
+
+const INLINE_ROOM_FEATURES = {
+  standard:['Crumbling stone walls','Torch sconces (unlit)','Broken furniture','Damp floor','Faded tapestries','Scattered bones','Dusty crates','Collapsed ceiling section','Rusted chains bolted to the wall','Dried blood stains','A charred fire pit','Cobwebs in the corners'],
+  undead:['Coffins stacked against the wall','Bones etched with runes','Cold blue torchlight','A faint wailing from inside the walls','Grave goods on the floor','Tattered burial shrouds','Skulls stacked in alcoves','Claw marks on the inner door'],
+  goblinoid:['Crude wooden barricade','Stolen adventuring gear','Greasy cooking pot','Gnawed bones in piles','A half-assembled crossbow','Furs and pelts on walls'],
+  arcane:['Glowing runes on the floor','Floating dust motes','A blackened summoning circle','Crystal vials of liquid','Arcane notation on walls','Levitating stones'],
+  underdark:['Bioluminescent fungus','Dripping stalactites','Web-covered passage','Deep chasm','Glowing purple lichen','Drow patrol markings'],
+  draconic:['Claw gouges on the floor','Acid-scarred walls','The smell of sulfur','Scales on the floor','Intense heat from below'],
+  demonic:['Blood-soaked altar stones','Chains from the ceiling','Screaming faces in walls','Pools of black ichor','Glowing red runes'],
+  infernal:['Brass and iron fixtures','Hellish contracts pinned up','Brimstone smell','Iron chains etched with law','The walls feel hot'],
+  elemental_fire:['Cracks with lava glow','Scorched walls','Ash piles','Heat shimmer','Obsidian formations','Soot-blackened everything'],
+  elemental_cold:['Frost-covered walls','Ice formations','Frozen corpses in crystal','Icicles from ceiling','Slick ice floor'],
+  fey:['Strange glowing flowers','A mirror showing an alternate room','Music from unseen source','Riddle carved in Sylvan'],
+  nature:['Tree roots through ceiling','Underground stream','Moss-covered everything','Crystal-clear pool','Animal den (empty)'],
+  aquatic:['Ankle-deep standing water','Barnacles on walls','A submerged passage','Waterlogged crates','Crab tracks'],
+  giant:['Furniture scaled for 20-ft creatures','Door handles 10 ft up','Giant-sized weapons','Footprints like wagon wheels'],
+  construct:['Mechanical arms on walls','Gears in the floor','Oil stains','Half-assembled automatons','Blueprints nailed up'],
+};
+['aberrant'].forEach(m => { if (!INLINE_ROOM_FEATURES[m]) INLINE_ROOM_FEATURES[m] = INLINE_ROOM_FEATURES.standard; });
+
+const INLINE_DOORS = {
+  materials:[
+    { id:'iron_oak',name:'Iron-bound Oak',hp:27,ac:17,notes:'' },
+    { id:'solid_steel',name:'Solid Steel',hp:38,ac:19,notes:'Immune to fire' },
+    { id:'stone_slab',name:'Stone Slab',hp:45,ac:17,notes:'Immune to fire & cold' },
+    { id:'portcullis',name:'Portcullis (Iron)',hp:30,ac:15,notes:'Winch required' },
+    { id:'bronze_relief',name:'Bronze Relief',hp:25,ac:15,notes:'Ornate carvings' },
+    { id:'petrified_wood',name:'Petrified Wood',hp:40,ac:16,notes:'' },
+    { id:'glass',name:'Translucent Glass',hp:5,ac:13,notes:'Can see through; shatters easily' },
+    { id:'living_root',name:'Living Root',hp:22,ac:14,notes:'Regenerates 1 HP/round; vulnerable to fire' },
+    { id:'bone_inlaid',name:'Bone-Inlaid Wood',hp:20,ac:14,notes:'Undead pass freely' },
+    { id:'adamantine',name:'Adamantine-Plated',hp:50,ac:23,notes:'Cannot be broken without magic' },
+  ],
+  mechanisms:[
+    { id:'inward_swing',name:'Inward Swing',notes:'Opens into room' },
+    { id:'outward_swing',name:'Outward Swing',notes:'Opens into corridor' },
+    { id:'double_swing',name:'Double Swing (Saloon)',notes:'Swings both ways' },
+    { id:'sliding_pocket',name:'Sliding Pocket',notes:'Cannot be barricaded' },
+    { id:'guillotine',name:'Vertical Guillotine',notes:'DC 15 Athletics to hold open' },
+    { id:'rolling_stone',name:'Rolling Stone',notes:'DC 16 Athletics to open; grinds loudly' },
+    { id:'pivot',name:'Pivot (Center-Axis)',notes:'Both sides open simultaneously' },
+    { id:'bifold',name:'Folding Bifold',notes:'Wide 10 ft opening; noisy' },
+    { id:'iris',name:'Iris Mechanism',notes:'DC 15 Acrobatics to dive through as it closes' },
+    { id:'trapdoor',name:'Trapdoor',notes:'In floor; DC 12 Perception to spot' },
+  ],
+  special_types:[
+    { id:'arcane_locked',name:'Arcane Locked',effect:"Cast Knock or DC 20 Arcana to open" },
+    { id:'false_door',name:'False Door (Wall)',effect:'Leads nowhere; DC 16 Investigation for real passage' },
+    { id:'speaking_mouth',name:'Speaking Mouth (Sentient)',effect:'Demands password; wrong answer: Glyph (3d10 thunder, DC 14 DEX half)' },
+    { id:'phase_door',name:'Phase Door',effect:'Invisible to non-spellcasters; DC 18 Perception to detect' },
+    { id:'illusionary',name:'Illusionary Door',effect:'Not real; DC 16 Investigation to realize beforehand' },
+    { id:'clockwork',name:'Clockwork Geared',effect:'Opens on rolling timer; DC 13 Thieves\' Tools to override' },
+    { id:'puzzle_lock',name:'Puzzle-Locked',effect:'DC 15 Investigation/Arcana to bypass; failure resets puzzle' },
+    { id:'teleport',name:'Teleportation Threshold',effect:'Stepping through teleports creature to a random room' },
+  ],
+  lock_types:[
+    { name:'Simple Padlock',dc:10,notes:'Can be smashed off (DC 15 Athletics)' },
+    { name:'Warded Lock',dc:12,notes:'Standard key or thieves\' tools' },
+    { name:'Pin Tumbler Lock',dc:14,notes:'Takes 1 minute to pick' },
+    { name:'Combination Lock',dc:15,notes:'DC 13 Investigation to work out combo by sound' },
+    { name:'Dwarven Double-Bolt',dc:16,notes:'Two separate cylinders; 2 checks required' },
+    { name:'Elvish Rune Lock',dc:17,notes:'DC 14 Arcana; thieves\' tools or Knock' },
+    { name:'Adamantine Deadbolt',dc:20,notes:'Immune to thieves\' tools; Knock or matching key only' },
+    { name:'Blood Lock',dc:18,notes:"Requires owner's blood; DC 14 Arcana to identify" },
+  ],
+};
+
+// Active data object (loaded from JSON or inline)
+let DATA = {
+  monsters:     INLINE_MONSTERS,
+  traps:        INLINE_TRAPS,
+  treasures:    INLINE_TREASURES,
+  specialRooms: INLINE_SPECIAL_ROOMS,
+  roomFeatures: INLINE_ROOM_FEATURES,
+  doors:        INLINE_DOORS,
+};
+
+// ── Async JSON loader ───────────────────────────────────
+async function loadExternalData() {
+  const base = 'dungeon_gen/';
+  const files = ['monsters','traps','treasures','special_rooms','room_features','doors'];
+  try {
+    const results = await Promise.all(files.map(f => fetch(base+f+'.json').then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })));
+    const [monsters, traps, treasures, specialRooms, roomFeatures, doors] = results;
+    DATA.monsters     = monsters.monsters || INLINE_MONSTERS;
+    DATA.traps        = traps.traps       || INLINE_TRAPS;
+    DATA.treasures    = treasures.tiers   || INLINE_TREASURES;
+    DATA.specialRooms = specialRooms      || INLINE_SPECIAL_ROOMS;
+    DATA.roomFeatures = roomFeatures      || INLINE_ROOM_FEATURES;
+    DATA.doors        = doors             || INLINE_DOORS;
+    // Ensure CR_XP fallback
+    const CR_XP = {'0':10,'1/8':25,'1/4':50,'1/2':100,'1':200,'2':450,'3':700,'4':1100,'5':1800,'6':2300,'7':2900,'8':3900,'9':5000,'10':5900,'11':7200,'12':8400,'13':10000,'14':11500,'15':13000,'16':15000,'17':18000,'18':20000,'19':22000,'20':25000,'21':33000,'22':41000,'23':50000,'24':62000,'25':75000,'26':90000};
+    for (const m of DATA.monsters) if (!m.xp || m.xp === 0) m.xp = CR_XP[m.cr] || 50;
+    // fill missing motifs for specialRooms & roomFeatures
+    ['elemental_fire','elemental_cold','fey','infernal','aquatic','giant','construct','aberrant'].forEach(mot => {
+      if (!DATA.specialRooms[mot]) DATA.specialRooms[mot] = DATA.specialRooms.standard;
+      if (!DATA.roomFeatures[mot]) DATA.roomFeatures[mot] = DATA.roomFeatures.standard;
+    });
+  } catch(e) {
+    console.info('External JSON not loaded (using inline data):', e.message);
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────
+const CR_XP_INLINE = {'0':10,'1/8':25,'1/4':50,'1/2':100,'1':200,'2':450,'3':700,'4':1100,'5':1800,'6':2300,'7':2900,'8':3900,'9':5000,'10':5900,'11':7200,'12':8400,'13':10000,'14':11500,'15':13000,'16':15000,'17':18000,'18':20000,'19':22000,'20':25000,'21':33000,'24':62000,'26':90000};
+for (const m of INLINE_MONSTERS) if (!m.xp || m.xp === 0) m.xp = CR_XP_INLINE[m.cr] || 50;
+
+window.addEventListener('load', async () => {
+  await loadExternalData();
+  generateDungeon();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+{
+  "tiers": [
+    {
+      "label": "Tier 1 (Level 1–4)",
+      "gp": [10, 80],
+      "items": [
+        "Potion of Healing", "Scroll of Magic Missile", "Scroll of Detect Magic",
+        "Potion of Climbing", "Gem (10 gp)", "Silver dagger", "Brass ring (5 gp)",
+        "Vial of antitoxin", "Potion of Animal Friendship", "Handaxe +1",
+        "Scroll of Fog Cloud", "Potion of Fire Breath", "Cloak of Elvenkind",
+        "Eyes of the Eagle", "Dust of Disappearance", "Bag of Tricks (Rust)",
+        "Scroll of Alarm", "Scroll of Cure Wounds", "Healer's Kit (10 uses)",
+        "Potion of Resistance (Fire)", "Potion of Resistance (Cold)", "Mysterious Coin (magical, purpose unknown)"
+      ]
+    },
+    {
+      "label": "Tier 2 (Level 5–10)",
+      "gp": [80, 300],
+      "items": [
+        "Potion of Greater Healing", "Scroll of Fireball", "Weapon +1",
+        "Bag of Holding", "Gem (50 gp)", "Boots of Speed", "Gauntlets of Ogre Power",
+        "Helm of Comprehending Languages", "Ring of Protection", "Scroll of Lightning Bolt",
+        "Potion of Heroism", "Necklace of Adaptation", "Wand of Magic Missiles",
+        "Immovable Rod", "Pearl of Power", "Rope of Climbing", "Staff of the Python",
+        "Goggles of Night", "Potion of Gaseous Form", "Cloak of Protection",
+        "Bracers of Archery", "Sending Stones (pair)", "Eversmoking Bottle"
+      ]
+    },
+    {
+      "label": "Tier 3 (Level 11–16)",
+      "gp": [300, 1000],
+      "items": [
+        "Weapon +2", "Armor +1", "Gem (100 gp)", "Ring of Evasion",
+        "Cloak of Displacement", "Wand of Fireballs", "Potion of Cloud Giant Strength",
+        "Staff of Striking", "Gem of Seeing",
+        "Cape of the Mountebank", "Dimensional Shackles", "Helm of Telepathy",
+        "Mirror of Life Trapping", "Robe of Eyes", "Sword of Wounding",
+        "Ioun Stone (Reserve)", "Belt of Dwarvenkind", "Manual of Quickness of Action",
+        "Ring of Mind Shielding", "Tome of Understanding"
+      ]
+    },
+    {
+      "label": "Tier 4 (Level 17+)",
+      "gp": [1000, 5000],
+      "items": [
+        "Weapon +3", "Armor +3", "Vorpal Sword", "Holy Avenger",
+        "Staff of the Magi", "Sphere of Annihilation", "Talisman of Pure Good",
+        "Robe of the Archmagi", "Ring of Three Wishes", "Tome of Clear Thought",
+        "Manual of Bodily Health", "Luck Blade", "Defender (Longsword)",
+        "Cubic Gate", "Deck of Many Things", "Lyre of Building",
+        "Ioun Stone (Mastery)", "Ring of Regeneration", "Plate Armor +3",
+        "Sword of Answering", "Moonblade"
+      ]
+    }
+  ]
+}

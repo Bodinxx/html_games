@@ -97,6 +97,14 @@ A robust browser-based Dungeon Generator for tabletop RPGs. Features procedural 
 
 ---
 
+### Dungeon Generator v2
+
+Advanced procedural dungeon generator using a donjon-style bitmask algorithm. Rooms are placed first, then a recursive-backtracker maze fills all remaining space, rooms are opened into the maze, and dead ends are pruned — producing complex, fully-connected D&D 5e dungeons. Features 4 layout algorithms (Dungeon/Labyrinthine, Cavern, BSP, Rooms Only), 4 color schemes, 16 motifs with 100+ thematically tagged monsters, rich room content (special rooms, traps, treasure), click-to-highlight rooms, and full PNG/TXT/JSON export.
+
+**Tags:** `TTRPG` `Procedural` `Tool` `D&D` `Map Generator`
+
+---
+
 ### Emerald Circuit
 
 <img src="games/Emerald_Circuit.webp" alt="Emerald Circuit" style="max-width:300px">

@@ -1,0 +1,50 @@
+{
+  "materials": [
+    { "id": "iron_oak",     "name": "Iron-bound Oak",       "hp": 27, "ac": 17, "notes": "" },
+    { "id": "solid_steel",  "name": "Solid Steel",           "hp": 38, "ac": 19, "notes": "Immune to fire damage" },
+    { "id": "adamantine",   "name": "Adamantine-Plated",     "hp": 50, "ac": 23, "notes": "Immune to critical hits; cannot be broken without magic" },
+    { "id": "stone_slab",   "name": "Stone Slab",            "hp": 45, "ac": 17, "notes": "Immune to fire & cold" },
+    { "id": "portcullis",   "name": "Portcullis (Iron)",     "hp": 30, "ac": 15, "notes": "Can be attacked from either side; winch required to raise" },
+    { "id": "bronze_relief","name": "Bronze Relief",         "hp": 25, "ac": 15, "notes": "Ornate carvings; likely magically or historically significant" },
+    { "id": "petrified_wood","name":"Petrified Wood",        "hp": 40, "ac": 16, "notes": "" },
+    { "id": "glass",        "name": "Translucent Glass",     "hp": 5,  "ac": 13, "notes": "Can see through; shatters on a hit; DC 13 DEX or take 1d6 slashing" },
+    { "id": "living_root",  "name": "Living Root",           "hp": 22, "ac": 14, "notes": "Regenerates 1 HP/round while alive; vulnerable to fire" },
+    { "id": "bone_inlaid",  "name": "Bone-Inlaid Wood",      "hp": 20, "ac": 14, "notes": "Radiates faint necromancy; undead pass freely (treat as open arch)" }
+  ],
+  "mechanisms": [
+    { "id": "inward_swing",  "name": "Inward Swing",          "notes": "Opens into the room; can be barricaded from inside" },
+    { "id": "outward_swing", "name": "Outward Swing",         "notes": "Opens into the corridor; harder to barricade" },
+    { "id": "double_swing",  "name": "Double Swing (Saloon)", "notes": "Swings both ways; never locked (treat lock as bar only)" },
+    { "id": "sliding_pocket","name": "Sliding Pocket",        "notes": "Slides into wall; cannot be barricaded or wedged" },
+    { "id": "guillotine",    "name": "Vertical Guillotine",   "notes": "Slides up; DC 15 Athletics (STR) to hold open manually; drops if released" },
+    { "id": "trapdoor",      "name": "Trapdoor",              "notes": "Set in the floor; DC 12 Perception to notice while walking; DC 11 Athletics to lift" },
+    { "id": "rolling_stone", "name": "Rolling Stone",         "notes": "Heavy disc; DC 16 Athletics (STR) to roll open; grinds loudly (Stealth disadvantage)" },
+    { "id": "pivot",         "name": "Pivot (Center-Axis)",   "notes": "Rotates on a center pin; both sides open simultaneously" },
+    { "id": "bifold",        "name": "Folding Bifold",        "notes": "Two hinged panels; wide opening (10 ft); noisy if hinges are rusty" },
+    { "id": "iris",          "name": "Iris Mechanism",        "notes": "Mechanical petals open radially; DC 15 Acrobatics to dive through as it closes; powered by gear" }
+  ],
+  "special_types": [
+    { "id": "mimic",         "name": "Mimic Door",            "effect": "This is a Mimic (CR 2). DC 14 Perception to notice false seams. It attacks when touched." },
+    { "id": "false_door",    "name": "False Door (Wall)",     "effect": "Leads nowhere; conceals a secret passage. DC 16 Investigation to find real mechanism." },
+    { "id": "arcane_locked", "name": "Arcane Locked",         "effect": "Cast Knock or DC 20 Arcana check to open. Force requires DC 25 Athletics." },
+    { "id": "teleport",      "name": "Teleportation Threshold","effect": "Stepping through teleports the creature to a random room (DM rolls d(n rooms))." },
+    { "id": "force_field",   "name": "Shimmering Force",      "effect": "Force barrier; Dispel Magic (DC 14) or deal 20+ radiant/force damage to open." },
+    { "id": "speaking_mouth","name": "Speaking Mouth (Sentient)","effect": "Demands the correct password or riddle answer. Wrong answer triggers a Glyph (3d10 thunder, DC 14 DEX half)." },
+    { "id": "phase_door",    "name": "Phase Door",            "effect": "Invisible and intangible to non-spellcasters. Spellcasters pass freely. DC 18 Perception to detect." },
+    { "id": "illusionary",   "name": "Illusionary Door",      "effect": "Not a real door. Walking through dispels the illusion. DC 16 Investigation to realize beforehand." },
+    { "id": "clockwork",     "name": "Clockwork Geared",      "effect": "Opens on a rolling timer (rolls d12 for hour). DC 13 Thieves' Tools to override the mechanism." },
+    { "id": "puzzle_lock",   "name": "Puzzle-Locked",         "effect": "Requires solving a mechanical or magical puzzle. DC 15 Investigation or Arcana to bypass. Failure resets the puzzle." }
+  ],
+  "lock_types": [
+    { "name": "Simple Padlock",       "dc": 10, "notes": "Common; can be smashed off with DC 15 Athletics" },
+    { "name": "Warded Lock",          "dc": 12, "notes": "Standard key lock; thieves' tools or key" },
+    { "name": "Pin Tumbler Lock",     "dc": 14, "notes": "Thieves' tools; takes 1 minute to pick" },
+    { "name": "Combination Lock",     "dc": 15, "notes": "DC 13 Investigation to work out the combination by listening" },
+    { "name": "Dwarven Double-Bolt",  "dc": 16, "notes": "Two separate lock cylinders; both must be picked (2 checks)" },
+    { "name": "Elvish Rune Lock",     "dc": 17, "notes": "DC 14 Arcana to read the runes; thieves' tools or Knock" },
+    { "name": "Adamantine Deadbolt",  "dc": 20, "notes": "Immune to thieves' tools; Knock spell or matching key only" },
+    { "name": "Blood Lock",           "dc": 18, "notes": "Requires a drop of the original owner's blood; DC 14 Arcana to identify" },
+    { "name": "Mindlock",             "dc": 16, "notes": "DC 16 Insight to read the psychic pattern; immune to thieves' tools" },
+    { "name": "Arcane Seal",          "dc": 20, "notes": "Dispel Magic (DC 14) or Knock required; resists force" }
+  ]
+}

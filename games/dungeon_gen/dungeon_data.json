@@ -1,0 +1,4649 @@
+{
+  "monsters": [
+    {
+      "name": "Aarakocra Aeromancer",
+      "cr": 4,
+      "tags": [ "arcane"
+      ]
+    },
+    {
+      "name": "Aarakocra Skirmisher",
+      "cr": 0.25,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Aberrant Cultist",
+      "cr": 8,
+      "tags": [
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Aboleth",
+      "cr": 10,
+      "tags": [
+        "aberrant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Abominable Yeti",
+      "cr": 9,
+      "tags": [
+        "giant",
+        "cold"
+      ]
+    },
+    {
+      "name": "Adult Black Dragon",
+      "cr": 14,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Adult Blue Dragon",
+      "cr": 16,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Adult Brass Dragon",
+      "cr": 13,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Adult Bronze Dragon",
+      "cr": 15,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Adult Copper Dragon",
+      "cr": 14,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Adult Gold Dragon",
+      "cr": 17,
+      "tags": [
+          "fire"
+        ]
+    },
+    {
+      "name": "Adult Green Dragon",
+      "cr": 15,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Adult Red Dragon",
+      "cr": 17,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Adult Silver Dragon",
+      "cr": 16,
+      "tags": [
+        "cold",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Adult White Dragon",
+      "cr": 13,
+      "tags": [
+        "cold"
+      ]
+    },
+    {
+      "name": "Air Elemental",
+      "cr": 5,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Allosaurus",
+      "cr": 2,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Ancient Black Dragon",
+      "cr": 21,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Ancient Blue Dragon",
+      "cr": 23,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Ancient Brass Dragon",
+      "cr": 20,
+      "tags": [
+        "desert",
+        "fire"
+      ]
+    },
+    {
+      "name": "Ancient Bronze Dragon",
+      "cr": 22,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Ancient Copper Dragon",
+      "cr": 21,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Ancient Gold Dragon",
+      "cr": 24,
+      "tags": [
+        "aquatic",
+        "fire"
+      ]
+    },
+    {
+      "name": "Ancient Green Dragon",
+      "cr": 22,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Ancient Red Dragon",
+      "cr": 24,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Ancient Silver Dragon",
+      "cr": 23,
+      "tags": [
+        "cold"
+      ]
+    },
+    {
+      "name": "Ancient White Dragon",
+      "cr": 20,
+      "tags": [
+        "giant",
+        "cold"
+      ]
+    },
+    {
+      "name": "Animal Lord",
+      "cr": 20,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Animated Armor",
+      "cr": 1,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Animated Broom",
+      "cr": 0.25,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Animated Flying Sword",
+      "cr": 0.25,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Animated Rug of Smothering",
+      "cr": 2,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Ankheg",
+      "cr": 2,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Ankylosaurus",
+      "cr": 3,
+      "tags": []
+    },
+    {
+      "name": "Ape",
+      "cr": 0.5,
+      "tags": []
+    },
+    {
+      "name": "Arcanaloth",
+      "cr": 12,
+      "tags": [
+        "arcane",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Archelon",
+      "cr": 4,
+      "tags": [
+        "giant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Arch-hag",
+      "cr": 21,
+      "tags": [
+        "undead",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Archmage",
+      "cr": 12,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Archpriest",
+      "cr": 12,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Assassin",
+      "cr": 8,
+      "tags": []
+    },
+    {
+      "name": "Awakened Shrub",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Awakened Tree",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Axe Beak",
+      "cr": 0.25,
+      "tags": []
+    },
+    {
+      "name": "Azer Pyromancer",
+      "cr": 6,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Azer Sentinel",
+      "cr": 2,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Baboon",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Badger",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Balor",
+      "cr": 19,
+      "tags": [
+        "infernal",
+        "fire",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Bandit",
+      "cr": 0.125,
+      "tags": []
+    },
+    {
+      "name": "Bandit Captain",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Bandit Crime Lord",
+      "cr": 11,
+      "tags": []
+    },
+    {
+      "name": "Bandit Deceiver",
+      "cr": 7,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Banshee",
+      "cr": 4,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Barbed Devil",
+      "cr": 5,
+      "tags": [
+        "infernal",
+        "fire"
+      ]
+    },
+    {
+      "name": "Barlgura",
+      "cr": 5,
+      "tags": [
+        "abyssal",
+        "fire",
+        "cold"
+      ]
+    },
+    {
+      "name": "Basilisk",
+      "cr": 3,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Bat",
+      "cr": 0,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Bearded Devil",
+      "cr": 3,
+      "tags": [
+        "fire",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Behir",
+      "cr": 11,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Beholder",
+      "cr": 13,
+      "tags": [
+        "aberrant",
+        "underdark",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Beholder Zombie",
+      "cr": 5,
+      "tags": [
+        "undead",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Berserker",
+      "cr": 2,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Berserker Commander",
+      "cr": 8,
+      "tags": []
+    },
+    {
+      "name": "Black Bear",
+      "cr": 0.5,
+      "tags": []
+    },
+    {
+      "name": "Black Dragon Wyrmling",
+      "cr": 2,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Black Pudding",
+      "cr": 4,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Blink Dog",
+      "cr": 0.25,
+      "tags": []
+    },
+    {
+      "name": "Blob of Annihilation",
+      "cr": 23,
+      "tags": [
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Blood Hawk",
+      "cr": 0.125,
+      "tags": []
+    },
+    {
+      "name": "Blue Dragon Wyrmling",
+      "cr": 3,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Blue Slaad",
+      "cr": 7,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Boar",
+      "cr": 0.25,
+      "tags": []
+    },
+    {
+      "name": "Bone Devil",
+      "cr": 9,
+      "tags": [
+        "infernal"
+      ]
+    },
+    {
+      "name": "Bone Naga",
+      "cr": 4,
+      "tags": [
+        "undead",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Brass Dragon Wyrmling",
+      "cr": 1,
+      "tags": [
+        "desert",
+        "fire"
+      ]
+    },
+    {
+      "name": "Brazen Gorgon",
+      "cr": 9,
+      "tags": [
+        "fire",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Bronze Dragon Wyrmling",
+      "cr": 2,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Brown Bear",
+      "cr": 1,
+      "tags": []
+    },
+    {
+      "name": "Bugbear Stalker",
+      "cr": 3,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Bugbear Warrior",
+      "cr": 1,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Bulette",
+      "cr": 5,
+      "tags": []
+    },
+    {
+      "name": "Bulette Pup",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Bullywug Bog Sage",
+      "cr": 4,
+      "tags": [
+        "aquatic",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Bullywug Warrior",
+      "cr": 0.25,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Cambion",
+      "cr": 5,
+      "tags": [
+        "abyssal",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Camel",
+      "cr": 0.125,
+      "tags": [
+          "desert"
+        ]
+    },
+    {
+      "name": "Carrion Crawler",
+      "cr": 2,
+      "tags": [
+        "giant",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Cat",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Centaur Trooper",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Centaur Warden",
+      "cr": 7,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Chain Devil",
+      "cr": 8,
+      "tags": [
+        "undead",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Chasme",
+      "cr": 6,
+      "tags": [
+          "abyssal"
+        ]
+    },
+    {
+      "name": "Chimera",
+      "cr": 6,
+      "tags": [
+        "fire",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Chuul",
+      "cr": 4,
+      "tags": [
+        "aberrant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Clay Golem",
+      "cr": 9,
+      "tags": [
+        "underdark",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Cloaker",
+      "cr": 8,
+      "tags": [
+        "underdark",
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Cloud Giant",
+      "cr": 9,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Cockatrice",
+      "cr": 0.5,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Cockatrice Regent",
+      "cr": 8,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Colossus",
+      "cr": 25,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Commoner",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Constrictor Snake",
+      "cr": 0.25,
+      "tags": [
+        "vermin",
+        "giant"
+      ]
+    },
+    {
+      "name": "Copper Dragon Wyrmling",
+      "cr": 1,
+      "tags": []
+    },
+    {
+      "name": "Couatl",
+      "cr": 4,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Crab",
+      "cr": 0,
+      "tags": [
+        "vermin",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Crawling Claw",
+      "cr": 0,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Crocodile",
+      "cr": 0.5,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Cultist",
+      "cr": 0.125,
+      "tags": [
+        "abyssal",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Cultist Fanatic",
+      "cr": 2,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Cultist Hierophant",
+      "cr": 10,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Cyclops Oracle",
+      "cr": 10,
+      "tags": [
+        "giant",
+        "desert",
+        "underdark",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Cyclops Sentry",
+      "cr": 6,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Dao",
+      "cr": 11,
+      "tags": [
+        "abyssal",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Darkmantle",
+      "cr": 0.5,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Death Cultist",
+      "cr": 8,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Death Dog",
+      "cr": 1,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Death Knight",
+      "cr": 17,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Death Knight Aspirant",
+      "cr": 11,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Death Slaad",
+      "cr": 10,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Death Tyrant",
+      "cr": 14,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Deer",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Demilich",
+      "cr": 18,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Deva",
+      "cr": 10,
+      "tags": [
+        "arcane",
+        "fire"
+      ]
+    },
+    {
+      "name": "Dire Wolf",
+      "cr": 1,
+      "tags": []
+    },
+    {
+      "name": "Dire Worg",
+      "cr": 10,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Displacer Beast",
+      "cr": 3,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Djinni",
+      "cr": 11,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Doppelganger",
+      "cr": 3,
+      "tags": [
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Dracolich",
+      "cr": 17,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Draft Horse",
+      "cr": 0.25,
+      "tags": []
+    },
+    {
+      "name": "Dragon Turtle",
+      "cr": 17,
+      "tags": [
+        "giant",
+        "aquatic",
+        "fire"
+      ]
+    },
+    {
+      "name": "Dretch",
+      "cr": 0.25,
+      "tags": [
+        "infernal",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Drider",
+      "cr": 6,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Druid",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Dryad",
+      "cr": 1,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Dust Mephit",
+      "cr": 0.5,
+      "tags": [
+        "desert",
+        "fire"
+      ]
+    },
+    {
+      "name": "Eagle",
+      "cr": 0,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Earth Elemental",
+      "cr": 5,
+      "tags": []
+    },
+    {
+      "name": "Efreeti",
+      "cr": 11,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Elemental Cataclysm",
+      "cr": 22,
+      "tags": [
+        "fire",
+        "cold",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Elemental Cultist",
+      "cr": 8,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Elephant",
+      "cr": 4,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Elk",
+      "cr": 0.25,
+      "tags": []
+    },
+    {
+      "name": "Empyrean",
+      "cr": 23,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Empyrean Iota",
+      "cr": 1,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Erinyes",
+      "cr": 12,
+      "tags": [
+        "infernal"
+      ]
+    },
+    {
+      "name": "Ettercap",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Ettin",
+      "cr": 4,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Faerie Dragon Adult",
+      "cr": 2,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Faerie Dragon Youth",
+      "cr": 1,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Fiend Cultist",
+      "cr": 8,
+      "tags": [
+        "infernal"
+      ]
+    },
+    {
+      "name": "Fire Elemental",
+      "cr": 5,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Fire Giant",
+      "cr": 9,
+      "tags": [
+        "giant",
+        "fire"
+      ]
+    },
+    {
+      "name": "Flameskull",
+      "cr": 4,
+      "tags": [
+        "undead",
+        "underdark",
+        "fire"
+      ]
+    },
+    {
+      "name": "Flaming Skeleton",
+      "cr": 3,
+      "tags": [
+        "undead",
+        "fire"
+      ]
+    },
+    {
+      "name": "Flesh Golem",
+      "cr": 5,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Flumph",
+      "cr": 0.125,
+      "tags": [
+        "aberrant",
+        "underdark",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Flying Snake",
+      "cr": 0.125,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Fomorian",
+      "cr": 8,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Frog",
+      "cr": 0,
+      "tags": [
+        "aquatic",
+        "vermin"
+      ]
+    },
+    {
+      "name": "Frost Giant",
+      "cr": 8,
+      "tags": [
+        "giant",
+        "cold"
+      ]
+    },
+    {
+      "name": "Galeb Duhr",
+      "cr": 6,
+      "tags": []
+    },
+    {
+      "name": "Gargoyle",
+      "cr": 2,
+      "tags": [
+        "undead",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Gas Spore Fungus",
+      "cr": 0.5,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Gelatinous Cube",
+      "cr": 2,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Ghast",
+      "cr": 2,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Ghast Gravecaller",
+      "cr": 6,
+      "tags": [
+        "undead",
+        "underdark",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Ghost",
+      "cr": 4,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Ghoul",
+      "cr": 1,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Giant Ape",
+      "cr": 7,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Axe Beak",
+      "cr": 5,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Badger",
+      "cr": 0.25,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Bat",
+      "cr": 0.25,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Boar",
+      "cr": 2,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Centipede",
+      "cr": 0.25,
+      "tags": [
+        "giant",
+        "vermin"
+      ]
+    },
+    {
+      "name": "Giant Constrictor Snake",
+      "cr": 2,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Crab",
+      "cr": 0.125,
+      "tags": [
+        "giant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Giant Crocodile",
+      "cr": 5,
+      "tags": [
+        "giant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Giant Eagle",
+      "cr": 1,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Elk",
+      "cr": 2,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Fire Beetle",
+      "cr": 0,
+      "tags": [
+        "giant",
+        "underdark",
+        "fire"
+      ]
+    },
+    {
+      "name": "Giant Frog",
+      "cr": 0.25,
+      "tags": [
+        "giant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Giant Goat",
+      "cr": 0.5,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Hyena",
+      "cr": 1,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Lizard",
+      "cr": 0.25,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Octopus",
+      "cr": 1,
+      "tags": [
+        "giant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Giant Owl",
+      "cr": 0.25,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Rat",
+      "cr": 0.125,
+      "tags": [
+        "giant",
+        "vermin"
+      ]
+    },
+    {
+      "name": "Giant Scorpion",
+      "cr": 3,
+      "tags": [
+        "giant",
+        "vermin"
+      ]
+    },
+    {
+      "name": "Giant Seahorse",
+      "cr": 0.5,
+      "tags": [
+        "giant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Giant Shark",
+      "cr": 5,
+      "tags": [
+        "giant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Giant Spider",
+      "cr": 1,
+      "tags": [
+        "giant",
+        "vermin"
+      ]
+    },
+    {
+      "name": "Giant Squid",
+      "cr": 6,
+      "tags": [
+        "giant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Giant Toad",
+      "cr": 1,
+      "tags": [
+        "giant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Giant Venomous Snake",
+      "cr": 0.25,
+      "tags": [
+        "giant",
+        "vermin"
+      ]
+    },
+    {
+      "name": "Giant Vulture",
+      "cr": 1,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Wasp",
+      "cr": 0.5,
+      "tags": [
+        "giant",
+        "vermin"
+      ]
+    },
+    {
+      "name": "Giant Weasel",
+      "cr": 0.125,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Giant Wolf Spider",
+      "cr": 0.25,
+      "tags": [
+        "giant",
+        "vermin",
+        "desert"
+      ]
+    },
+    {
+      "name": "Gibbering Mouther",
+      "cr": 2,
+      "tags": [
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Githyanki Dracomancer",
+      "cr": 16,
+      "tags": [
+        "aberrant",
+        "fire"
+      ]
+    },
+    {
+      "name": "Githyanki Knight",
+      "cr": 8,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Githyanki Warrior",
+      "cr": 3,
+      "tags": []
+    },
+    {
+      "name": "Githzerai Monk",
+      "cr": 2,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Githzerai Psion",
+      "cr": 12,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Githzerai Zerth",
+      "cr": 6,
+      "tags": []
+    },
+    {
+      "name": "Glabrezu",
+      "cr": 9,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Gladiator",
+      "cr": 5,
+      "tags": []
+    },
+    {
+      "name": "Gnoll Demoniac",
+      "cr": 8,
+      "tags": [
+        "desert",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Gnoll Fang of Yeenoghu",
+      "cr": 4,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Gnoll Pack Lord",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Gnoll Warrior",
+      "cr": 0.5,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Goat",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Goblin Boss",
+      "cr": 1,
+      "tags": []
+    },
+    {
+      "name": "Goblin Hexer",
+      "cr": 3,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Goblin Minion",
+      "cr": 0.125,
+      "tags": []
+    },
+    {
+      "name": "Goblin Warrior",
+      "cr": 0.25,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Gold Dragon Wyrmling",
+      "cr": 3,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Gorgon",
+      "cr": 5,
+      "tags": []
+    },
+    {
+      "name": "Goristro",
+      "cr": 17,
+      "tags": [
+        "giant",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Graveyard Revenant",
+      "cr": 7,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Gray Ooze",
+      "cr": 0.5,
+      "tags": [
+        "cold",
+        "fire",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Gray Slaad",
+      "cr": 9,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Green Dragon Wyrmling",
+      "cr": 2,
+      "tags": [
+        "cold",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Green Hag",
+      "cr": 3,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Green Slaad",
+      "cr": 8,
+      "tags": [
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Grell",
+      "cr": 3,
+      "tags": [
+        "aberrant",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Grick",
+      "cr": 2,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Grick Ancient",
+      "cr": 7,
+      "tags": [
+        "aberrant",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Griffon",
+      "cr": 2,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Grimlock",
+      "cr": 0.25,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Guard",
+      "cr": 0.125,
+      "tags": []
+    },
+    {
+      "name": "Guard Captain",
+      "cr": 4,
+      "tags": []
+    },
+    {
+      "name": "Guardian Naga",
+      "cr": 10,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Gulthias Blight",
+      "cr": 16,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Half-Dragon",
+      "cr": 5,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Harpy",
+      "cr": 1,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Haunting Revenant",
+      "cr": 10,
+      "tags": [
+        "giant",
+        "undead",
+        "underdark",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Hawk",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Hell Hound",
+      "cr": 3,
+      "tags": [
+        "fire",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Helmed Horror",
+      "cr": 4,
+      "tags": [
+        "undead",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Hezrou",
+      "cr": 8,
+      "tags": [
+        "abyssal",
+        "fire",
+        "cold"
+      ]
+    },
+    {
+      "name": "Hill Giant",
+      "cr": 5,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Hippogriff",
+      "cr": 1,
+      "tags": []
+    },
+    {
+      "name": "Hippopotamus",
+      "cr": 4,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Hobgoblin Captain",
+      "cr": 3,
+      "tags": [
+        "desert",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Hobgoblin Warlord",
+      "cr": 6,
+      "tags": []
+    },
+    {
+      "name": "Hobgoblin Warrior",
+      "cr": 0.5,
+      "tags": [
+        "desert",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Homunculus",
+      "cr": 0,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Hook Horror",
+      "cr": 3,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Horned Devil",
+      "cr": 11,
+      "tags": [
+        "infernal",
+        "fire"
+      ]
+    },
+    {
+      "name": "Hunter Shark",
+      "cr": 2,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Hydra",
+      "cr": 8,
+      "tags": [
+        "giant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Hyena",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Ice Devil",
+      "cr": 14,
+      "tags": [
+        "cold",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Ice Mephit",
+      "cr": 0.5,
+      "tags": [
+        "cold",
+        "fire"
+      ]
+    },
+    {
+      "name": "Imp",
+      "cr": 1,
+      "tags": [
+        "infernal",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Incubus",
+      "cr": 4,
+      "tags": [
+        "infernal"
+      ]
+    },
+    {
+      "name": "Intellect Devourer",
+      "cr": 2,
+      "tags": [
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Invisible Stalker",
+      "cr": 6,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Iron Golem",
+      "cr": 16,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Jackal",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Jackalwere",
+      "cr": 0.5,
+      "tags": []
+    },
+    {
+      "name": "Juvenile Shadow Dragon",
+      "cr": 4,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Kenku",
+      "cr": 0.25,
+      "tags": []
+    },
+    {
+      "name": "Killer Whale",
+      "cr": 3,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Knight",
+      "cr": 3,
+      "tags": []
+    },
+    {
+      "name": "Kobold Warrior",
+      "cr": 0.125,
+      "tags": []
+    },
+    {
+      "name": "Kraken",
+      "cr": 23,
+      "tags": [
+        "aquatic",
+        "giant",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Kuo-toa",
+      "cr": 0.25,
+      "tags": [
+        "aquatic",
+        "underdark",
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Kuo-toa Archpriest",
+      "cr": 6,
+      "tags": [
+        "aquatic",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Kuo-toa Monitor",
+      "cr": 3,
+      "tags": [
+        "aquatic",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Kuo-toa Whip",
+      "cr": 1,
+      "tags": [
+        "aquatic",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Lacedon Ghoul",
+      "cr": 1,
+      "tags": [
+        "undead",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Lamia",
+      "cr": 4,
+      "tags": [
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Larva",
+      "cr": 0,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Lemure",
+      "cr": 0,
+      "tags": [
+        "infernal",
+        "fire",
+        "cold"
+      ]
+    },
+    {
+      "name": "Lich",
+      "cr": 21,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Lion",
+      "cr": 1,
+      "tags": []
+    },
+    {
+      "name": "Lizard",
+      "cr": 0,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Lizardfolk Geomancer",
+      "cr": 2,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Lizardfolk Sovereign",
+      "cr": 4,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Mage",
+      "cr": 6,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Mage Apprentice",
+      "cr": 2,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Magma Mephit",
+      "cr": 0.5,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Magmin",
+      "cr": 0.5,
+      "tags": [
+        "underdark",
+        "fire"
+      ]
+    },
+    {
+      "name": "Mammoth",
+      "cr": 6,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Manes",
+      "cr": 0.125,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Manes Vaporspawn",
+      "cr": 1,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Manticore",
+      "cr": 3,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Marid",
+      "cr": 11,
+      "tags": [
+        "giant",
+        "aquatic",
+        "fire",
+        "cold"
+      ]
+    },
+    {
+      "name": "Marilith",
+      "cr": 16,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Mastiff",
+      "cr": 0.125,
+      "tags": []
+    },
+    {
+      "name": "Medusa",
+      "cr": 6,
+      "tags": []
+    },
+    {
+      "name": "Merfolk Skirmisher",
+      "cr": 0.125,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Merfolk Wavebender",
+      "cr": 6,
+      "tags": [
+        "aquatic",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Merrow",
+      "cr": 2,
+      "tags": [
+        "aquatic",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Mezzoloth",
+      "cr": 5,
+      "tags": [
+        "fire",
+        "cold",
+        "abyssal",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Mimic",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Mind Flayer",
+      "cr": 7,
+      "tags": [
+        "aberrant",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Mind Flayer Arcanist",
+      "cr": 11,
+      "tags": [
+        "aberrant",
+        "underdark",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Minotaur of Baphomet",
+      "cr": 3,
+      "tags": [
+        "underdark",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Minotaur Skeleton",
+      "cr": 2,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Mud Mephit",
+      "cr": 0.25,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Mule",
+      "cr": 0.125,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Mummy",
+      "cr": 3,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Mummy Lord",
+      "cr": 15,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Myconid Adult",
+      "cr": 0.5,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Myconid Sovereign",
+      "cr": 2,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Myconid Spore Servant",
+      "cr": 1,
+      "tags": [
+        "undead",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Myconid Sprout",
+      "cr": 0,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Nalfeshnee",
+      "cr": 13,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Needle Blight",
+      "cr": 0.25,
+      "tags": []
+    },
+    {
+      "name": "Night Hag",
+      "cr": 5,
+      "tags": [
+        "infernal"
+      ]
+    },
+    {
+      "name": "Nightmare",
+      "cr": 3,
+      "tags": [
+        "fire",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Noble",
+      "cr": 0.125,
+      "tags": []
+    },
+    {
+      "name": "Noble Prodigy",
+      "cr": 10,
+      "tags": []
+    },
+    {
+      "name": "Nothic",
+      "cr": 2,
+      "tags": [
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Nycaloth",
+      "cr": 9,
+      "tags": [
+        "giant",
+        "abyssal",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Ochre Jelly",
+      "cr": 2,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Octopus",
+      "cr": 0,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Ogre",
+      "cr": 2,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Ogre Zombie",
+      "cr": 2,
+      "tags": [
+        "giant",
+        "undead"
+      ]
+    },
+    {
+      "name": "Ogrillon Ogre",
+      "cr": 1,
+      "tags": [
+        "giant",
+        "desert",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Oni",
+      "cr": 7,
+      "tags": [
+        "infernal"
+      ]
+    },
+    {
+      "name": "Otyugh",
+      "cr": 5,
+      "tags": [
+        "aberrant",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Owl",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Owlbear",
+      "cr": 3,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Panther",
+      "cr": 0.25,
+      "tags": []
+    },
+    {
+      "name": "Pegasus",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Performer",
+      "cr": 0.5,
+      "tags": []
+    },
+    {
+      "name": "Performer Legend",
+      "cr": 10,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Performer Maestro",
+      "cr": 6,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Peryton",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Phase Spider",
+      "cr": 3,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Piercer",
+      "cr": 0.5,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Piranha",
+      "cr": 0,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Pirate",
+      "cr": 1,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Pirate Admiral",
+      "cr": 12,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Pirate Captain",
+      "cr": 6,
+      "tags": []
+    },
+    {
+      "name": "Pit Fiend",
+      "cr": 20,
+      "tags": [
+        "fire",
+        "abyssal",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Pixie",
+      "cr": 0.25,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Pixie Wonderbringer",
+      "cr": 5,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Planetar",
+      "cr": 16,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Plesiosaurus",
+      "cr": 2,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Polar Bear",
+      "cr": 2,
+      "tags": [
+        "cold"
+      ]
+    },
+    {
+      "name": "Poltergeist",
+      "cr": 2,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Pony",
+      "cr": 0.125,
+      "tags": []
+    },
+    {
+      "name": "Priest",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Priest Acolyte",
+      "cr": 0.25,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Primeval Owlbear",
+      "cr": 7,
+      "tags": []
+    },
+    {
+      "name": "Pseudodragon",
+      "cr": 0.25,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Psychic Gray Ooze",
+      "cr": 1,
+      "tags": [
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Pteranodon",
+      "cr": 0.25,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Purple Worm",
+      "cr": 15,
+      "tags": [
+        "giant",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Quaggoth",
+      "cr": 2,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Quaggoth Thonot",
+      "cr": 3,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Quasit",
+      "cr": 1,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Questing Knight",
+      "cr": 12,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Rakshasa",
+      "cr": 13,
+      "tags": [
+        "infernal",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Rat",
+      "cr": 0,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Raven",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Red Dragon Wyrmling",
+      "cr": 4,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Red Slaad",
+      "cr": 5,
+      "tags": [
+        "aberrant"
+      ]
+    },
+    {
+      "name": "Reef Shark",
+      "cr": 0.5,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Remorhaz",
+      "cr": 11,
+      "tags": [
+        "fire",
+        "cold"
+      ]
+    },
+    {
+      "name": "Revenant",
+      "cr": 5,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Rhinoceros",
+      "cr": 2,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Riding Horse",
+      "cr": 0.25,
+      "tags": []
+    },
+    {
+      "name": "Roc",
+      "cr": 11,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Roper",
+      "cr": 5,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Rust Monster",
+      "cr": 0.5,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Saber-Toothed Tiger",
+      "cr": 2,
+      "tags": []
+    },
+    {
+      "name": "Sahuagin Baron",
+      "cr": 5,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Sahuagin Priest",
+      "cr": 2,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Sahuagin Warrior",
+      "cr": 0.5,
+      "tags": [
+        "aquatic",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Salamander",
+      "cr": 5,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Salamander Fire Snake",
+      "cr": 1,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Salamander Inferno Master",
+      "cr": 15,
+      "tags": [
+        "fire",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Satyr",
+      "cr": 0.5,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Satyr Revelmaster",
+      "cr": 6,
+      "tags": []
+    },
+    {
+      "name": "Scarecrow",
+      "cr": 1,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Scorpion",
+      "cr": 0,
+      "tags": [
+        "vermin",
+        "desert"
+      ]
+    },
+    {
+      "name": "Scout",
+      "cr": 0.5,
+      "tags": []
+    },
+    {
+      "name": "Scout Captain",
+      "cr": 3,
+      "tags": []
+    },
+    {
+      "name": "Sea Hag",
+      "cr": 2,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Seahorse",
+      "cr": 0,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Shadow",
+      "cr": 0.5,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Shadow Demon",
+      "cr": 4,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Shadow Dragon",
+      "cr": 13,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Shambling Mound",
+      "cr": 5,
+      "tags": [
+        "aquatic",
+        "fire",
+        "cold"
+      ]
+    },
+    {
+      "name": "Shield Guardian",
+      "cr": 7,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Shrieker Fungus",
+      "cr": 0,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Silver Dragon Wyrmling",
+      "cr": 2,
+      "tags": [
+        "cold"
+      ]
+    },
+    {
+      "name": "Skeleton",
+      "cr": 0.25,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Slaad Tadpole",
+      "cr": 0.125,
+      "tags": [
+        "aberrant",
+        "aquatic",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Smoke Mephit",
+      "cr": 0.25,
+      "tags": [
+        "fire",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Solar",
+      "cr": 21,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Spectator",
+      "cr": 3,
+      "tags": [
+        "aberrant",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Specter",
+      "cr": 1,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Sphinx of Lore",
+      "cr": 11,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Sphinx of Secrets",
+      "cr": 8,
+      "tags": [
+        "arcane",
+        "desert"
+      ]
+    },
+    {
+      "name": "Sphinx of Valor",
+      "cr": 17,
+      "tags": []
+    },
+    {
+      "name": "Sphinx of Wonder",
+      "cr": 1,
+      "tags": [
+        "arcane",
+        "desert"
+      ]
+    },
+    {
+      "name": "Spider",
+      "cr": 0,
+      "tags": [
+        "giant",
+        "vermin"
+      ]
+    },
+    {
+      "name": "Spined Devil",
+      "cr": 2,
+      "tags": [
+        "infernal"
+      ]
+    },
+    {
+      "name": "Spirit Naga",
+      "cr": 8,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Sprite",
+      "cr": 0.25,
+      "tags": []
+    },
+    {
+      "name": "Spy",
+      "cr": 1,
+      "tags": []
+    },
+    {
+      "name": "Spy Master",
+      "cr": 10,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Steam Mephit",
+      "cr": 0.25,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Stirge",
+      "cr": 0.125,
+      "tags": [
+        "desert",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Stone Giant",
+      "cr": 7,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Stone Golem",
+      "cr": 10,
+      "tags": []
+    },
+    {
+      "name": "Storm Giant",
+      "cr": 13,
+      "tags": [
+        "giant",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Succubus",
+      "cr": 4,
+      "tags": [
+        "abyssal",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Swarm of Bats",
+      "cr": 0.25,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Swarm of Crawling Claws",
+      "cr": 3,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Swarm of Dretches",
+      "cr": 4,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Swarm of Insects",
+      "cr": 0.5,
+      "tags": [
+        "vermin",
+        "desert",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Swarm of Larvae",
+      "cr": 1,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Swarm of Lemures",
+      "cr": 3,
+      "tags": [
+        "infernal"
+      ]
+    },
+    {
+      "name": "Swarm of Piranhas",
+      "cr": 1,
+      "tags": [
+        "vermin",
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Swarm of Rats",
+      "cr": 0.25,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Swarm of Ravens",
+      "cr": 0.25,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Swarm of Stirges",
+      "cr": 2,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Swarm of Venomous Snakes",
+      "cr": 2,
+      "tags": [
+        "vermin",
+        "desert"
+      ]
+    },
+    {
+      "name": "Tarrasque",
+      "cr": 30,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Thri-kreen Marauder",
+      "cr": 1,
+      "tags": [
+        "desert",
+        "giant"
+      ]
+    },
+    {
+      "name": "Thri-kreen Psion",
+      "cr": 8,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Tiger",
+      "cr": 1,
+      "tags": []
+    },
+    {
+      "name": "Tough",
+      "cr": 0.5,
+      "tags": []
+    },
+    {
+      "name": "Tough Boss",
+      "cr": 4,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Treant",
+      "cr": 9,
+      "tags": [
+        "giant",
+        "fire"
+      ]
+    },
+    {
+      "name": "Tree Blight",
+      "cr": 7,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Triceratops",
+      "cr": 5,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Troglodyte",
+      "cr": 0.25,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Troll",
+      "cr": 5,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Troll Limb",
+      "cr": 0.5,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Twig Blight",
+      "cr": 0.125,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Tyrannosaurus Rex",
+      "cr": 8,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Ultroloth",
+      "cr": 13,
+      "tags": [
+        "abyssal",
+        "infernal"
+      ]
+    },
+    {
+      "name": "Umber Hulk",
+      "cr": 5,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Unicorn",
+      "cr": 5,
+      "tags": []
+    },
+    {
+      "name": "Vampire",
+      "cr": 13,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Vampire Familiar",
+      "cr": 3,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Vampire Nightbringer",
+      "cr": 8,
+      "tags": [
+        "undead",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Vampire Spawn",
+      "cr": 5,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Vampire Umbral Lord",
+      "cr": 15,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Venomous Snake",
+      "cr": 0.125,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Vine Blight",
+      "cr": 0.5,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Violet Fungus",
+      "cr": 0.25,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Violet Fungus Necrohulk",
+      "cr": 7,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Vrock",
+      "cr": 6,
+      "tags": [
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Vulture",
+      "cr": 0,
+      "tags": []
+    },
+    {
+      "name": "Warhorse",
+      "cr": 0.5,
+      "tags": []
+    },
+    {
+      "name": "Warhorse Skeleton",
+      "cr": 0.5,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Warrior Commander",
+      "cr": 10,
+      "tags": []
+    },
+    {
+      "name": "Warrior Infantry",
+      "cr": 0.125,
+      "tags": []
+    },
+    {
+      "name": "Warrior Veteran",
+      "cr": 3,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Water Elemental",
+      "cr": 5,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Water Weird",
+      "cr": 3,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Weasel",
+      "cr": 0,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Werebear",
+      "cr": 5,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Wereboar",
+      "cr": 4,
+      "tags": []
+    },
+    {
+      "name": "Wererat",
+      "cr": 2,
+      "tags": [
+        "vermin"
+      ]
+    },
+    {
+      "name": "Weretiger",
+      "cr": 4,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Werewolf",
+      "cr": 3,
+      "tags": []
+    },
+    {
+      "name": "White Dragon Wyrmling",
+      "cr": 2,
+      "tags": [
+        "cold"
+      ]
+    },
+    {
+      "name": "Wight",
+      "cr": 3,
+      "tags": [
+        "undead",
+        "desert",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Will-o'-Wisp",
+      "cr": 2,
+      "tags": [
+        "aberrant",
+        "undead"
+      ]
+    },
+    {
+      "name": "Winged Kobold",
+      "cr": 0.25,
+      "tags": [
+        "desert",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Winter Wolf",
+      "cr": 3,
+      "tags": [
+        "cold"
+      ]
+    },
+    {
+      "name": "Wolf",
+      "cr": 0.25,
+      "tags": []
+    },
+    {
+      "name": "Worg",
+      "cr": 0.5,
+      "tags": [
+        "giant"
+      ]
+    },
+    {
+      "name": "Wraith",
+      "cr": 5,
+      "tags": [
+        "undead"
+      ]
+    },
+    {
+      "name": "Wyvern",
+      "cr": 6,
+      "tags": [
+        "giant",
+        "fire"
+      ]
+    },
+    {
+      "name": "Xorn",
+      "cr": 5,
+      "tags": [
+        "underdark"
+      ]
+    },
+    {
+      "name": "Yeti",
+      "cr": 3,
+      "tags": [
+        "giant",
+        "cold"
+      ]
+    },
+    {
+      "name": "Yochlol",
+      "cr": 10,
+      "tags": [
+        "abyssal",
+        "underdark"
+      ]
+    },
+    {
+      "name": "Young Black Dragon",
+      "cr": 7,
+      "tags": [
+        "aquatic",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Young Blue Dragon",
+      "cr": 9,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Young Brass Dragon",
+      "cr": 6,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Young Bronze Dragon",
+      "cr": 8,
+      "tags": [
+        "aquatic"
+      ]
+    },
+    {
+      "name": "Young Copper Dragon",
+      "cr": 7,
+      "tags": []
+    },
+    {
+      "name": "Young Gold Dragon",
+      "cr": 10,
+      "tags": [
+        "fire",
+        "arcane"
+      ]
+    },
+    {
+      "name": "Young Green Dragon",
+      "cr": 8,
+      "tags": [
+        "arcane"
+      ]
+    },
+    {
+      "name": "Young Red Dragon",
+      "cr": 10,
+      "tags": [
+        "fire"
+      ]
+    },
+    {
+      "name": "Young Remorhaz",
+      "cr": 5,
+      "tags": [
+        "fire",
+        "cold"
+      ]
+    },
+    {
+      "name": "Young Silver Dragon",
+      "cr": 9,
+      "tags": [
+        "cold"
+      ]
+    },
+    {
+      "name": "Young White Dragon",
+      "cr": 6,
+      "tags": [
+        "cold"
+      ]
+    },
+    {
+      "name": "Yuan-ti Abomination",
+      "cr": 7,
+      "tags": []
+    },
+    {
+      "name": "Yuan-ti Infiltrator",
+      "cr": 1,
+      "tags": [
+        "desert",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Yuan-ti Malison (Type 1)",
+      "cr": 3,
+      "tags": [
+        "desert"
+      ]
+    },
+    {
+      "name": "Yuan-ti Malison (Type 2)",
+      "cr": 3,
+      "tags": [
+        "desert",
+        "abyssal"
+      ]
+    },
+    {
+      "name": "Yuan-ti Malison (Type 3)",
+      "cr": 3,
+      "tags": [
+        "infernal"
+      ]
+    },
+    {
+      "name": "Zombie",
+      "cr": 0.25,
+      "tags": [
+        "undead"
+      ]
+    }
+  ],
+  "treasure": {
+    "tier1": [
+      "1d6 x 10 gp",
+      "2d6 x 10 gp",
+      "3d6 x 10 gp",
+      "4d6 x 10 gp",
+      "Potion of Healing",
+      "Potion of Healing (2)",
+      "Potion of Climbing",
+      "Potion of Watchful Rest",
+      "Potion of Animal Friendship",
+      "Scroll of Magic Missile",
+      "Scroll of Shield",
+      "Scroll of Detect Magic",
+      "Scroll of Feather Fall",
+      "Scroll of Identify",
+      "Scroll of Disguise Self",
+      "+1 Ammunition (1 piece)",
+      "+1 Ammunition (3 pieces)",
+      "Spellcasting Focus (ornate)",
+      "Gem (10 gp)",
+      "Gem (25 gp)",
+      "Gem (50 gp)",
+      "Art Object (25 gp)",
+      "Art Object (50 gp)",
+      "Silvered Weapon",
+      "Moon-Touched Sword",
+      "Driftglobe",
+      "Cloak of Billowing",
+      "Hat of Wizardry",
+      "Rope of Mending",
+      "Clockwork Amulet",
+      "Charlatan's Die",
+      "Ersatz Eye",
+      "Potion of Poison",
+      "Alchemist's Fire (3 flasks)",
+      "Acid (3 vials)",
+      "Healer's Kit (full)",
+      "Thieves' Tools (masterwork)",
+      "Spell Scroll (Cantrip)",
+      "Spell Scroll (1st level)",
+      "Religious Relic (minor)",
+      "Trinket of Fey Origin",
+      "Trinket of Infernal Origin",
+      "Local Map with Hidden Notes",
+      "Letter of Credit (50 gp)",
+      "Potion of Growth (diluted)",
+      "Potion of Water Breathing (1 hour)",
+      "Gemstone Ring (nonmagical)"
+    ],
+    "tier2": [
+      "2d4 x 50 gp",
+      "3d4 x 50 gp",
+      "4d4 x 50 gp",
+      "5d4 x 50 gp",
+      "Potion of Greater Healing",
+      "Potion of Greater Healing (2)",
+      "Potion of Heroism",
+      "Potion of Fire Breath",
+      "Potion of Resistance",
+      "Scroll of Misty Step",
+      "Scroll of Invisibility",
+      "Scroll of Levitate",
+      "Scroll of Web",
+      "Scroll of Scorching Ray",
+      "+1 Weapon",
+      "+1 Weapon (uncommon type)",
+      "+1 Shield",
+      "+1 Armor",
+      "Bag of Holding",
+      "Goggles of Night",
+      "Cloak of Elvenkind",
+      "Boots of Striding and Springing",
+      "Gauntlets of Ogre Power",
+      "Ring of Protection",
+      "Ring of Warmth",
+      "Ring of Swimming",
+      "Wand of Magic Missiles",
+      "Wand of Web",
+      "Gem (100 gp)",
+      "Gem (250 gp)",
+      "Art Object (250 gp)",
+      "Art Object (500 gp)",
+      "Sending Stones",
+      "Immovable Rod",
+      "Periapt of Wound Closure",
+      "Amulet of Proof against Detection and Location",
+      "Potion of Water Breathing",
+      "Potion of Mind Reading",
+      "Quiver of Ehlonna",
+      "Weapon of Warning",
+      "Eyes of the Eagle",
+      "Dust of Disappearance",
+      "Dust of Sneezing and Choking",
+      "Spell Scroll (2nd level)",
+      "Spell Scroll (3rd level)",
+      "Relic of a Minor Saint",
+      "Faction Signet Ring"
+    ],
+    "tier3": [
+      "2d6 x 100 gp",
+      "3d6 x 100 gp",
+      "4d6 x 100 gp",
+      "5d6 x 100 gp",
+      "Potion of Superior Healing",
+      "Potion of Superior Healing (2)",
+      "Potion of Speed",
+      "Potion of Invulnerability",
+      "Scroll of Fireball",
+      "Scroll of Fly",
+      "Scroll of Counterspell",
+      "Scroll of Dispel Magic",
+      "Scroll of Blight",
+      "+2 Weapon",
+      "+2 Weapon (special material)",
+      "+1 Armor",
+      "+2 Shield",
+      "Cloak of Protection",
+      "Ring of Spell Storing",
+      "Ring of Evasion",
+      "Wand of Fireballs",
+      "Wand of Lightning Bolts",
+      "Staff of the Python",
+      "Staff of the Adder",
+      "Belt of Hill Giant Strength",
+      "Amulet of Health",
+      "Boots of Speed",
+      "Bracers of Defense",
+      "Gem (500 gp)",
+      "Gem (1,000 gp)",
+      "Art Object (750 gp)",
+      "Art Object (1,500 gp)",
+      "Manual of Gainful Exercise (partial)",
+      "Tome of Clear Thought (partial)",
+      "Horn of Blasting",
+      "Cape of the Mountebank",
+      "Helm of Teleportation",
+      "Ioun Stone (awareness)",
+      "Ioun Stone (protection)",
+      "Spell Scroll (4th level)",
+      "Spell Scroll (5th level)",
+      "Relic of an Ancient Hero",
+      "Planar Key (single use)",
+      "Sentient Trinket (dormant)",
+      "Potion of Longevity"
+    ],
+    "tier4": [
+      "2d6 x 1,000 gp",
+      "3d6 x 1,000 gp",
+      "4d6 x 1,000 gp",
+      "5d6 x 1,000 gp",
+      "Potion of Supreme Healing",
+      "Potion of Supreme Healing (2)",
+      "Potion of Storm Giant Strength",
+      "Potion of Invisibility (greater)",
+      "Scroll of Disintegrate",
+      "Scroll of Plane Shift",
+      "Scroll of Globe of Invulnerability",
+      "Scroll of Resurrection",
+      "+3 Weapon",
+      "+3 Weapon (named)",
+      "+2 Armor",
+      "+3 Shield",
+      "Staff of Power",
+      "Staff of the Magi",
+      "Holy Avenger",
+      "Vorpal Sword",
+      "Ring of Three Wishes (1 charge)",
+      "Ring of Regeneration",
+      "Belt of Storm Giant Strength",
+      "Cloak of Invisibility",
+      "Rod of Lordly Might",
+      "Talisman of Pure Good",
+      "Talisman of Ultimate Evil",
+      "Gem (5,000 gp)",
+      "Gem (10,000 gp)",
+      "Art Object (7,500 gp)",
+      "Art Object (15,000 gp)",
+      "Manual of Bodily Health",
+      "Tome of Leadership and Influence",
+      "Ioun Stone (mastery)",
+      "Ioun Stone (regeneration)",
+      "Sphere of Annihilation (unstable)",
+      "Deck of Illusions",
+      "Crystal Ball",
+      "Spell Scroll (6th level)",
+      "Spell Scroll (7th level)",
+      "Spell Scroll (8th level)",
+      "Spell Scroll (9th level)",
+      "Relic of a Forgotten God",
+      "Artifact (minor)",
+      "Artifact (major)",
+      "Sentient Weapon (awakened)",
+      "Planar Stronghold Deed"
+    ]
+  },
+  "features": {
+    "standard": [
+      "Pile of rubble",
+      "Broken statue",
+      "Tapestry",
+      "Iron chandelier",
+      "Wooden crates",
+      "Bookcase"
+    ],
+    "abandoned": [
+      "Thick dust coating every surface",
+      "Cobwebs hanging like curtains",
+      "Rotting wooden furniture",
+      "Collapsed section of ceiling",
+      "Broken doors hanging from hinges",
+      "Mold-stained walls",
+      "Shattered glass on the floor",
+      "Peeling paint and warped boards",
+      "Dry footprints frozen in dust",
+      "Mouse nests in corners",
+      "Rusted nails scattered about",
+      "Faded murals barely visible",
+      "Water damage creeping up walls",
+      "Crumbling stonework",
+      "Abandoned personal belongings",
+      "A chair toppled as if left in haste",
+      "Holes chewed through walls",
+      "Sagging support beams",
+      "Stale, unmoving air",
+      "Collapsed shelves",
+      "Torn tapestries",
+      "Old fire pit filled with ash",
+      "Broken clock stopped mid-hour",
+      "Scraps of rotten cloth",
+      "Mildewed books",
+      "Empty bottles and cracked mugs",
+      "Bird droppings near openings",
+      "Loose floorboards",
+      "Cracked tiles",
+      "Faded chalk markings",
+      "A door sealed shut by debris",
+      "Moss creeping through cracks",
+      "Scratches on walls of unknown origin",
+      "Sunlight filtering through holes",
+      "Long-dried bloodstains",
+      "Wind whistling through gaps",
+      "Collapsed stairway",
+      "Overgrown roots pushing inside",
+      "Abandoned tools",
+      "Rotten food remains",
+      "Burn marks from an old fire",
+      "A nest of insects",
+      "Broken lock",
+      "Discarded shoes",
+      "Fallen chandelier",
+      "Loose stones underfoot",
+      "A room partially caved in",
+      "Dust clouds stirred by movement",
+      "An eerie silence"
+    ],
+    "monstrous_aberrant": [
+      "Walls subtly pulsing",
+      "Organic growths fused to stone",
+      "Faint whispers with no source",
+      "Slime trails on ceilings",
+      "Eyes embedded in fleshy walls",
+      "Impossible angles in architecture",
+      "Air that smells of ozone",
+      "Veins running through rock",
+      "Mucus-coated floors",
+      "Unsettling clicking sounds",
+      "Gravity feels slightly wrong",
+      "Fleshy tendrils retracting into cracks",
+      "Walls that feel warm to the touch",
+      "Puddles that ripple without cause",
+      "Echoes that don’t match sounds",
+      "Chitin fragments scattered about",
+      "Pulsing cysts along corridors",
+      "Shadows that move independently",
+      "Strange symbols carved by claws",
+      "Unnatural silence",
+      "A constant low hum",
+      "Bones partially absorbed into walls",
+      "Shimmering air distortion",
+      "Doors grown shut with flesh",
+      "Bioluminescent patches",
+      "A coppery smell",
+      "Uneven, spongy floors",
+      "Dripping ichor",
+      "Faint psychic pressure",
+      "Warped reflections",
+      "Twitching growths",
+      "Walls slick with condensation",
+      "Alien residue coating surfaces",
+      "Organic sacs hanging overhead",
+      "Faint sobbing sounds",
+      "Living shadows",
+      "Carvings depicting impossible beings",
+      "Pulsing lights beneath stone",
+      "Soft squelching footsteps",
+      "Breathing sounds from walls",
+      "A sense of being watched",
+      "Fused remains of creatures",
+      "Strange crystalline growths",
+      "Alien eggs",
+      "Mind-numbing patterns",
+      "Sticky web-like filaments",
+      "Unnatural cold spots",
+      "Psychic echoes",
+      "Walls that seem to listen"
+    ],
+    "monstrous_giant": [
+      "Crushed furniture",
+      "Oversized doorways",
+      "Deep footprints in stone",
+      "Broken columns",
+      "Massive handholds in walls",
+      "Boulders used as stools",
+      "Ceilings cracked from impact",
+      "Huge chains bolted into walls",
+      "Gigantic weapon racks",
+      "Fire pit the size of a wagon",
+      "Massive bones scattered about",
+      "Stone benches shattered",
+      "Large claw or bite marks",
+      "Enormous shields mounted as décor",
+      "Collapsed walls from brute force",
+      "Thrown rubble piles",
+      "Stone blocks dragged aside",
+      "Crude giant-sized furniture",
+      "Broken staircases",
+      "Torn banners",
+      "Large drinking vessels",
+      "Cracked floors",
+      "Heavy doors ripped from hinges",
+      "Deep gouges in stone",
+      "Giant bedrolls",
+      "Massive chains and manacles",
+      "Huge cooking implements",
+      "Splintered support beams",
+      "Broken pillars",
+      "Large animal carcasses",
+      "Stone walls smeared with grease",
+      "Oversized torches",
+      "Rock piles used as barricades",
+      "Huge sacks or packs",
+      "Crushed statues",
+      "Ceiling beams snapped",
+      "Deep echoing acoustics",
+      "Large trophies mounted on walls",
+      "Broken ladders",
+      "Cave-ins from heavy movement",
+      "Large scrape marks",
+      "Stones stacked crudely",
+      "Wide, uneven stairs",
+      "Massive doors barred with beams",
+      "Foul-smelling refuse heaps",
+      "Enormous footprints filled with water",
+      "Structural damage everywhere",
+      "Boulders wedged into walls",
+      "Crude carvings",
+      "Rubble-strewn halls"
+    ],
+    "monstrous_undead": [
+      "Cold, stale air",
+      "Faint smell of decay",
+      "Scattered bones",
+      "Cobweb-draped skulls",
+      "Grave dirt on the floor",
+      "Cracked sarcophagi",
+      "Walls etched with funerary symbols",
+      "Flickering ghostly lights",
+      "Chill mist clinging to the ground",
+      "Rusted chains",
+      "Scratches inside coffins",
+      "Blackened candles",
+      "Ash-filled urns",
+      "Broken tombstones",
+      "Mummified remains",
+      "Bloodstains long dried",
+      "Faded burial shrouds",
+      "Collapsed crypt walls",
+      "Hollow moaning echoes",
+      "Shadows unnaturally still",
+      "Grave offerings scattered",
+      "Rotten wooden coffins",
+      "Cracked bone fragments",
+      "Necromantic sigils",
+      "Cold stone slabs",
+      "Dust mixed with ash",
+      "Mold-covered bones",
+      "Spirit chains anchored to walls",
+      "Unholy symbols",
+      "Whispers from nowhere",
+      "Footprints that fade away",
+      "Dark residue on walls",
+      "Eerie silence",
+      "Faded holy icons",
+      "Skeletal remains piled high",
+      "Collapsed burial niches",
+      "Stale incense smell",
+      "Blackened iron gates",
+      "Runes of binding",
+      "Ghostly handprints",
+      "Lingering dread",
+      "Cracked skulls",
+      "Bone wind chimes",
+      "Desecrated altar",
+      "Unmoving dust motes",
+      "Cold drafts",
+      "Grave soil mounds",
+      "Uneasy stillness",
+      "Necrotic scorch marks"
+    ],
+    "monstrous_vermin": [
+      "Gnawed wooden beams",
+      "Droppings scattered everywhere",
+      "Narrow crawl tunnels",
+      "Chewed sacks",
+      "Webs thick with debris",
+      "Egg clusters",
+      "Hissing or skittering sounds",
+      "Sticky floors",
+      "Half-eaten carcasses",
+      "Burrow entrances",
+      "Nests of shredded material",
+      "Fur clinging to walls",
+      "Insect husks",
+      "Chewed stone edges",
+      "Pungent ammonia smell",
+      "Swarming insects",
+      "Collapsed tunnels from burrowing",
+      "Web-choked hallways",
+      "Chitin shards",
+      "Scratched walls",
+      "Hollowed beams",
+      "Mold from waste",
+      "Dripping acidic residue",
+      "Sticky silk strands",
+      "Rotting organic piles",
+      "Bone fragments",
+      "Narrow escape holes",
+      "Tunnels too small for Medium creatures",
+      "Piles of molted skin",
+      "Skittering echoes",
+      "Dark stains on stone",
+      "Fungus growing on waste",
+      "Half-buried bones",
+      "Swarm movement vibrations",
+      "Web-wrapped objects",
+      "Burrowed supports",
+      "Gnawed doors",
+      "Buzzing clouds",
+      "Collapsed flooring",
+      "Sticky footprints",
+      "Pheromone-scented air",
+      "Webbed ceilings",
+      "Egg sacs overhead",
+      "Loose soil everywhere",
+      "Nest guardians’ remains",
+      "Chittering echoes",
+      "Soft crunch underfoot",
+      "Tunnels branching wildly",
+      "Overrun storage areas"
+    ],
+    "aquatic": [
+      "Puddle of brine",
+      "Barnacles on wall",
+      "Dripping ceiling",
+      "Pool of water",
+      "Shallow pools of water",
+      "Dripping ceilings",
+      "Slippery stone floors",
+      "Barnacles clinging to walls",
+      "Seaweed tangled in corners",
+      "Brine-scented air",
+      "Waterlogged debris",
+      "Algae-coated surfaces",
+      "Crabs skittering away",
+      "Shell fragments",
+      "Coral growths",
+      "Water-filled pits",
+      "Fish darting through pools",
+      "Barnacle-encrusted doors",
+      "Driftwood piles",
+      "Salt crystals",
+      "Kelp curtains",
+      "Tidal markings on walls",
+      "Bioluminescent algae",
+      "Submerged passages",
+      "Air bubbles rising from cracks",
+      "Sunlight refracting through water",
+      "Rust from constant moisture",
+      "Sloshing footsteps",
+      "Underwater currents",
+      "Collapsed walls flooded",
+      "Floating debris",
+      "Barnacle-covered statues",
+      "Cracked stone from erosion",
+      "Cold water seepage",
+      "Murky visibility",
+      "Water-polished stones",
+      "Fish bones",
+      "Drowned remains",
+      "Slime-coated ladders",
+      "Partially flooded chambers",
+      "Dripping stalactites",
+      "Slick algae mats",
+      "Tangled nets",
+      "Air pockets",
+      "Flooded stairwells",
+      "Salt-stained carvings",
+      "Currents tugging clothing",
+      "Silt clouds",
+      "Sea life nests",
+      "Sunken containers",
+      "Tidal debris lines",
+      "Coral-covered pillars",
+      "Whale-song echoes"
+    ],
+    "mine": [
+      "Broken mine cart",
+      "Pickaxes on wall",
+      "Collapsed tunnel",
+      "Rail tracks",
+      "Lantern on hook",
+      "Rusty rail tracks",
+      "Collapsed tunnel",
+      "Pickaxes hanging on wall",
+      "Lantern hooks",
+      "Abandoned lanterns",
+      "Cracked support beams",
+      "Timber braces splintered",
+      "Ore veins in walls",
+      "Loose gravel underfoot",
+      "Mine shaft descending into darkness",
+      "Rope lines dangling",
+      "Dusty air",
+      "Rockfall debris",
+      "Wooden scaffolding",
+      "Ore carts tipped over",
+      "Chalk markings for shifts",
+      "Warning signs carved into wood",
+      "Old blasting charges",
+      "Powder kegs",
+      "Water seepage pooling",
+      "Collapsed elevator lift",
+      "Broken pulley system",
+      "Hammered pitons",
+      "Carved rest alcoves",
+      "Tool racks",
+      "Fungal growths",
+      "Echoing drips",
+      "Narrow ventilation shafts",
+      "Reinforced stone arches",
+      "Worn footpaths",
+      "Bloodstained rock",
+      "Rusted chains",
+      "Shattered crates",
+      "Mine maps pinned to walls",
+      "Hollow echoes",
+      "Dust clouds when disturbed",
+      "Abandoned helmets",
+      "Bent metal supports",
+      "Cracked winches",
+      "Rock dust coating surfaces",
+      "Collapsed side tunnels",
+      "Loose ceiling stones",
+      "Deep vertical shafts",
+      "Ore sorting tables",
+      "Faded company insignia",
+      "Tool marks everywhere",
+      "Abandoned lunch tins",
+      "Stale, heavy air"
+    ],
+    "arcane": [
+      "Glowing runes",
+      "Alchemical table",
+      "Floating orb",
+      "Chalk circle",
+      "Humming crystal",
+      "Glowing runes etched into stone",
+      "Humming crystals",
+      "Floating motes of light",
+      "Arcane circles chalked on floors",
+      "Alchemical worktables",
+      "Spell-scorched walls",
+      "Crackling magical energy",
+      "Runic pillars",
+      "Books suspended midair",
+      "Magical residue stains",
+      "Warped gravity pockets",
+      "Animated objects at rest",
+      "Arcane sigils pulsing faintly",
+      "Broken wands and staves",
+      "Ley-line fractures",
+      "Crystals embedded in walls",
+      "Teleportation glyphs",
+      "Illusory walls",
+      "Arcane mirrors",
+      "Summoning circles",
+      "Mana-charged air",
+      "Time-worn magical barriers",
+      "Arcane conduits",
+      "Flickering magical flames",
+      "Spell diagrams carved deep",
+      "Arcane locks",
+      "Floating staircases",
+      "Dispelled enchantment scars",
+      "Transmutation tables",
+      "Arcane scorch marks",
+      "Glowing veins of magic",
+      "Runed doors",
+      "Magical static",
+      "Unstable spell nodes",
+      "Hovering debris",
+      "Residual spell echoes",
+      "Arcane crystal growths",
+      "Mana leaks",
+      "Enchanted chains",
+      "Protective wards",
+      "Broken spell foci",
+      "Arcane laboratories",
+      "Fading illusions",
+      "Mystical fog",
+      "Arcane brands on stone",
+      "Floating platforms",
+      "Spell-sealed vaults",
+      "Whispering magic",
+      "Reality distortions"
+    ],
+    "underdark": [
+      "Bioluminescent fungi",
+      "Towering stalagmites",
+      "Dripping stalactites",
+      "Light-absorbing stone",
+      "Echoing caverns",
+      "Subterranean rivers",
+      "Glowing lichen",
+      "Chitinous remains",
+      "Web-filled tunnels",
+      "Fungal forests",
+      "Slime-coated rock",
+      "Narrow stone bridges",
+      "Deep chasms",
+      "Phosphorescent moss",
+      "Alien rock formations",
+      "Spore clouds",
+      "Ancient stone roads",
+      "Collapsed caverns",
+      "Carved drow glyphs",
+      "Faerzress radiation",
+      "Twisting tunnels",
+      "Natural stone pillars",
+      "Crystal outcroppings",
+      "Cave-in debris",
+      "Mushroom caps the size of trees",
+      "Sticky cave resin",
+      "Burrowing creature tunnels",
+      "Dark pools",
+      "Echoing silence",
+      "Web-choked ceilings",
+      "Ancient ruins",
+      "Stone bridges worn smooth",
+      "Natural stone thrones",
+      "Glow-worm clusters",
+      "Fungus-choked ruins",
+      "Subterranean wind currents",
+      "Jagged rock spines",
+      "Black glass formations",
+      "Living stone textures",
+      "Ancient sacrificial altars",
+      "Collapsed obsidian towers",
+      "Cave paintings",
+      "Shimmering mineral veins",
+      "Silent fungal growths",
+      "Unearthly echoes",
+      "Bone-strewn tunnels",
+      "Hidden sinkholes",
+      "Endless darkness"
+    ],
+    "desert": [
+      "Blowing sand",
+      "Cracked stone floors",
+      "Sand-filled corridors",
+      "Sun-bleached walls",
+      "Heat shimmer",
+      "Dry, choking air",
+      "Collapsed sandstone ceilings",
+      "Buried doorways",
+      "Scoured carvings",
+      "Salt-crusted stone",
+      "Wind-carved pillars",
+      "Drifting dunes indoors",
+      "Ancient sun symbols",
+      "Broken obelisks",
+      "Sand-polished statues",
+      "Dried wells",
+      "Scorpion nests",
+      "Sunken chambers",
+      "Faded murals",
+      "Mirage-like illusions",
+      "Collapsed adobe walls",
+      "Sun-cracked tiles",
+      "Buried staircases",
+      "Heat-warped metal",
+      "Wind howling through halls",
+      "Carved stone vents",
+      "Nomad graffiti",
+      "Salt deposits",
+      "Desiccated remains",
+      "Dust storms seeping inside",
+      "Sandfall traps",
+      "Ancient irrigation channels",
+      "Buried altars",
+      "Sun-blasted courtyards",
+      "Worn hieroglyphs",
+      "Bleached bones",
+      "Hidden cisterns",
+      "Cracked pillars",
+      "Scalding surfaces",
+      "Eroded doorframes",
+      "Shifting floors",
+      "Sunken floors",
+      "Ancient desert relics",
+      "Buried sarcophagi",
+      "Wind-smoothed stone",
+      "Collapsed domes",
+      "Echoing emptiness"
+    ],
+    "fire": [
+      "Open flames",
+      "Scorched stone",
+      "Charred beams",
+      "Ash-covered floors",
+      "Heat distortion",
+      "Smoldering embers",
+      "Magma cracks",
+      "Burning braziers",
+      "Molten rock seepage",
+      "Soot-stained walls",
+      "Fire glyphs",
+      "Sulfurous air",
+      "Scalding steam vents",
+      "Blistering heat waves",
+      "Flame jets",
+      "Burned tapestries",
+      "Obsidian floors",
+      "Cracked basalt pillars",
+      "Charcoal remains",
+      "Heat-blackened metal",
+      "Fire elemental scorch marks",
+      "Collapsed fire-warped ceilings",
+      "Lava channels",
+      "Burning runes",
+      "Flame-lit halls",
+      "Cinders drifting",
+      "Ignited sigils",
+      "Ash drifts",
+      "Fire-scorched skeletons",
+      "Melted stone",
+      "Flaming braziers",
+      "Burning oil pools",
+      "Glowing embers",
+      "Fire-warped doors",
+      "Smoky haze",
+      "Burn scars everywhere",
+      "Blazing fissures",
+      "Heat-cracked walls",
+      "Charred offerings",
+      "Eternal flames",
+      "Burning altars",
+      "Fire traps",
+      "Searing winds",
+      "Molten footprints",
+      "Scorching air currents",
+      "Firelight shadows",
+      "Lava-dripped ceilings",
+      "Crackling heat"
+    ],
+    "cold": [
+      "Ice-coated floors",
+      "Frozen walls",
+      "Icicles hanging overhead",
+      "Frost-covered stone",
+      "Bitter cold air",
+      "Frozen door hinges",
+      "Cracked ice sheets",
+      "Snow drifts indoors",
+      "Frozen corpses",
+      "Rime-covered pillars",
+      "Frostbite-inducing winds",
+      "Glacial cracks",
+      "Ice-slick stairs",
+      "Frozen breath clouds",
+      "Blue-tinged ice",
+      "Frozen pools",
+      "Snow-choked passages",
+      "Ice-bound chains",
+      "Frozen banners",
+      "Ice-encased objects",
+      "Cold mist",
+      "Frost runes",
+      "Frozen locks",
+      "Cracking ice sounds",
+      "Shimmering frost",
+      "Permafrost floors",
+      "Ice bridges",
+      "Snowfall through cracks",
+      "Frozen stalactites",
+      "Ice mirrors",
+      "Hoarfrost patterns",
+      "Frozen bloodstains",
+      "Chilled silence",
+      "Ice-crusted doors",
+      "Frost-covered bones",
+      "Frozen traps",
+      "Slippery footing",
+      "Cold echoes",
+      "Ice-veined walls",
+      "Frozen altars",
+      "Rimed statues",
+      "Subzero drafts",
+      "Crystalline ice growths",
+      "Brittle frozen stone",
+      "Snow-packed chambers",
+      "Frozen glyphs",
+      "Ice-sheathed ceilings",
+      "Endless chill"
+    ],
+    "abyssal": [
+      "Warped, screaming stone",
+      "Bleeding walls",
+      "Chaotic architecture",
+      "Abyssal runes",
+      "Fetid air",
+      "Pits into darkness",
+      "Twisted spires",
+      "Shifting hallways",
+      "Echoing screams",
+      "Demonic sigils",
+      "Corrupted stone",
+      "Flesh-fused rock",
+      "Unstable gravity",
+      "Pools of ichor",
+      "Writhing shadows",
+      "Broken reality seams",
+      "Howling winds",
+      "Floating debris",
+      "Bone growths",
+      "Blood-soaked floors",
+      "Mutating surfaces",
+      "Abyssal fire",
+      "Demonic chains",
+      "Living walls",
+      "Endless chasms",
+      "Unholy altars",
+      "Chaotic geometry",
+      "Screaming faces in stone",
+      "Rifts to the Abyss",
+      "Demonic murals",
+      "Warped staircases",
+      "Shuddering ground",
+      "Abyssal whispers",
+      "Soul-draining cold",
+      "Corrupt growths",
+      "Floating eyes",
+      "Gravity distortions",
+      "Unstable terrain",
+      "Shrieking winds",
+      "Reality tears",
+      "Blood rain seepage",
+      "Living darkness",
+      "Frenzied echoes",
+      "Chaotic ley fractures",
+      "Abyssal ichor pools",
+      "Tormented spirits",
+      "Twisting corridors",
+      "Ever-changing walls",
+      "Unending madness"
+    ],
+    "infernal": [
+      "Hellfire braziers",
+      "Iron-barred corridors",
+      "Chains bolted into walls",
+      "Infernal contracts carved in stone",
+      "Sulfurous smoke",
+      "Brimstone floors",
+      "Barbed iron spikes",
+      "Glowing infernal runes",
+      "Lava-lit halls",
+      "Black iron doors",
+      "Crushing chains",
+      "Burning glyphs",
+      "Hellish machinery",
+      "Searing heat",
+      "Devilish murals",
+      "Blood channels",
+      "Infernal sigils",
+      "Fiendish altars",
+      "Iron thrones",
+      "Magma grates",
+      "Echoing screams",
+      "Hellforged pillars",
+      "Infernal brand marks",
+      "Barbed floors",
+      "Fiendish statues",
+      "Iron cages",
+      "Burning chains",
+      "Contracts nailed to walls",
+      "Hellfire vents",
+      "Glowing embers",
+      "Scorched obsidian",
+      "Torture implements",
+      "Infernal anvils",
+      "Soul-binding circles",
+      "Blood-stained iron",
+      "Devilish script",
+      "Ever-burning flames",
+      "Chains dragging sounds",
+      "Iron spikes everywhere",
+      "Molten iron flows",
+      "Infernal locks",
+      "Hellish heat haze",
+      "Fiendish forges",
+      "Branded stone",
+      "Screaming metal",
+      "Crimson-lit halls",
+      "Unholy silence",
+      "Smoldering contracts",
+      "Infernal authority symbols"
+    ]
+  },
+  "traps": [
+    {
+      "name": "Pit Trap",
+      "dc": 12,
+      "desc": "A concealed 10-foot-deep pit opens beneath the creature."
+    },
+    {
+      "name": "Hidden Pit Trap",
+      "dc": 14,
+      "desc": "A camouflaged pit concealed beneath debris or cloth."
+    },
+    {
+      "name": "Locking Pit Trap",
+      "dc": 15,
+      "desc": "A pit opens and iron bars slam shut overhead."
+    },
+    {
+      "name": "Spiked Pit",
+      "dc": 13,
+      "desc": "A pit lined with sharp spikes at the bottom."
+    },
+    {
+      "name": "Collapsing Floor",
+      "dc": 15,
+      "desc": "The floor gives way, dropping creatures into a lower chamber."
+    },
+    {
+      "name": "Tripwire",
+      "dc": 14,
+      "desc": "A nearly invisible wire triggers a hidden mechanism."
+    },
+    {
+      "name": "Tripwire Crossbow",
+      "dc": 14,
+      "desc": "A tripwire releases a volley of crossbow bolts."
+    },
+    {
+      "name": "Tripwire Alarm",
+      "dc": 12,
+      "desc": "Triggers a loud alarm alerting nearby creatures."
+    },
+    {
+      "name": "Pressure Plate",
+      "dc": 13,
+      "desc": "A weighted plate activates a hidden mechanism."
+    },
+    {
+      "name": "Pressure Plate Poison Gas",
+      "dc": 14,
+      "desc": "A pressure plate releases toxic gas into the area."
+    },
+    {
+      "name": "Pressure Plate Dart Trap",
+      "dc": 13,
+      "desc": "Stepping on the plate fires poisoned darts from the walls."
+    },
+    {
+      "name": "Poison Dart Trap",
+      "dc": 13,
+      "desc": "Hidden darts fire from narrow wall slits."
+    },
+    {
+      "name": "Poison Needle Lock",
+      "dc": 15,
+      "desc": "A trapped lock injects poison when tampered with."
+    },
+    {
+      "name": "Falling Net",
+      "dc": 12,
+      "desc": "A weighted net drops from above, restraining creatures."
+    },
+    {
+      "name": "Falling Block",
+      "dc": 15,
+      "desc": "A massive stone block drops from the ceiling."
+    },
+    {
+      "name": "Falling Rocks",
+      "dc": 14,
+      "desc": "Loose stones cascade from above when triggered."
+    },
+    {
+      "name": "Swinging Blade",
+      "dc": 15,
+      "desc": "A concealed blade swings across the corridor."
+    },
+    {
+      "name": "Scything Blades",
+      "dc": 16,
+      "desc": "Multiple blades sweep back and forth through the area."
+    },
+    {
+      "name": "Rolling Boulder",
+      "dc": 15,
+      "desc": "A massive boulder rolls down a passageway."
+    },
+    {
+      "name": "Flame Jet",
+      "dc": 14,
+      "desc": "Jets of flame erupt from hidden nozzles."
+    },
+    {
+      "name": "Burning Oil Trap",
+      "dc": 13,
+      "desc": "Oil pours into the area and ignites."
+    },
+    {
+      "name": "Glyph of Warding",
+      "dc": 15,
+      "desc": "Magical runes trigger an explosive or spell effect."
+    },
+    {
+      "name": "Explosive Runes",
+      "dc": 15,
+      "desc": "Runes detonate when read or disturbed."
+    },
+    {
+      "name": "Symbol Trap",
+      "dc": 17,
+      "desc": "A powerful magical symbol inflicts a debilitating effect."
+    },
+    {
+      "name": "Poison Gas Vent",
+      "dc": 14,
+      "desc": "Hidden vents flood the room with poisonous gas."
+    },
+    {
+      "name": "Sleep Gas Trap",
+      "dc": 13,
+      "desc": "A colorless gas induces magical sleep."
+    },
+    {
+      "name": "Collapsing Ceiling",
+      "dc": 16,
+      "desc": "The ceiling caves in, burying creatures in rubble."
+    },
+    {
+      "name": "Cave-In",
+      "dc": 15,
+      "desc": "A triggered collapse seals exits and fills the area with debris."
+    },
+    {
+      "name": "Flooding Chamber",
+      "dc": 15,
+      "desc": "Water rapidly floods the room from hidden channels."
+    },
+    {
+      "name": "Rising Water Trap",
+      "dc": 14,
+      "desc": "Water fills the room steadily, threatening to drown occupants."
+    },
+    {
+      "name": "Arcane Lockdown",
+      "dc": 16,
+      "desc": "Magical barriers seal doors and prevent escape."
+    },
+    {
+      "name": "Teleportation Snare",
+      "dc": 15,
+      "desc": "Triggers involuntary teleportation to a nearby location."
+    },
+    {
+      "name": "Lightning Conduit Floor",
+      "dc": 15,
+      "desc": "Metallic flooring discharges lightning when stepped on."
+    },
+    {
+      "name": "Shock Rune",
+      "dc": 14,
+      "desc": "A rune releases a burst of electrical energy."
+    },
+    {
+      "name": "Frost Jet Trap",
+      "dc": 14,
+      "desc": "Freezing air blasts from concealed vents."
+    },
+    {
+      "name": "Freezing Floor",
+      "dc": 13,
+      "desc": "The floor rapidly freezes, becoming slick and numbing."
+    },
+    {
+      "name": "Acid Spray Trap",
+      "dc": 14,
+      "desc": "Acid sprays from hidden wall apertures."
+    },
+    {
+      "name": "Corrosive Sludge Pit",
+      "dc": 15,
+      "desc": "A false floor collapses into a pit of acidic sludge."
+    },
+    {
+      "name": "Bladed Door",
+      "dc": 15,
+      "desc": "Opening the door triggers concealed blades along its frame."
+    },
+    {
+      "name": "Crushing Walls",
+      "dc": 17,
+      "desc": "Walls slowly close in, threatening to crush anything inside."
+    },
+    {
+      "name": "Soul Drain Sigil",
+      "dc": 16,
+      "desc": "A dark sigil siphons life energy from nearby creatures."
+    },
+    {
+      "name": "Fear Glyph",
+      "dc": 14,
+      "desc": "A glyph induces supernatural terror."
+    },
+    {
+      "name": "Rotating Floor",
+      "dc": 14,
+      "desc": "The floor spins, dumping creatures into adjacent hazards."
+    },
+    {
+      "name": "False Staircase",
+      "dc": 13,
+      "desc": "Stairs collapse into a sliding chute."
+    },
+    {
+      "name": "Summoning Trap",
+      "dc": 16,
+      "desc": "The trap summons hostile creatures when triggered."
+    },
+    {
+      "name": "Alarm Sigil",
+      "dc": 12,
+      "desc": "A magical glyph alerts nearby guardians."
+    },
+    {
+      "name": "Shadow Snare",
+      "dc": 15,
+      "desc": "Dark tendrils restrain creatures in dim light."
+    },
+    {
+      "name": "Gravity Reversal Plate",
+      "dc": 16,
+      "desc": "Gravity briefly reverses, flinging creatures upward."
+    }
+  ]
+}
