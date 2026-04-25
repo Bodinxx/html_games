@@ -41,7 +41,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 echo json_encode(['ok' => true]);
             } else {
                 $_SESSION['de_fails']++;
-                if ($_SESSION['de_fails'] >= 5) $_SESSION['de_lockout'] = $now + 30;
+                // Exponential back-off: 1 min after 5 fails, doubling to max 10 min
+                if ($_SESSION['de_fails'] >= 5) {
+                    $lockSeconds = min(600, 60 * pow(2, $_SESSION['de_fails'] - 5));
+                    $_SESSION['de_lockout'] = $now + (int)$lockSeconds;
+                }
                 sleep(1);
                 echo json_encode(['error' => 'Incorrect password']);
             }
@@ -127,16 +131,13 @@ function safeFile(string $raw): string {
     $b = basename(trim($raw));
     if (!preg_match('/^[a-zA-Z0-9_\-]+\.json$/', $b)) return '';
     if (in_array($b, EXCLUDED)) return '';
-    // Confirm the resolved target path stays within DATA_DIR
+    // After basename(), $b contains no directory separators, so DATA_DIR . $b is safe.
+    // For existing files, do a realpath check to guard against symlinks.
     $dir = realpath(DATA_DIR);
     if ($dir === false) return '';
     if (file_exists(DATA_DIR . $b)) {
-        // Existing file: verify via realpath
         $rp = realpath(DATA_DIR . $b);
         if ($rp === false || strpos($rp, $dir . DIRECTORY_SEPARATOR) !== 0) return '';
-    } else {
-        // New file: verify the parent directory is DATA_DIR (basename already strips any separators)
-        if (realpath(dirname(DATA_DIR . $b)) !== $dir) return '';
     }
     return $b;
 }
@@ -440,7 +441,7 @@ const S = {
 
 // ── API ──────────────────────────────────────────────────────
 async function api(params) {
-  const r = await fetch('json_editor.php', {
+  const r = await fetch(window.location.pathname, {
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: new URLSearchParams(params)
