@@ -94,6 +94,10 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--panel)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.corridor-note{cursor:pointer;transition:background 0.15s}
+.corridor-note:hover td{background:rgba(233,69,96,0.12)}
+.corridor-note.highlighted td{background:rgba(233,69,96,0.22)}
+.corridor-label-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--accent);color:#fff;font-size:0.6rem;font-weight:700;margin-right:0.3rem;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -287,6 +291,15 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
     </div>
 
     <h2>Display</h2>
+    <div class="cg">
+      <label>UI Theme</label>
+      <select id="ui-theme">
+        <option value="dark">Dark (default)</option>
+        <option value="light">Light</option>
+        <option value="light-blue">Light Blue</option>
+        <option value="dark-green">Dark Green</option>
+      </select>
+    </div>
     <div class="cg">
       <label>Wall Style</label>
       <select id="wall-style">
@@ -982,11 +995,29 @@ class ContentGen {
 
   _genCorridorNotes() {
     const features = DATA.corridorFeatures || INLINE_CORRIDOR_FEATURES;
-    const notes = [];
-    // Sample ~30% of features to sprinkle as corridor observations
-    const count = Math.max(2, Math.floor(features.length * 0.3));
+    const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    // Find valid corridor cells for placement (not entrance/room/stair)
+    const { cell, n_rows, n_cols } = this.dungeon;
+    const corridorCells = [];
+    for (let r = 1; r < n_rows - 1; r++)
+      for (let c = 1; c < n_cols - 1; c++) {
+        const v = cell[r][c];
+        if ((v & CORRIDOR) && !(v & (ENTRANCE | ROOM | STAIR_UP | STAIR_DN)))
+          corridorCells.push({ r, c });
+      }
+    const shuffledCells = this.rng.shuffle(corridorCells);
+
+    // Sample ~30% of features; cap at 26 (one letter per note) and available cells
+    const maxCount = Math.min(LABELS.length, shuffledCells.length);
+    const count = Math.min(maxCount, Math.max(2, Math.floor(features.length * 0.3)));
     const pool = this.rng.shuffle(features.slice()).slice(0, count);
-    pool.forEach((f, i) => notes.push({ id: i+1, text: f }));
+
+    const notes = [];
+    pool.forEach((f, i) => {
+      const pos = shuffledCells[i];
+      notes.push({ id: i + 1, label: LABELS[i], text: f, r: pos.r, c: pos.c });
+    });
     return notes;
   }
 
@@ -1121,6 +1152,42 @@ class ContentGen {
 }
 
 // ═══════════════════════════════════════════════════════════
+// UI THEMES
+// ═══════════════════════════════════════════════════════════
+const UI_THEMES = {
+  dark: {
+    '--bg':'#1a1a2e','--panel':'#16213e','--panel2':'#0f3460',
+    '--accent':'#e94560','--accent2':'#4a90d9',
+    '--text':'#e0e0e0','--text-dim':'#888','--border':'#2a2a4a',
+    '--input-bg':'#0d1b2a',
+  },
+  light: {
+    '--bg':'#f0f0f5','--panel':'#ffffff','--panel2':'#e2e6ee',
+    '--accent':'#c0392b','--accent2':'#2471a3',
+    '--text':'#1a1a2e','--text-dim':'#555','--border':'#c8ccd8',
+    '--input-bg':'#f8f8fb',
+  },
+  'light-blue': {
+    '--bg':'#dbeaf5','--panel':'#eaf4fb','--panel2':'#b0d4ee',
+    '--accent':'#1a5276','--accent2':'#1f618d',
+    '--text':'#0d2a3d','--text-dim':'#456','--border':'#85c1e9',
+    '--input-bg':'#f0f8ff',
+  },
+  'dark-green': {
+    '--bg':'#0d1f0d','--panel':'#122112','--panel2':'#1a3a1a',
+    '--accent':'#4caf50','--accent2':'#81c784',
+    '--text':'#d0f0d0','--text-dim':'#6a8c6a','--border':'#2a4a2a',
+    '--input-bg':'#0a160a',
+  },
+};
+
+function applyUITheme(name) {
+  const t = UI_THEMES[name] || UI_THEMES.dark;
+  const root = document.documentElement;
+  Object.entries(t).forEach(([k, v]) => root.style.setProperty(k, v));
+}
+
+// ═══════════════════════════════════════════════════════════
 // COLOR SCHEMES
 // ═══════════════════════════════════════════════════════════
 const COLOR_SCHEMES = {
@@ -1145,6 +1212,7 @@ class DungeonRenderer {
     this.T = cfg.tileSize;
     this.colors = COLOR_SCHEMES[cfg.colorScheme] || COLOR_SCHEMES.dark;
     this.highlightRoom = null;
+    this.corridorNotes = [];
   }
 
   render() {
@@ -1237,6 +1305,8 @@ class DungeonRenderer {
     for (const stair of this.dungeon.stairs) this._drawStair(stair);
     // Room numbers
     for (const room of this.dungeon.rooms) this._drawRoomLabel(room);
+    // Corridor feature letters
+    this._drawCorridorLabels();
   }
 
   _drawDoor(door) {
@@ -1393,6 +1463,26 @@ class DungeonRenderer {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(room.id.toString(), cx2, cy2);
   }
+
+  _drawCorridorLabels() {
+    if (!this.corridorNotes || !this.corridorNotes.length) return;
+    const T = this.T, ctx = this.ctx;
+    const radius = Math.max(4, T * 0.38);
+    const fs = Math.max(5, Math.min(T * 0.48, 22));
+    for (const note of this.corridorNotes) {
+      const cx2 = note.c * T + T / 2, cy2 = note.r * T + T / 2;
+      // Circle background
+      ctx.fillStyle = 'rgba(233,69,96,0.88)';
+      ctx.beginPath(); ctx.arc(cx2, cy2, radius, 0, Math.PI * 2); ctx.fill();
+      // Border
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx2, cy2, radius, 0, Math.PI * 2); ctx.stroke();
+      // Letter
+      ctx.fillStyle = '#fff'; ctx.font = `bold ${fs}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(note.label, cx2, cy2);
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1421,8 +1511,10 @@ function renderLegend(rooms, wandering, highlightId, cfg, corridorNotes) {
 
   // ── Corridor Features ────────────────────────────────────
   if (corridorNotes && corridorNotes.length) {
-    html += '<div class="wmt"><div class="wmt-header">Corridor Features (d' + corridorNotes.length + ')</div><table>';
-    for (const n of corridorNotes) html += `<tr><td>${n.id}</td><td>${n.text}</td></tr>`;
+    html += '<div class="wmt"><div class="wmt-header">Corridor Features</div><table>';
+    for (const n of corridorNotes) {
+      html += `<tr class="corridor-note" data-note="${n.label}" title="Click to highlight on map" style="cursor:pointer"><td><span class="corridor-label-badge">${n.label}</span></td><td>${n.text}</td></tr>`;
+    }
     html += '</table></div>';
   }
 
@@ -1507,6 +1599,24 @@ function renderLegend(rooms, wandering, highlightId, cfg, corridorNotes) {
       if (window._currentDungeon) highlightRoomOnMap(id);
     });
   });
+  body.querySelectorAll('.corridor-note').forEach(el => {
+    el.addEventListener('click', () => {
+      const label = el.dataset.note;
+      const note = _content?.corridorNotes?.find(n => n.label === label);
+      if (note && note.r !== undefined && _renderer) {
+        // Pan canvas area to the corridor cell
+        const scale = parseInt(document.getElementById('zoom').value) / 100;
+        const T = _renderer.T;
+        const canvasArea = document.getElementById('canvas-area');
+        const targetX = note.c * T * scale + 20 - canvasArea.clientWidth / 2;
+        const targetY = note.r * T * scale + 20 - canvasArea.clientHeight / 2;
+        canvasArea.scrollTo({ left: Math.max(0, targetX), top: Math.max(0, targetY), behavior: 'smooth' });
+      }
+      // Highlight this row briefly
+      body.querySelectorAll('.corridor-note').forEach(r => r.classList.remove('highlighted'));
+      el.classList.add('highlighted');
+    });
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1567,6 +1677,7 @@ function generateDungeon() {
       _content = cgen;
       const canvas = document.getElementById('dungeon-canvas');
       _renderer = new DungeonRenderer(canvas, dungeon, cfg);
+      _renderer.corridorNotes = cgen.corridorNotes;
       _renderer.render();
       applyZoom(parseInt(document.getElementById('zoom').value));
       renderLegend(dungeon.rooms, cgen.wandering, null, cfg, cgen.corridorNotes);
@@ -1603,11 +1714,24 @@ document.getElementById('dungeon-canvas').addEventListener('click', (e) => {
     const id = (cv & ROOM_ID_MASK) >> ROOM_ID_SHIFT;
     highlightRoomOnMap(id);
     document.querySelector(`[data-room="${id}"]`)?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  } else {
+    // Check if clicking on a corridor feature label
+    const note = _content?.corridorNotes?.find(n => n.r === row && n.c === col);
+    if (note) {
+      const legendBody = document.getElementById('legend-body');
+      const noteEl = legendBody.querySelector(`[data-note="${note.label}"]`);
+      if (noteEl) {
+        legendBody.querySelectorAll('.corridor-note').forEach(r => r.classList.remove('highlighted'));
+        noteEl.classList.add('highlighted');
+        noteEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
+      }
+    }
   }
 });
 
 document.getElementById('zoom').addEventListener('input', e => applyZoom(parseInt(e.target.value)));
 document.getElementById('btn-generate').addEventListener('click', generateDungeon);
+document.getElementById('ui-theme').addEventListener('change', e => applyUITheme(e.target.value));
 
 // ── Mouse wheel zoom ─────────────────────────────────────
 document.getElementById('canvas-area').addEventListener('wheel', (e) => {
