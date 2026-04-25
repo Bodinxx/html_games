@@ -1583,10 +1583,14 @@ function applyZoom(pct) {
   document.getElementById('zoom-label').textContent = pct + '%';
 }
 
+// ── Pan state (shared between click guard and drag handlers) ──
+const PAN_THRESHOLD = 3; // pixels of movement before treating as a drag
+const ZOOM_STEP = 5, ZOOM_MIN = 1, ZOOM_MAX = 300;
+const _panState = { active: false, moved: false, x: 0, y: 0, scrollX: 0, scrollY: 0 };
+
 // Canvas click
-let _panMoved = false;
 document.getElementById('dungeon-canvas').addEventListener('click', (e) => {
-  if (_panMoved) return; // was a drag, not a click
+  if (_panState.moved) return; // was a drag, not a click
   if (!_dungeon || !_renderer) return;
   const canvas = document.getElementById('dungeon-canvas');
   const scale = parseInt(document.getElementById('zoom').value) / 100;
@@ -1610,7 +1614,7 @@ document.getElementById('canvas-area').addEventListener('wheel', (e) => {
   e.preventDefault();
   const slider = document.getElementById('zoom');
   let pct = parseInt(slider.value);
-  pct = Math.max(1, Math.min(300, pct + (e.deltaY > 0 ? -5 : 5)));
+  pct = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pct + (e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP)));
   slider.value = pct;
   applyZoom(pct);
 }, { passive: false });
@@ -1618,27 +1622,26 @@ document.getElementById('canvas-area').addEventListener('wheel', (e) => {
 // ── Click-and-drag to pan the map ────────────────────────
 {
   const canvasArea = document.getElementById('canvas-area');
-  let _panActive = false, _panX = 0, _panY = 0, _panScrollX = 0, _panScrollY = 0;
   canvasArea.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    _panActive = true;
-    _panMoved = false;
-    _panX = e.clientX; _panY = e.clientY;
-    _panScrollX = canvasArea.scrollLeft;
-    _panScrollY = canvasArea.scrollTop;
+    _panState.active = true;
+    _panState.moved = false;
+    _panState.x = e.clientX; _panState.y = e.clientY;
+    _panState.scrollX = canvasArea.scrollLeft;
+    _panState.scrollY = canvasArea.scrollTop;
     canvasArea.classList.add('pan-mode');
   });
   window.addEventListener('mousemove', (e) => {
-    if (!_panActive) return;
-    const dx = e.clientX - _panX, dy = e.clientY - _panY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) _panMoved = true;
-    if (_panMoved) {
-      canvasArea.scrollLeft = _panScrollX - dx;
-      canvasArea.scrollTop  = _panScrollY - dy;
+    if (!_panState.active) return;
+    const dx = e.clientX - _panState.x, dy = e.clientY - _panState.y;
+    if (Math.abs(dx) > PAN_THRESHOLD || Math.abs(dy) > PAN_THRESHOLD) _panState.moved = true;
+    if (_panState.moved) {
+      canvasArea.scrollLeft = _panState.scrollX - dx;
+      canvasArea.scrollTop  = _panState.scrollY - dy;
     }
   });
   window.addEventListener('mouseup', () => {
-    _panActive = false;
+    _panState.active = false;
     canvasArea.classList.remove('pan-mode');
   });
 }
