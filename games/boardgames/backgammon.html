@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Backgammon Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --board-bg: #70533c; /* Updated board surface color */
+            --point-light: #d2b48c;
+            --point-dark: #8b4513;
+            --white-checker: #f0f0f0;
+            --black-checker: #222222;
+        }
+
+        body {
+            background-color: #184437; 
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; padding: 0;
+            height: 100vh; height: 100dvh;
+            overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        #game-container {
+            width: 98vw; height: 98vh; height: 98dvh;
+            display: flex; flex-direction: column; gap: 1vh; padding: 1vh;
+            position: relative;
+        }
+
+        .header-area { flex: 0 0 auto; z-index: 10; height: 60px; }
+
+        .board-wrapper {
+            flex: 1;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 0; gap: 1vh;
+        }
+
+        .board-outer {
+            background: #2a1b0e;
+            padding: 1.5vh;
+            border: 1vh solid #3d2b1f;
+            border-radius: 1vh;
+            box-shadow: 0 2vh 5vh rgba(0,0,0,0.5);
+            position: relative;
+            height: 100%;
+            aspect-ratio: 1.4 / 1; 
+            max-width: 85%;
+            max-height: 100%;
+            display: grid;
+            grid-template-columns: 1fr 5% 1fr;
+            gap: 0;
+        }
+
+        .off-zones {
+            height: 100%;
+            width: 8vh;
+            display: flex;
+            flex-direction: column;
+            gap: 1vh;
+        }
+
+        .off-zone {
+            flex: 1;
+            background: #2a1b0e;
+            border: 0.5vh solid #3d2b1f;
+            border-radius: 0.5vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.5vh;
+            position: relative;
+            transition: border-color 0.3s;
+        }
+
+        .board-half {
+            display: grid;
+            grid-template-rows: 1fr 1fr;
+            background: var(--board-bg);
+        }
+
+        .points-row {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            height: 100%;
+        }
+
+        .point {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .point.top { justify-content: flex-start; }
+        .point.bottom { justify-content: flex-end; }
+
+        .point::before {
+            content: '';
+            position: absolute;
+            width: 80%; height: 85%;
+            z-index: 0;
+        }
+        
+        .point.top::before { top: 0; clip-path: polygon(50% 100%, 0 0, 100% 0); }
+        .point.bottom::before { bottom: 0; clip-path: polygon(50% 0, 0 100%, 100% 100%); }
+
+        .point:nth-child(even).top::before, .point:nth-child(odd).bottom::before { background-color: var(--point-dark); }
+        .point:nth-child(odd).top::before, .point:nth-child(even).bottom::before { background-color: var(--point-light); }
+
+        .point.highlight::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: rgba(255, 255, 0, 0.2);
+            z-index: 1; border-radius: 4px;
+        }
+
+        .bar {
+            background: #3d2b1f;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 0.2vh; z-index: 10; cursor: pointer;
+        }
+
+        .checker {
+            width: 3.75vh; height: 3.75vh;
+            max-width: 7.5vw; max-height: 7.5vw;
+            border-radius: 50%;
+            border: 0.2vh solid rgba(0,0,0,0.4);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 1.2vh;
+            box-shadow: 0 0.3vh 0.5vh rgba(0,0,0,0.5), inset 0 -0.2vh 0.2vh rgba(0,0,0,0.3);
+            z-index: 5; position: relative;
+            transition: transform 0.1s;
+            margin: 0.1vh 0; 
+        }
+
+        /* Shiny Glint Effect */
+        .checker::after {
+            content: '';
+            position: absolute;
+            top: 15%;
+            left: 15%;
+            width: 35%;
+            height: 35%;
+            background: radial-gradient(circle, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 80%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .checker.white { 
+            background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e0e0e0 40%, var(--white-checker) 100%);
+            color: #333; 
+        }
+        .checker.black { 
+            background: radial-gradient(circle at 35% 35%, #555555 0%, #222222 40%, #000000 100%);
+            color: #eee; 
+            border-color: rgba(255,255,255,0.15);
+        }
+        .checker.active { transform: scale(1.2); box-shadow: 0 0 1.5vh #fbbf24; border-color: #fbbf24; z-index: 10; }
+
+        /* Counter for large stacks */
+        .stack-counter {
+            background: rgba(0,0,0,0.6);
+            color: #fbbf24;
+            font-weight: 800;
+            font-size: 1.2vh;
+            padding: 2px 6px;
+            border-radius: 10px;
+            z-index: 15;
+            pointer-events: none;
+            border: 1px solid rgba(251, 191, 36, 0.4);
+            margin: 2px 0;
+            white-space: nowrap;
+        }
+
+        /* Thin checkers for the tray */
+        .checker-off {
+            width: 6vh; height: 1vh;
+            background: linear-gradient(to right, #ccc, #fff, #ccc);
+            border: 1px solid rgba(0,0,0,0.3);
+            margin: 0.1vh 0;
+            border-radius: 2px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+        }
+        .checker-off.black { 
+            background: linear-gradient(to right, #000, #333, #000);
+            border-color: #444; 
+        }
+
+        .dice-area { display: flex; gap: 1vh; justify-content: center; align-items: center; }
+        .die {
+            width: 4.5vh; height: 4.5vh;
+            background: white; color: black; border-radius: 0.6vh;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.2vh; font-weight: bold; 
+            box-shadow: 0 0.4vh 0.8vh rgba(0,0,0,0.3), 0 0.3vh 0 #ccc;
+        }
+        .die.used { opacity: 0.4; filter: grayscale(1); }
+
+        .overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.85);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; border-radius: 1vh; display: none;
+        }
+
+        #fireworks-canvas {
+            position: absolute; inset: 0;
+            pointer-events: none; z-index: 90;
+        }
+
+        .switch {
+            position: relative; display: inline-block; width: 34px; height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; inset: 0;
+            background-color: #444; transition: .4s; border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #fbbf24; }
+        input:checked + .slider:before { transform: translateX(14px); }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="fireworks-canvas"></canvas>
+
+        <div class="header-area flex flex-row justify-between items-center bg-zinc-800 p-2 rounded-lg shadow-lg border border-zinc-700">
+            <!-- Left: Brand and Sound -->
+            <div class="flex items-center gap-4 w-1/4">
+                <div>
+                    <h1 class="text-lg font-bold text-amber-500 leading-none">BACKGAMMON PRO</h1>
+                    <p id="status-text" class="text-[10px] text-zinc-400 mt-1">Ready to play</p>
+                </div>
+                <div class="h-8 w-px bg-zinc-700"></div>
+                <div class="flex items-center gap-2">
+                    <label class="switch">
+                        <input type="checkbox" id="sound-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span class="text-[10px] uppercase font-bold text-zinc-400">Sound</span>
+                </div>
+            </div>
+
+            <!-- Center: Roll Dice and Results Overlay -->
+            <div class="flex-1 relative flex flex-col items-center justify-center">
+                <button id="roll-btn" class="bg-amber-600 hover:bg-amber-500 disabled:opacity-0 text-white px-8 py-2 rounded-full text-xs font-bold shadow-lg transition-all active:scale-95">ROLL DICE</button>
+                <div id="dice-container" class="absolute inset-0 flex items-center justify-center pointer-events-none gap-2">
+                    <!-- Dice will appear here and hide the button when it's disabled -->
+                </div>
+            </div>
+            
+            <!-- Right: Difficulty and Reset -->
+            <div class="flex items-center justify-end gap-3 w-1/4">
+                <div class="flex flex-col items-end">
+                    <label class="text-[9px] text-zinc-500 uppercase font-bold">AI Level</label>
+                    <div class="flex bg-zinc-900 rounded p-0.5 border border-zinc-700">
+                        <button onclick="setDifficulty(0)" id="diff-0" class="px-2 py-0.5 text-[9px] rounded transition bg-amber-600">Low</button>
+                        <button onclick="setDifficulty(1)" id="diff-1" class="px-2 py-0.5 text-[9px] rounded transition">Med</button>
+                        <button onclick="setDifficulty(2)" id="diff-2" class="px-2 py-0.5 text-[9px] rounded transition">High</button>
+                    </div>
+                </div>
+                <button id="reset-btn" class="bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded text-xs font-bold transition">New Game</button>
+            </div>
+        </div>
+
+        <div class="board-wrapper">
+            <div class="board-outer" id="main-board">
+                <div id="win-overlay" class="overlay">
+                    <h2 id="win-message" class="text-5xl font-black text-amber-500 mb-6 text-center drop-shadow-lg">BLACK WINS!</h2>
+                    <div id="play-again-container" style="visibility: hidden;">
+                        <button onclick="initGame()" class="bg-amber-600 hover:bg-amber-500 px-8 py-3 rounded-lg font-bold text-xl transition-all scale-100 hover:scale-105 shadow-xl">Play Again</button>
+                    </div>
+                </div>
+
+                <div class="board-half">
+                    <div class="points-row" id="top-left"></div>
+                    <div class="points-row" id="bottom-left"></div>
+                </div>
+
+                <div class="bar" id="central-bar" onclick="handleBarClick()">
+                    <div id="bar-white" class="flex flex-col items-center"></div>
+                    <div id="bar-black" class="flex flex-col items-center"></div>
+                </div>
+
+                <div class="board-half">
+                    <div class="points-row" id="top-right"></div>
+                    <div class="points-row" id="bottom-right"></div>
+                </div>
+            </div>
+
+            <!-- Side Trays (Off Zones) -->
+            <div class="off-zones">
+                <div class="text-[10px] text-center font-bold text-zinc-500 uppercase">Tray</div>
+                <div id="white-off-zone" class="off-zone">
+                    <span class="text-[9px] text-zinc-600 mb-1">CPU</span>
+                    <div id="white-off-stack" class="flex flex-col-reverse justify-end h-full"></div>
+                </div>
+                <div id="black-off-zone" class="off-zone">
+                    <div id="black-off-stack" class="flex flex-col justify-start h-full"></div>
+                    <span class="text-[9px] text-amber-600 mt-1">YOU</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /** AUDIO SYSTEM **/
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (!document.getElementById('sound-toggle').checked) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            const now = audioCtx.currentTime;
+            if (type === 'roll') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.exponentialRampToValueAtTime(10, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(); osc.stop(now + 0.1);
+            } else if (type === 'move') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.05);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.start(); osc.stop(now + 0.05);
+            } else if (type === 'hit') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(); osc.stop(now + 0.15);
+            } else if (type === 'win') {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((f, i) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g); g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(f, now + i*0.1);
+                    g.gain.setValueAtTime(0.1, now + i*0.1);
+                    g.gain.exponentialRampToValueAtTime(0.01, now + i*0.1 + 0.5);
+                    o.start(now + i*0.1); o.stop(now + i*0.1 + 0.5);
+                });
+            }
+        }
+
+        /** FIREWORKS SYSTEM **/
+        const canvas = document.getElementById('fireworks-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                this.angle = Math.random() * Math.PI * 2;
+                this.speed = Math.random() * 6 + 2;
+                this.friction = 0.95;
+                this.gravity = 0.15;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.015 + 0.01;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+            update() {
+                this.speed *= this.friction;
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed + this.gravity;
+                this.alpha -= this.decay;
+            }
+        }
+
+        function createExplosion(x, y) {
+            const colors = ['#fbbf24', '#f87171', '#60a5fa', '#34d399', '#f472b6'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            for (let i = 0; i < 50; i++) particles.push(new Particle(x, y, color));
+        }
+
+        function animateFireworks() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles = particles.filter(p => p.alpha > 0);
+            particles.forEach(p => { p.update(); p.draw(); });
+            if (particles.length > 0) requestAnimationFrame(animateFireworks);
+        }
+
+        function startVictoryFireworks() {
+            let count = 0;
+            const interval = setInterval(() => {
+                createExplosion(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height * 0.6
+                );
+                playSound('roll'); // Reuse roll sound as mini-pop
+                count++;
+                if (count >= 10) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        document.getElementById('play-again-container').style.visibility = 'visible';
+                    }, 1000);
+                }
+                animateFireworks();
+            }, 300);
+        }
+
+        /** GAME LOGIC **/
+        const PLAYER_WHITE = 1; 
+        const PLAYER_BLACK = -1;
+        
+        let board = Array(25).fill(0);
+        let bar = { [PLAYER_WHITE]: 0, [PLAYER_BLACK]: 0 };
+        let off = { [PLAYER_WHITE]: 0, [PLAYER_BLACK]: 0 };
+        let currentPlayer = PLAYER_BLACK;
+        let dice = [];
+        let movesLeft = [];
+        let selectedPoint = null;
+        let aiDifficulty = 0; 
+        let isRolling = false;
+
+        function createPoints() {
+            const topLeft = document.getElementById('top-left');
+            const topRight = document.getElementById('top-right');
+            const bottomLeft = document.getElementById('bottom-left');
+            const bottomRight = document.getElementById('bottom-right');
+            topLeft.innerHTML = ''; topRight.innerHTML = ''; 
+            bottomLeft.innerHTML = ''; bottomRight.innerHTML = '';
+            for (let i = 13; i <= 18; i++) createPointEl(i, topLeft, 'top');
+            for (let i = 19; i <= 24; i++) createPointEl(i, topRight, 'top');
+            for (let i = 12; i >= 7; i--) createPointEl(i, bottomLeft, 'bottom');
+            for (let i = 6; i >= 1; i--) createPointEl(i, bottomRight, 'bottom');
+        }
+
+        function createPointEl(idx, parent, pos) {
+            const div = document.createElement('div');
+            div.className = `point ${pos}`;
+            div.id = `point-${idx}`;
+            div.onclick = () => handlePointClick(idx);
+            parent.appendChild(div);
+        }
+
+        function initGame() {
+            board = Array(25).fill(0);
+            board[1] = 2; board[12] = 5; board[17] = 3; board[19] = 5; 
+            board[24] = -2; board[13] = -5; board[8] = -3; board[6] = -5; 
+            bar = { [PLAYER_WHITE]: 0, [PLAYER_BLACK]: 0 };
+            off = { [PLAYER_WHITE]: 0, [PLAYER_BLACK]: 0 };
+            currentPlayer = PLAYER_BLACK;
+            dice = []; movesLeft = []; selectedPoint = null;
+            document.getElementById('win-overlay').style.display = 'none';
+            document.getElementById('play-again-container').style.visibility = 'hidden';
+            document.getElementById('roll-btn').disabled = false;
+            particles = [];
+            updateUI();
+            updateStatus(`Black's turn.`);
+        }
+
+        function rollDice() {
+            if (movesLeft.length > 0 || isRolling) return;
+            isRolling = true;
+            playSound('roll');
+            document.getElementById('roll-btn').disabled = true;
+            const d1 = Math.floor(Math.random() * 6) + 1;
+            const d2 = Math.floor(Math.random() * 6) + 1;
+            dice = (d1 === d2) ? [d1, d1, d1, d1] : [d1, d2];
+            movesLeft = [...dice];
+            renderDice();
+            setTimeout(() => {
+                isRolling = false;
+                if (!hasValidMoves(currentPlayer)) {
+                    updateStatus("No moves! Passing...");
+                    setTimeout(nextTurn, 1000);
+                } else if (currentPlayer === PLAYER_WHITE) doAIMove();
+                else updateStatus("Your turn.");
+            }, 500);
+        }
+
+        function nextTurn() {
+            currentPlayer = currentPlayer === PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE;
+            dice = []; movesLeft = []; selectedPoint = null;
+            document.getElementById('roll-btn').disabled = (currentPlayer === PLAYER_WHITE);
+            updateUI();
+            if (currentPlayer === PLAYER_WHITE) { updateStatus("CPU thinking..."); setTimeout(rollDice, 600); }
+            else updateStatus("Your turn.");
+        }
+
+        function getValidDestinations(player, fromIdx) {
+            const results = [];
+            const uniqueMoves = [...new Set(movesLeft)];
+            const isAtBarStart = (player === PLAYER_WHITE && fromIdx === 0) || (player === PLAYER_BLACK && fromIdx === 25);
+            if (bar[player] > 0 && !isAtBarStart) return [];
+
+            uniqueMoves.forEach(move => {
+                const toIdx = (player === PLAYER_WHITE) ? fromIdx + move : fromIdx - move;
+                if (isHomeBoardReady(player)) {
+                    if (player === PLAYER_WHITE && toIdx > 24 && (toIdx === 25 || canBearOff(player, fromIdx, move))) results.push('off');
+                    else if (player === PLAYER_BLACK && toIdx < 1 && (toIdx === 0 || canBearOff(player, fromIdx, move))) results.push('off');
+                }
+                if (toIdx >= 1 && toIdx <= 24) {
+                    const target = board[toIdx];
+                    if (target === 0 || Math.sign(target) === Math.sign(player) || Math.abs(target) === 1) results.push(toIdx);
+                }
+            });
+            return results;
+        }
+
+        function isHomeBoardReady(player) {
+            if (bar[player] > 0) return false;
+            if (player === PLAYER_WHITE) { for (let i = 1; i <= 18; i++) if (board[i] > 0) return false; }
+            else { for (let i = 7; i <= 24; i++) if (board[i] < 0) return false; }
+            return true;
+        }
+
+        function canBearOff(player, fromIdx, die) {
+            const target = (player === PLAYER_WHITE) ? fromIdx + die : fromIdx - die;
+            if ((player === PLAYER_WHITE && target === 25) || (player === PLAYER_BLACK && target === 0)) return true;
+            if (player === PLAYER_WHITE && target > 25) {
+                for (let i = 19; i < fromIdx; i++) if (board[i] > 0) return false;
+                return true;
+            }
+            if (player === PLAYER_BLACK && target < 0) {
+                for (let i = 24; i > fromIdx; i--) if (board[i] < 0) return false;
+                return true;
+            }
+            return false;
+        }
+
+        function hasValidMoves(player) {
+            if (bar[player] > 0) return getValidDestinations(player, player === PLAYER_WHITE ? 0 : 25).length > 0;
+            for (let i = 1; i <= 24; i++) {
+                if (Math.sign(board[i]) === Math.sign(player) && getValidDestinations(player, i).length > 0) return true;
+            }
+            return false;
+        }
+
+        function handleBarClick() {
+            if (currentPlayer === PLAYER_WHITE || movesLeft.length === 0 || bar[currentPlayer] === 0) return;
+            selectedPoint = 'bar';
+            updateUI();
+        }
+
+        function handlePointClick(idx) {
+            if (currentPlayer === PLAYER_WHITE || movesLeft.length === 0) return;
+            if (selectedPoint !== null) {
+                const virtualFrom = selectedPoint === 'bar' ? (currentPlayer === PLAYER_WHITE ? 0 : 25) : selectedPoint;
+                const dests = getValidDestinations(currentPlayer, virtualFrom);
+                if (dests.includes(idx)) { executeMove(currentPlayer, selectedPoint, idx); return; }
+            }
+            if (bar[currentPlayer] > 0) selectedPoint = 'bar';
+            else if (Math.sign(board[idx]) === Math.sign(currentPlayer)) selectedPoint = (selectedPoint === idx) ? null : idx;
+            else selectedPoint = null;
+            updateUI();
+        }
+
+        function executeMove(player, from, to) {
+            const virtualFrom = from === 'bar' ? (player === PLAYER_WHITE ? 0 : 25) : from;
+            const moveDist = to === 'off' ? (player === PLAYER_WHITE ? 25 - virtualFrom : virtualFrom) : Math.abs(virtualFrom - to);
+            
+            if (to === 'off') {
+                const actualDist = (player === PLAYER_WHITE) ? (25 - virtualFrom) : virtualFrom;
+                let dIdx = movesLeft.findIndex(d => d === actualDist);
+                if (dIdx === -1) dIdx = movesLeft.findIndex(d => d > actualDist);
+                movesLeft.splice(dIdx, 1);
+                if (from === 'bar') bar[player]--; else board[from] -= player;
+                off[player]++;
+                playSound('move');
+            } else {
+                movesLeft.splice(movesLeft.indexOf(moveDist), 1);
+                if (from === 'bar') bar[player]--; else board[from] -= player;
+                if (board[to] === -player) { 
+                    board[to] = player; bar[-player]++; 
+                    playSound('hit');
+                } else {
+                    board[to] += player;
+                    playSound('move');
+                }
+            }
+            selectedPoint = null;
+            updateUI();
+            if (off[player] === 15) { showWin(player); return; }
+            if (movesLeft.length === 0 || !hasValidMoves(currentPlayer)) setTimeout(nextTurn, 400);
+            else if (currentPlayer === PLAYER_WHITE) setTimeout(doAIMove, 600);
+        }
+
+        async function doAIMove() {
+            const possible = getAllPossibleMoves(PLAYER_WHITE);
+            if (possible.length === 0) { nextTurn(); return; }
+            let best = (aiDifficulty === 0) ? possible[Math.floor(Math.random() * possible.length)] : evaluateBestMove(possible);
+            executeMove(PLAYER_WHITE, best.from, best.to);
+        }
+
+        function getAllPossibleMoves(player) {
+            const moves = [];
+            const virtualFrom = player === PLAYER_WHITE ? 0 : 25;
+            if (bar[player] > 0) {
+                getValidDestinations(player, virtualFrom).forEach(to => moves.push({ from: 'bar', to }));
+            } else {
+                for (let i = 1; i <= 24; i++) {
+                    if (Math.sign(board[i]) === Math.sign(player)) {
+                        getValidDestinations(player, i).forEach(to => moves.push({ from: i, to }));
+                    }
+                }
+            }
+            return moves;
+        }
+
+        function evaluateBestMove(moves) {
+            let bestScore = -Infinity;
+            let bestMove = moves[0];
+            moves.forEach(m => {
+                let score = 0;
+                if (m.to !== 'off' && board[m.to] === -PLAYER_WHITE) score += 15;
+                if (m.to === 'off') score += 20;
+                const dist = m.from === 'bar' ? (PLAYER_WHITE === 1 ? m.to : 25 - m.to) : Math.abs(m.from - (m.to === 'off' ? (PLAYER_WHITE === 1 ? 25 : 0) : m.to));
+                score += dist * 0.5;
+                if (aiDifficulty === 2) {
+                    if (m.from !== 'bar' && board[m.from] === 2 * PLAYER_WHITE) score -= 10;
+                    if (m.to !== 'off' && board[m.to] === 1 * PLAYER_WHITE) score += 12;
+                }
+                if (score > bestScore) { bestScore = score; bestMove = m; }
+            });
+            return bestMove;
+        }
+
+        function updateUI() {
+            for (let i = 1; i <= 24; i++) {
+                const el = document.getElementById(`point-${i}`);
+                el.innerHTML = ''; el.classList.remove('highlight');
+                const count = Math.abs(board[i]);
+                const type = board[i] > 0 ? 'white' : 'black';
+                
+                if (count > 0) {
+                    // Logic to stack checkers when they exceed 9
+                    const maxDisplay = 9;
+                    const displayCount = count > maxDisplay ? 5 : count;
+                    
+                    for (let c = 0; c < displayCount; c++) {
+                        const checker = document.createElement('div');
+                        checker.className = `checker ${type}`;
+                        if (i === selectedPoint) checker.classList.add('active');
+                        el.appendChild(checker);
+                    }
+
+                    // Add a counter badge at the base of the arrow
+                    if (count > maxDisplay) {
+                        const badge = document.createElement('div');
+                        badge.className = 'stack-counter';
+                        badge.innerText = `x${count}`;
+                        
+                        // For 'top' point, base is at the top. For 'bottom', base is at the bottom.
+                        if (el.classList.contains('top')) {
+                            el.insertBefore(badge, el.firstChild);
+                        } else {
+                            el.appendChild(badge);
+                        }
+                    }
+                }
+
+                if (selectedPoint !== null) {
+                    const from = selectedPoint === 'bar' ? (currentPlayer === PLAYER_WHITE ? 0 : 25) : selectedPoint;
+                    if (getValidDestinations(currentPlayer, from).includes(i)) el.classList.add('highlight');
+                }
+            }
+            renderBar();
+            renderTray();
+            
+            const offBZone = document.getElementById('black-off-zone');
+            const fromIdx = selectedPoint === 'bar' ? (currentPlayer === PLAYER_WHITE ? 0 : 25) : selectedPoint;
+            const canOff = selectedPoint !== null && getValidDestinations(PLAYER_BLACK, fromIdx).includes('off');
+            offBZone.style.borderColor = canOff ? '#fbbf24' : '#3d2b1f';
+            offBZone.onclick = canOff ? () => executeMove(PLAYER_BLACK, selectedPoint, 'off') : null;
+            offBZone.style.cursor = canOff ? 'pointer' : 'default';
+            renderDice();
+        }
+
+        function renderTray() {
+            const wStack = document.getElementById('white-off-stack');
+            const bStack = document.getElementById('black-off-stack');
+            wStack.innerHTML = ''; bStack.innerHTML = '';
+            for(let i=0; i<off[PLAYER_WHITE]; i++) {
+                const d = document.createElement('div'); d.className = 'checker-off';
+                wStack.appendChild(d);
+            }
+            for(let i=0; i<off[PLAYER_BLACK]; i++) {
+                const d = document.createElement('div'); d.className = 'checker-off black';
+                bStack.appendChild(d);
+            }
+        }
+
+        function renderBar() {
+            const barW = document.getElementById('bar-white');
+            const barB = document.getElementById('bar-black');
+            barW.innerHTML = ''; barB.innerHTML = '';
+            for (let i = 0; i < bar[PLAYER_WHITE]; i++) {
+                const c = document.createElement('div');
+                c.className = `checker white`;
+                if (selectedPoint === 'bar' && currentPlayer === PLAYER_WHITE) c.classList.add('active');
+                barW.appendChild(c);
+            }
+            for (let i = 0; i < bar[PLAYER_BLACK]; i++) {
+                const c = document.createElement('div');
+                c.className = `checker black`;
+                if (selectedPoint === 'bar' && currentPlayer === PLAYER_BLACK) c.classList.add('active');
+                barB.appendChild(c);
+            }
+        }
+
+        function renderDice() {
+            const container = document.getElementById('dice-container');
+            container.innerHTML = '';
+            if (dice.length > 0) {
+                dice.forEach((d, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'die'; div.innerText = d;
+                    if (idx < (dice.length - movesLeft.length)) div.classList.add('used');
+                    container.appendChild(div);
+                });
+            }
+        }
+
+        function updateStatus(text) { document.getElementById('status-text').innerText = text; }
+
+        function setDifficulty(lvl) {
+            aiDifficulty = lvl;
+            document.querySelectorAll('[id^="diff-"]').forEach(btn => btn.classList.remove('bg-amber-600'));
+            document.getElementById(`diff-${lvl}`).classList.add('bg-amber-600');
+        }
+
+        function showWin(player) {
+            const msg = document.getElementById('win-message');
+            msg.innerText = player === PLAYER_WHITE ? "CPU WINS!" : "YOU WIN!";
+            document.getElementById('win-overlay').style.display = 'flex';
+            playSound('win');
+            startVictoryFireworks();
+        }
+
+        createPoints();
+        initGame();
+        document.getElementById('roll-btn').onclick = rollDice;
+        document.getElementById('reset-btn').onclick = initGame;
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+    "turn": 2,
+    "cash": 2200,
+    "fuel": 32,
+    "maxFuel": 35,
+    "fuelPrice": 9,
+    "cargoCapacity": 28,
+    "location": "sys099",
+    "cargo": [],
+    "hull": 100,
+    "maxHull": 100,
+    "weaponLevel": 1,
+    "shieldLevel": 1,
+    "combat": null,
+    "lastEvent": "Arrived at Artemis Haven 99."
+}

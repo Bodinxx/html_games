@@ -1,0 +1,1107 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Naval Combat: Commander is a tactical fleet-strategy game where you deploy limited-use Cluster Bombs and Airstrikes to destroy an intelligent AI's hidden fleet. Victory depends on outmaneuvering the computer commander across high-stakes naval engagements featuring dynamic sound effects and responsive controls.
+TAGS: Strategy, Board, Puzzle, Logic, Old School
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Naval Combat: Commander</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-color: #16213e;
+            --accent-color: #0f3460;
+            --highlight: #e94560;
+            --water: #30475e;
+            --water-hover: #4a6fa5;
+            --ship: #8c92ac;
+            --hit: #e94560;
+            --miss: #2a2a40;
+            --text-main: #ecf0f1;
+            --preview-color: rgba(233, 69, 96, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-main);
+            text-align: center;
+        }
+
+        /* Rules Button */
+        #rules-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--panel-color);
+            border: 2px solid var(--highlight);
+            color: var(--highlight);
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            padding: 0;
+            z-index: 50;
+        }
+
+        #rules-btn:hover {
+            background-color: var(--highlight);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        /* Status Bar */
+        #status-bar {
+            background-color: var(--panel-color);
+            padding: 15px 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            text-align: center;
+            min-width: 300px;
+            border-left: 5px solid var(--highlight);
+            transition: all 0.3s ease;
+        }
+
+        /* Game Layout */
+        .game-wrapper {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        .board-container {
+            background-color: var(--panel-color);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .board-title {
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+            color: #bdc3c7;
+        }
+
+        .board-title span {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            font-weight: normal;
+        }
+
+        /* Flex container for Grid + Fleet List */
+        .board-row {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        /* Grids */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 32px);
+            grid-template-rows: repeat(10, 32px);
+            gap: 2px;
+            background-color: var(--bg-color);
+            border: 4px solid var(--bg-color);
+            border-radius: 4px;
+        }
+
+        .cell {
+            width: 32px;
+            height: 32px;
+            background-color: var(--water);
+            border-radius: 2px;
+            transition: transform 0.1s, background-color 0.2s;
+            position: relative;
+        }
+
+        /* Hover Preview for Special Weapons */
+        .cell.preview-target {
+            background-color: var(--preview-color) !important;
+            cursor: crosshair;
+        }
+
+        /* Fleet Lists */
+        .fleet-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            min-width: 120px;
+        }
+
+        .fleet-item {
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #bdc3c7;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .fleet-item.sunk {
+            text-decoration: line-through;
+            opacity: 0.5;
+            background: rgba(233, 69, 96, 0.15);
+            color: #e94560;
+        }
+
+        /* Player Board Specifics */
+        #player-grid .cell.ship {
+            background-color: var(--ship);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Enemy Board Interaction */
+        #enemy-grid .cell {
+            cursor: crosshair;
+        }
+
+        #enemy-grid .cell:hover:not(.hit):not(.miss):not(.preview-target) {
+            background-color: var(--water-hover);
+        }
+
+        /* Hit/Miss States */
+        .cell.hit {
+            background-color: var(--hit) !important;
+            animation: pop 0.3s ease-out;
+        }
+        
+        .cell.hit::after {
+            content: '×';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            color: white;
+        }
+
+        .cell.miss {
+            background-color: var(--miss) !important;
+            opacity: 0.7;
+            animation: fadeIn 0.3s;
+        }
+
+        .cell.miss::after {
+            content: '•';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            color: rgba(255,255,255,0.3);
+        }
+
+        /* Controls */
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .weapon-controls {
+            display: flex;
+            gap: 10px;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        /* Toggle Checkbox Styling */
+        .sound-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--panel-color);
+            padding: 12px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.1);
+            user-select: none;
+        }
+        
+        .sound-toggle:hover {
+            border-color: var(--highlight);
+        }
+
+        .sound-toggle input {
+            accent-color: var(--highlight);
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        button {
+            padding: 12px 24px;
+            background-color: var(--highlight);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background-color: #ff5e78;
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
+        }
+
+        /* Specific Weapon Button Styles */
+        .weapon-btn {
+            background-color: var(--accent-color);
+            font-size: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+        }
+        
+        .weapon-btn.active {
+            background-color: var(--highlight);
+            box-shadow: 0 0 10px var(--highlight);
+            border: 2px solid white;
+        }
+
+        .weapon-count {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            margin-top: 2px;
+            font-weight: normal;
+        }
+
+        /* Common Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: var(--panel-color);
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            border: 2px solid var(--highlight);
+            max-width: 90%;
+            color: var(--text-main);
+            position: relative;
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        /* Rules Modal Specifics */
+        #rules-modal .modal-content {
+            text-align: left;
+            max-width: 500px;
+        }
+        
+        #rules-modal h2 {
+            margin-top: 0;
+            color: var(--highlight);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+
+        #rules-modal ul {
+            padding-left: 20px;
+            line-height: 1.6;
+        }
+        
+        #rules-modal li {
+            margin-bottom: 8px;
+        }
+
+        .close-modal-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: transparent;
+            border: none;
+            color: #bdc3c7;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
+        }
+        
+        .close-modal-btn:hover {
+            color: white;
+            background: transparent;
+            transform: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 800px) {
+            .grid {
+                grid-template-columns: repeat(10, 28px);
+                grid-template-rows: repeat(10, 28px);
+            }
+            .cell { width: 28px; height: 28px; }
+            .game-wrapper { gap: 20px; }
+        }
+
+        @media (max-width: 650px) {
+            #rules-btn {
+                top: 10px;
+                right: 10px;
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }
+            .board-row {
+                flex-direction: column;
+                align-items: center;
+            }
+            /* Force Grid to top on mobile */
+            .grid {
+                order: 1;
+                grid-template-columns: repeat(10, 8vw);
+                grid-template-rows: repeat(10, 8vw);
+            }
+            .fleet-list {
+                order: 2;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+                width: 100%;
+                margin-top: 10px;
+            }
+            .fleet-item {
+                font-size: 0.8rem;
+                padding: 4px 8px;
+            }
+            .cell { width: 8vw; height: 8vw; }
+            .board-container { width: 100%; padding: 10px; }
+            .game-wrapper { flex-direction: column-reverse; align-items: center; }
+            
+            /* Put Enemy board on top for mobile playability */
+            .game-wrapper > :last-child { order: -1; } 
+            
+            .weapon-controls {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <button id="rules-btn" title="Instructions">?</button>
+    <h1>Naval Combat: Commander</h1>
+    
+    <div id="status-bar">Awaiting Orders, Commander.</div>
+
+    <div class="game-wrapper">
+        <!-- Player Board -->
+        <div class="board-container">
+            <div class="board-title">Friendly Waters <span>(Your Fleet)</span></div>
+            <div class="board-row">
+                <ul id="player-fleet-list" class="fleet-list"></ul>
+                <div id="player-grid" class="grid"></div>
+            </div>
+        </div>
+
+        <!-- Enemy Board -->
+        <div class="board-container">
+            <div class="board-title">Enemy Waters <span>(Target Here)</span></div>
+            <div class="board-row">
+                <div id="enemy-grid" class="grid"></div>
+                <ul id="enemy-fleet-list" class="fleet-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <label class="sound-toggle">
+            <input type="checkbox" id="sound-checkbox">
+            <span>Sound Effects</span>
+        </label>
+
+        <div class="weapon-controls">
+            <button id="cluster-btn" class="weapon-btn">
+                Cluster Bomb
+                <span id="cluster-count" class="weapon-count">1 LEFT</span>
+            </button>
+            <button id="airstrike-btn" class="weapon-btn">
+                Airstrike (Row)
+                <span id="airstrike-count" class="weapon-count">1 LEFT</span>
+            </button>
+        </div>
+        <button id="restart-btn">New Operation</button>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-msg">Game Over</div>
+            <button onclick="startGame()">Play Again</button>
+        </div>
+    </div>
+
+    <!-- Rules Modal -->
+    <div id="rules-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-modal-btn" onclick="toggleRules(false)">&times;</button>
+            <h2>Mission Briefing</h2>
+            <p><strong>Objective:</strong> Destroy the entire enemy fleet before they destroy yours.</p>
+            <h3>Special Weapons</h3>
+            <ul>
+                <li><strong>Cluster Bomb (2x2):</strong> Attacks a 2x2 square area.</li>
+                <li><strong>Airstrike (Row/Col):</strong> Attacks an entire Row or Column. Click the button or press 'R' to toggle direction.</li>
+                <li><em>Note: Special weapons can only be used once per game.</em></li>
+            </ul>
+            <h3>Basics</h3>
+            <ul>
+                <li><strong>Fire:</strong> Tap on the "Enemy Waters" grid.</li>
+                <li><strong>Hits:</strong> <span style="color:#e94560">Red (×)</span>.</li>
+                <li><strong>Misses:</strong> <span style="color:#ffffff; opacity: 0.5">Grey (•)</span>.</li>
+            </ul>
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="toggleRules(false)">Understood</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game Constants
+        const width = 10;
+        const shipDefinitions = [
+            { name: 'Carrier', size: 5 },
+            { name: 'Battleship', size: 4 },
+            { name: 'Cruiser', size: 3 },
+            { name: 'Submarine', size: 3 },
+            { name: 'Destroyer', size: 2 }
+        ];
+        
+        // State
+        let playerSquares = [];
+        let enemySquares = [];
+        let playerFleet = []; 
+        let enemyFleet = [];  
+        let isGameOver = false;
+        let currentPlayer = 'user'; 
+        let computerHitsQueue = []; 
+
+        // Weapon State
+        let playerInventory = { cluster: 1, airstrike: 1 };
+        let botInventory = { cluster: 1, airstrike: 1 };
+        let selectedWeapon = 'normal'; // 'normal', 'cluster', 'airstrike-row', 'airstrike-col'
+
+        // DOM Elements
+        const playerGrid = document.getElementById('player-grid');
+        const enemyGrid = document.getElementById('enemy-grid');
+        const statusBar = document.getElementById('status-bar');
+        const restartBtn = document.getElementById('restart-btn');
+        const clusterBtn = document.getElementById('cluster-btn');
+        const airstrikeBtn = document.getElementById('airstrike-btn');
+        const clusterCount = document.getElementById('cluster-count');
+        const airstrikeCount = document.getElementById('airstrike-count');
+        const modal = document.getElementById('modal-overlay');
+        const modalMsg = document.getElementById('modal-msg');
+        const rulesBtn = document.getElementById('rules-btn');
+        const rulesModal = document.getElementById('rules-modal');
+        const soundCheckbox = document.getElementById('sound-checkbox');
+
+        // --- Sound Engine (Web Audio API) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playSound(type) {
+            if (!soundCheckbox.checked) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'miss') {
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+
+            } else if (type === 'hit') {
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.2);
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+
+            } else if (type === 'sink') {
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.exponentialRampToValueAtTime(10, now + 0.5);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+
+            } else if (type === 'cluster') {
+                // Rapid fire explosions
+                for(let i=0; i<3; i++) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(200 - (i*20), now + i*0.1);
+                    osc.frequency.exponentialRampToValueAtTime(20, now + i*0.1 + 0.2);
+                    gain.gain.setValueAtTime(0.2, now + i*0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.1 + 0.2);
+                    osc.start(now + i*0.1);
+                    osc.stop(now + i*0.1 + 0.2);
+                }
+
+            } else if (type === 'airstrike') {
+                // Jet swoosh
+                const jetOsc = audioCtx.createOscillator();
+                const jetGain = audioCtx.createGain();
+                jetOsc.connect(jetGain);
+                jetGain.connect(audioCtx.destination);
+                jetOsc.type = 'triangle';
+                jetOsc.frequency.setValueAtTime(800, now);
+                jetOsc.frequency.exponentialRampToValueAtTime(100, now + 0.8);
+                jetGain.gain.setValueAtTime(0.0, now);
+                jetGain.gain.linearRampToValueAtTime(0.15, now + 0.3);
+                jetGain.gain.linearRampToValueAtTime(0.0, now + 0.8);
+                jetOsc.start(now);
+                jetOsc.stop(now + 0.8);
+
+                // Strafing run explosions
+                for(let i=0; i<6; i++) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(120, now + 0.2 + i*0.08);
+                    osc.frequency.exponentialRampToValueAtTime(10, now + 0.2 + i*0.08 + 0.1);
+                    gain.gain.setValueAtTime(0.1, now + 0.2 + i*0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2 + i*0.08 + 0.1);
+                    osc.start(now + 0.2 + i*0.08);
+                    osc.stop(now + 0.2 + i*0.08 + 0.1);
+                }
+
+            } else if (type === 'win') {
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C, E, G, C
+                notes.forEach((freq, i) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.type = 'triangle';
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.frequency.value = freq;
+                    g.gain.setValueAtTime(0.1, now + i * 0.1);
+                    g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.3);
+                    o.start(now + i * 0.1);
+                    o.stop(now + i * 0.1 + 0.3);
+                });
+            }
+        }
+
+        // --- Core Game Functions ---
+
+        function createBoard(grid, squaresArray, isEnemy = false) {
+            grid.innerHTML = '';
+            squaresArray.length = 0;
+            for (let i = 0; i < width * width; i++) {
+                const square = document.createElement('div');
+                square.dataset.id = i;
+                square.classList.add('cell');
+                grid.appendChild(square);
+                squaresArray.push(square);
+
+                if (isEnemy) {
+                    // Preview logic for enemy board
+                    square.addEventListener('mouseenter', () => handleGridHover(i));
+                    square.addEventListener('mouseleave', () => clearGridPreview());
+                }
+            }
+        }
+
+        function generateShips(squaresArray, fleetArray) {
+            fleetArray.length = 0; 
+            shipDefinitions.forEach(shipDef => {
+                let direction, randomStart, isTaken = true, shipIndices = [];
+                const size = shipDef.size;
+
+                while (isTaken) {
+                    direction = Math.floor(Math.random() * 2); 
+                    randomStart = Math.floor(Math.random() * 100);
+                    shipIndices = [];
+
+                    if (direction === 0) { // Horizontal
+                        const row = Math.floor(randomStart / width);
+                        const endRow = Math.floor((randomStart + size - 1) / width);
+                        if (row !== endRow) continue; 
+                        for (let i = 0; i < size; i++) shipIndices.push(randomStart + i);
+                    } else { // Vertical
+                        if (randomStart + width * (size - 1) >= 100) continue; 
+                        for (let i = 0; i < size; i++) shipIndices.push(randomStart + i * width);
+                    }
+
+                    const collision = shipIndices.some(index => 
+                        squaresArray[index].classList.contains('ship')
+                    );
+                    if (!collision) isTaken = false;
+                }
+
+                const newShip = { name: shipDef.name, size: shipDef.size, hits: 0, sunk: false };
+                fleetArray.push(newShip);
+                const shipIndex = fleetArray.length - 1;
+
+                shipIndices.forEach(index => {
+                    const square = squaresArray[index];
+                    square.classList.add('ship');
+                    square.dataset.shipType = 'ship';
+                    square.dataset.fleetIndex = shipIndex;
+                });
+            });
+        }
+
+        function renderFleetList(fleet, elementId) {
+            const list = document.getElementById(elementId);
+            list.innerHTML = '';
+            fleet.forEach(ship => {
+                const li = document.createElement('li');
+                li.textContent = ship.name; 
+                li.classList.add('fleet-item');
+                const sizeSpan = document.createElement('span');
+                sizeSpan.textContent = `(${ship.size})`;
+                sizeSpan.style.opacity = '0.5';
+                sizeSpan.style.fontSize = '0.8em';
+                li.appendChild(sizeSpan);
+                list.appendChild(li);
+            });
+        }
+
+        function updateStatus(msg, type = 'normal') {
+            statusBar.textContent = msg;
+            statusBar.style.borderLeftColor = type === 'alert' ? '#e94560' : 
+                                            type === 'success' ? '#2ecc71' : '#0f3460';
+        }
+
+        function updateWeaponUI() {
+            // Update counts
+            clusterCount.textContent = `${playerInventory.cluster} LEFT`;
+            airstrikeCount.textContent = `${playerInventory.airstrike} LEFT`;
+
+            // Disable if empty
+            clusterBtn.disabled = playerInventory.cluster === 0;
+            airstrikeBtn.disabled = playerInventory.airstrike === 0;
+
+            // Highlight active
+            clusterBtn.classList.toggle('active', selectedWeapon === 'cluster');
+            airstrikeBtn.classList.toggle('active', selectedWeapon.startsWith('airstrike'));
+            
+            // Text update for toggle
+            if (selectedWeapon === 'airstrike-col') {
+                airstrikeBtn.childNodes[0].nodeValue = "Airstrike (Col) ";
+            } else {
+                airstrikeBtn.childNodes[0].nodeValue = "Airstrike (Row) ";
+            }
+        }
+
+        // --- Weapon Selection & Preview Logic ---
+
+        function toggleCluster() {
+            if (playerInventory.cluster > 0) {
+                selectedWeapon = selectedWeapon === 'cluster' ? 'normal' : 'cluster';
+                updateWeaponUI();
+            }
+        }
+
+        function toggleAirstrike() {
+            if (playerInventory.airstrike > 0) {
+                if (selectedWeapon === 'airstrike-row') selectedWeapon = 'airstrike-col';
+                else if (selectedWeapon === 'airstrike-col') selectedWeapon = 'normal';
+                else selectedWeapon = 'airstrike-row';
+                updateWeaponUI();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'r' && selectedWeapon.startsWith('airstrike')) {
+                selectedWeapon = selectedWeapon === 'airstrike-row' ? 'airstrike-col' : 'airstrike-row';
+                updateWeaponUI();
+                // If mouse is currently over grid, re-trigger hover
+                const hoverCell = document.querySelector('.cell:hover');
+                if (hoverCell && hoverCell.parentElement.id === 'enemy-grid') {
+                    handleGridHover(parseInt(hoverCell.dataset.id));
+                }
+            }
+        });
+
+        // Calculate affected cells based on weapon and center index
+        function getTargetIndices(centerIndex, weapon) {
+            const indices = [];
+            const x = centerIndex % width;
+            const y = Math.floor(centerIndex / width);
+
+            if (weapon === 'normal') {
+                indices.push(centerIndex);
+            } else if (weapon === 'cluster') {
+                // 2x2 square. Clamp to grid edges.
+                // Targets: (x,y), (x+1,y), (x,y+1), (x+1,y+1)
+                const safeX = x >= width - 1 ? x - 1 : x;
+                const safeY = y >= width - 1 ? y - 1 : y;
+                const base = safeY * width + safeX;
+                indices.push(base, base + 1, base + width, base + width + 1);
+            } else if (weapon === 'airstrike-row') {
+                // Full Row
+                const start = y * width;
+                for(let i=0; i<width; i++) indices.push(start + i);
+            } else if (weapon === 'airstrike-col') {
+                // Full Column
+                for(let i=0; i<width; i++) indices.push(x + i * width);
+            }
+            return indices.filter(idx => idx >= 0 && idx < 100);
+        }
+
+        function handleGridHover(index) {
+            if (isGameOver || currentPlayer !== 'user') return;
+            clearGridPreview();
+            
+            // Only show preview for special weapons
+            if (selectedWeapon === 'normal') return;
+
+            const targets = getTargetIndices(index, selectedWeapon);
+            targets.forEach(idx => {
+                enemySquares[idx].classList.add('preview-target');
+            });
+        }
+
+        function clearGridPreview() {
+            enemySquares.forEach(sq => sq.classList.remove('preview-target'));
+        }
+
+        // --- Core Gameplay Loop ---
+
+        function startGame() {
+            modal.style.display = 'none';
+            isGameOver = false;
+            currentPlayer = 'user';
+            computerHitsQueue = [];
+            playerInventory = { cluster: 1, airstrike: 1 };
+            botInventory = { cluster: 1, airstrike: 1 };
+            selectedWeapon = 'normal';
+            
+            createBoard(playerGrid, playerSquares);
+            createBoard(enemyGrid, enemySquares, true); // Enable preview on enemy grid
+            
+            generateShips(playerSquares, playerFleet);
+            generateShips(enemySquares, enemyFleet);
+
+            renderFleetList(playerFleet, 'player-fleet-list');
+            renderFleetList(enemyFleet, 'enemy-fleet-list');
+
+            updateWeaponUI();
+            updateStatus("Commander, select coordinates in Enemy Waters.");
+
+            // Add click listeners
+            enemySquares.forEach(square => {
+                square.addEventListener('click', () => {
+                    if (isGameOver || currentPlayer !== 'user') return;
+                    
+                    const index = parseInt(square.dataset.id);
+                    const targetIndices = getTargetIndices(index, selectedWeapon);
+                    const weaponUsed = selectedWeapon; // Capture this before reset
+                    
+                    // Check if already used special weapon logic
+                    if (selectedWeapon !== 'normal') {
+                        if (selectedWeapon === 'cluster') playerInventory.cluster--;
+                        if (selectedWeapon.startsWith('airstrike')) playerInventory.airstrike--;
+                    } else {
+                        // For normal shot, ignore if already hit
+                        if (square.classList.contains('hit') || square.classList.contains('miss')) return;
+                    }
+
+                    handleFire(targetIndices, enemySquares, 'user', weaponUsed);
+                    
+                    // Reset weapon to normal after use
+                    selectedWeapon = 'normal';
+                    clearGridPreview();
+                    updateWeaponUI();
+                });
+            });
+        }
+
+        function handleFire(indices, boardSquares, shooter, weaponType = 'normal') {
+            let hitCount = 0;
+            let sunkNames = [];
+            let atLeastOneShipHit = false;
+
+            indices.forEach(idx => {
+                const square = boardSquares[idx];
+                if (square.classList.contains('hit') || square.classList.contains('miss')) return;
+
+                if (square.classList.contains('ship')) {
+                    square.classList.add('hit');
+                    hitCount++;
+                    atLeastOneShipHit = true;
+
+                    const fleet = shooter === 'user' ? enemyFleet : playerFleet;
+                    const shipIndex = square.dataset.fleetIndex;
+                    const ship = fleet[shipIndex];
+                    
+                    if (ship) {
+                        ship.hits++;
+                        if (ship.hits === ship.size && !ship.sunk) {
+                            ship.sunk = true;
+                            sunkNames.push(ship.name);
+                            // Update list strike-through
+                            const listId = shooter === 'user' ? 'enemy-fleet-list' : 'player-fleet-list';
+                            const list = document.getElementById(listId);
+                            if(list && list.children[shipIndex]) {
+                                list.children[shipIndex].classList.add('sunk');
+                            }
+                        }
+                    }
+
+                    // Bot Intelligence: Add adjacent for normal shots, ignore for AOE to keep simple
+                    if (shooter === 'computer') {
+                         const adj = [idx - 1, idx + 1, idx - width, idx + width];
+                         adj.forEach(n => {
+                             if (n >= 0 && n < 100 && Math.abs((idx % 10) - (n % 10)) <= 1) {
+                                 const sq = playerSquares[n];
+                                 // Add only if not already hit/miss and not already in queue
+                                 if (!sq.classList.contains('hit') && !sq.classList.contains('miss') && !computerHitsQueue.includes(n)) {
+                                     computerHitsQueue.push(n);
+                                 }
+                             }
+                         });
+                    }
+
+                } else {
+                    square.classList.add('miss');
+                }
+            });
+
+            // Bot Intelligence Cleanup: If ship sunk, remove neighbors from queue if they are only neighbors of sunk ship
+            if (shooter === 'computer' && sunkNames.length > 0) {
+                 computerHitsQueue = computerHitsQueue.filter(targetIdx => {
+                     const targetAdj = [targetIdx - 1, targetIdx + 1, targetIdx - width, targetIdx + width];
+                     
+                     // Keep target if it has at least ONE neighbor that is HIT and NOT SUNK
+                     const hasActiveNeighbor = targetAdj.some(n => {
+                         if (n < 0 || n >= 100) return false;
+                         // Check row wrapping
+                         if (Math.abs((targetIdx % 10) - (n % 10)) > 1) return false;
+
+                         const neighbor = playerSquares[n];
+                         if (!neighbor.classList.contains('hit')) return false;
+                         
+                         // It is a hit. Is the ship sunk?
+                         const fIndex = neighbor.dataset.fleetIndex;
+                         if (fIndex === undefined) return false; 
+                         return !playerFleet[fIndex].sunk;
+                     });
+                     return hasActiveNeighbor;
+                 });
+            }
+
+            // --- Sound Logic ---
+            if (sunkNames.length > 0) {
+                playSound('sink');
+            } else if (weaponType === 'cluster') {
+                playSound('cluster');
+            } else if (weaponType.startsWith('airstrike')) {
+                playSound('airstrike');
+            } else if (atLeastOneShipHit) {
+                playSound('hit');
+            } else {
+                playSound('miss');
+            }
+
+            checkForWin();
+            if (isGameOver) return;
+
+            // Turn Switching
+            if (shooter === 'user') {
+                if (sunkNames.length > 0) {
+                    updateStatus(`You sunk the ${sunkNames.join(' & ')}!`, "success");
+                } else if (hitCount > 0) {
+                    updateStatus("Impact Confirmed!", "success");
+                } else {
+                    updateStatus("Miss. Enemy turn.", "alert");
+                }
+                
+                currentPlayer = 'computer';
+                setTimeout(computerGo, 1000);
+            } else {
+                if (sunkNames.length > 0) {
+                    updateStatus(`Enemy sunk your ${sunkNames.join(' & ')}!`, "alert");
+                } else if (hitCount > 0) {
+                    updateStatus("We've been hit! Return fire!", "alert");
+                } else {
+                    updateStatus("Enemy missed. Your turn.");
+                }
+                currentPlayer = 'user';
+            }
+        }
+
+        function computerGo() {
+            if (isGameOver) return;
+
+            // Decision: Use Special Weapon? (10% chance if available)
+            let weaponToUse = 'normal';
+            if (Math.random() < 0.15) {
+                if (botInventory.cluster > 0) {
+                    weaponToUse = 'cluster';
+                    botInventory.cluster--;
+                } else if (botInventory.airstrike > 0) {
+                    weaponToUse = Math.random() > 0.5 ? 'airstrike-row' : 'airstrike-col';
+                    botInventory.airstrike--;
+                }
+            }
+
+            let index;
+            let valid = false;
+            let safetyCounter = 0;
+
+            while (!valid && safetyCounter < 500) {
+                safetyCounter++;
+                
+                if (weaponToUse === 'normal' && computerHitsQueue.length > 0) {
+                    index = computerHitsQueue.shift(); 
+                } else {
+                    index = Math.floor(Math.random() * 100); 
+                }
+
+                const square = playerSquares[index];
+                if (!square) continue;
+
+                if (weaponToUse === 'normal') {
+                    if (!square.classList.contains('hit') && !square.classList.contains('miss')) valid = true;
+                } else {
+                    // Special weapons can fire anywhere
+                    valid = true; 
+                }
+            }
+
+            const targets = getTargetIndices(index, weaponToUse);
+            handleFire(targets, playerSquares, 'computer', weaponToUse);
+        }
+
+        function checkForWin() {
+            // Check if all ships in a fleet are sunk
+            const playerDefeated = playerFleet.every(s => s.sunk);
+            const enemyDefeated = enemyFleet.every(s => s.sunk);
+
+            if (enemyDefeated) {
+                isGameOver = true;
+                modalMsg.textContent = "VICTORY AT SEA!";
+                modalMsg.style.color = "#2ecc71";
+                playSound('win');
+                modal.style.display = "flex";
+            } else if (playerDefeated) {
+                isGameOver = true;
+                modalMsg.textContent = "FLEET DESTROYED";
+                modalMsg.style.color = "#e94560";
+                modal.style.display = "flex";
+            }
+        }
+
+        // Listeners
+        clusterBtn.addEventListener('click', toggleCluster);
+        airstrikeBtn.addEventListener('click', toggleAirstrike);
+        restartBtn.addEventListener('click', startGame);
+        
+        // Rules Modal Listeners
+        function toggleRules(show) { rulesModal.style.display = show ? 'flex' : 'none'; }
+        rulesBtn.addEventListener('click', () => toggleRules(true));
+        window.addEventListener('click', (e) => { if (e.target === rulesModal) toggleRules(false); });
+
+        // Init
+        startGame();
+    </script>
+</body>
+</html>

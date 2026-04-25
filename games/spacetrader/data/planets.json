@@ -1,0 +1,802 @@
+[
+  {
+    "id": "terra",
+    "name": "Terra Prime",
+    "tech": 6,
+    "x": 500,
+    "y": 500,
+    "description": "Capital world and starting hub for new captains."
+  },
+  {
+    "id": "sys002",
+    "name": "Cygnus Outpost 2",
+    "tech": 6,
+    "x": 124,
+    "y": 712,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys003",
+    "name": "Pioneer Station 3",
+    "tech": 5,
+    "x": 452,
+    "y": 52,
+    "description": "Tech level 5 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys004",
+    "name": "Astra Station 4",
+    "tech": 2,
+    "x": 258,
+    "y": 537,
+    "description": "Tech level 2 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys005",
+    "name": "Kestrel Prime 5",
+    "tech": 5,
+    "x": 223,
+    "y": 753,
+    "description": "Tech level 5 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys006",
+    "name": "Pioneer Bastion 6",
+    "tech": 2,
+    "x": 479,
+    "y": 623,
+    "description": "Tech level 2 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys007",
+    "name": "Altair Node 7",
+    "tech": 7,
+    "x": 26,
+    "y": 797,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys008",
+    "name": "Draco Terminal 8",
+    "tech": 4,
+    "x": 368,
+    "y": 304,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys009",
+    "name": "Helix Harbor 9",
+    "tech": 7,
+    "x": 364,
+    "y": 124,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys010",
+    "name": "Orion Bastion 10",
+    "tech": 1,
+    "x": 387,
+    "y": 887,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys011",
+    "name": "Hyperion Ring 11",
+    "tech": 3,
+    "x": 846,
+    "y": 64,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys012",
+    "name": "Artemis Haven 12",
+    "tech": 1,
+    "x": 964,
+    "y": 407,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys013",
+    "name": "Orion Haven 13",
+    "tech": 3,
+    "x": 869,
+    "y": 663,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys014",
+    "name": "Kestrel Relay 14",
+    "tech": 7,
+    "x": 390,
+    "y": 611,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys015",
+    "name": "Lyra Terminal 15",
+    "tech": 1,
+    "x": 66,
+    "y": 697,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys016",
+    "name": "Cygnus Node 16",
+    "tech": 3,
+    "x": 101,
+    "y": 895,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys017",
+    "name": "Cygnus Port 17",
+    "tech": 1,
+    "x": 409,
+    "y": 304,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys018",
+    "name": "Artemis Colony 18",
+    "tech": 7,
+    "x": 393,
+    "y": 186,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys019",
+    "name": "Hyperion Gate 19",
+    "tech": 2,
+    "x": 706,
+    "y": 293,
+    "description": "Tech level 2 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys020",
+    "name": "Orion Ring 20",
+    "tech": 6,
+    "x": 195,
+    "y": 566,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys021",
+    "name": "Cygnus Outpost 21",
+    "tech": 4,
+    "x": 408,
+    "y": 296,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys022",
+    "name": "Pioneer Harbor 22",
+    "tech": 6,
+    "x": 352,
+    "y": 883,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys023",
+    "name": "Vega Harbor 23",
+    "tech": 7,
+    "x": 52,
+    "y": 844,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys024",
+    "name": "Zenith Bastion 24",
+    "tech": 3,
+    "x": 87,
+    "y": 236,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys025",
+    "name": "Odyssey Relay 25",
+    "tech": 6,
+    "x": 342,
+    "y": 237,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys026",
+    "name": "Titan Bastion 26",
+    "tech": 6,
+    "x": 489,
+    "y": 166,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys027",
+    "name": "Altair Outpost 27",
+    "tech": 2,
+    "x": 782,
+    "y": 594,
+    "description": "Tech level 2 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys028",
+    "name": "Pioneer Reach 28",
+    "tech": 6,
+    "x": 618,
+    "y": 458,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys029",
+    "name": "Odyssey Bastion 29",
+    "tech": 3,
+    "x": 244,
+    "y": 161,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys030",
+    "name": "Nebula Point 30",
+    "tech": 1,
+    "x": 793,
+    "y": 68,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys031",
+    "name": "Nova Outpost 31",
+    "tech": 6,
+    "x": 183,
+    "y": 831,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys032",
+    "name": "Sol Ring 32",
+    "tech": 1,
+    "x": 414,
+    "y": 410,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys033",
+    "name": "Kestrel Point 33",
+    "tech": 5,
+    "x": 277,
+    "y": 586,
+    "description": "Tech level 5 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys034",
+    "name": "Astra Colony 34",
+    "tech": 6,
+    "x": 137,
+    "y": 718,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys035",
+    "name": "Pioneer Node 35",
+    "tech": 3,
+    "x": 807,
+    "y": 676,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys036",
+    "name": "Zenith Station 36",
+    "tech": 3,
+    "x": 465,
+    "y": 181,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys037",
+    "name": "Artemis Prime 37",
+    "tech": 6,
+    "x": 916,
+    "y": 756,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys038",
+    "name": "Altair Haven 38",
+    "tech": 7,
+    "x": 202,
+    "y": 539,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys039",
+    "name": "Nova Port 39",
+    "tech": 6,
+    "x": 325,
+    "y": 881,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys040",
+    "name": "Nebula Ring 40",
+    "tech": 2,
+    "x": 176,
+    "y": 402,
+    "description": "Tech level 2 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys041",
+    "name": "Draco Haven 41",
+    "tech": 7,
+    "x": 964,
+    "y": 563,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys042",
+    "name": "Astra Ring 42",
+    "tech": 3,
+    "x": 520,
+    "y": 39,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys043",
+    "name": "Nova Relay 43",
+    "tech": 3,
+    "x": 919,
+    "y": 871,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys044",
+    "name": "Nexus Harbor 44",
+    "tech": 1,
+    "x": 266,
+    "y": 919,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys045",
+    "name": "Odyssey Station 45",
+    "tech": 1,
+    "x": 769,
+    "y": 517,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys046",
+    "name": "Orion Node 46",
+    "tech": 5,
+    "x": 804,
+    "y": 148,
+    "description": "Tech level 5 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys047",
+    "name": "Helix Colony 47",
+    "tech": 4,
+    "x": 582,
+    "y": 189,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys048",
+    "name": "Altair Haven 48",
+    "tech": 7,
+    "x": 641,
+    "y": 453,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys049",
+    "name": "Lyra Relay 49",
+    "tech": 5,
+    "x": 793,
+    "y": 767,
+    "description": "Tech level 5 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys050",
+    "name": "Lyra Terminal 50",
+    "tech": 3,
+    "x": 428,
+    "y": 707,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys051",
+    "name": "Hyperion Point 51",
+    "tech": 5,
+    "x": 482,
+    "y": 143,
+    "description": "Tech level 5 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys052",
+    "name": "Cygnus Harbor 52",
+    "tech": 1,
+    "x": 366,
+    "y": 41,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys053",
+    "name": "Odyssey Haven 53",
+    "tech": 2,
+    "x": 622,
+    "y": 245,
+    "description": "Tech level 2 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys054",
+    "name": "Astra Station 54",
+    "tech": 6,
+    "x": 666,
+    "y": 80,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys055",
+    "name": "Cygnus Station 55",
+    "tech": 1,
+    "x": 900,
+    "y": 358,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys056",
+    "name": "Orion Haven 56",
+    "tech": 2,
+    "x": 305,
+    "y": 705,
+    "description": "Tech level 2 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys057",
+    "name": "Titan Harbor 57",
+    "tech": 5,
+    "x": 155,
+    "y": 760,
+    "description": "Tech level 5 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys058",
+    "name": "Odyssey Ring 58",
+    "tech": 4,
+    "x": 268,
+    "y": 823,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys059",
+    "name": "Titan Node 59",
+    "tech": 4,
+    "x": 214,
+    "y": 116,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys060",
+    "name": "Nova Colony 60",
+    "tech": 4,
+    "x": 382,
+    "y": 453,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys061",
+    "name": "Sol Point 61",
+    "tech": 7,
+    "x": 766,
+    "y": 75,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys062",
+    "name": "Nova Prime 62",
+    "tech": 4,
+    "x": 765,
+    "y": 367,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys063",
+    "name": "Nova Harbor 63",
+    "tech": 2,
+    "x": 214,
+    "y": 569,
+    "description": "Tech level 2 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys064",
+    "name": "Artemis Outpost 64",
+    "tech": 4,
+    "x": 207,
+    "y": 305,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys065",
+    "name": "Artemis Harbor 65",
+    "tech": 7,
+    "x": 965,
+    "y": 97,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys066",
+    "name": "Artemis Node 66",
+    "tech": 7,
+    "x": 896,
+    "y": 583,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys067",
+    "name": "Nova Prime 67",
+    "tech": 6,
+    "x": 573,
+    "y": 876,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys068",
+    "name": "Astra Station 68",
+    "tech": 7,
+    "x": 889,
+    "y": 262,
+    "description": "Tech level 7 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys069",
+    "name": "Draco Bastion 69",
+    "tech": 4,
+    "x": 512,
+    "y": 238,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys070",
+    "name": "Eclipse Relay 70",
+    "tech": 1,
+    "x": 188,
+    "y": 408,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys071",
+    "name": "Astra Bastion 71",
+    "tech": 3,
+    "x": 968,
+    "y": 822,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys072",
+    "name": "Artemis Reach 72",
+    "tech": 4,
+    "x": 733,
+    "y": 768,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys073",
+    "name": "Pioneer Colony 73",
+    "tech": 6,
+    "x": 518,
+    "y": 178,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys074",
+    "name": "Lyra Reach 74",
+    "tech": 2,
+    "x": 79,
+    "y": 613,
+    "description": "Tech level 2 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys075",
+    "name": "Pioneer Prime 75",
+    "tech": 6,
+    "x": 341,
+    "y": 78,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys076",
+    "name": "Vega Ring 76",
+    "tech": 4,
+    "x": 534,
+    "y": 961,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys077",
+    "name": "Nebula Outpost 77",
+    "tech": 1,
+    "x": 540,
+    "y": 102,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys078",
+    "name": "Draco Station 78",
+    "tech": 5,
+    "x": 89,
+    "y": 711,
+    "description": "Tech level 5 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys079",
+    "name": "Cygnus Bastion 79",
+    "tech": 1,
+    "x": 931,
+    "y": 603,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys080",
+    "name": "Cygnus Ring 80",
+    "tech": 5,
+    "x": 60,
+    "y": 654,
+    "description": "Tech level 5 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys081",
+    "name": "Orion Bastion 81",
+    "tech": 6,
+    "x": 617,
+    "y": 598,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys082",
+    "name": "Nebula Gate 82",
+    "tech": 3,
+    "x": 229,
+    "y": 705,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys083",
+    "name": "Zenith Harbor 83",
+    "tech": 3,
+    "x": 425,
+    "y": 154,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys084",
+    "name": "Nexus Point 84",
+    "tech": 3,
+    "x": 971,
+    "y": 789,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys085",
+    "name": "Orion Prime 85",
+    "tech": 4,
+    "x": 656,
+    "y": 596,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys086",
+    "name": "Nova Station 86",
+    "tech": 5,
+    "x": 238,
+    "y": 538,
+    "description": "Tech level 5 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys087",
+    "name": "Altair Outpost 87",
+    "tech": 3,
+    "x": 922,
+    "y": 90,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys088",
+    "name": "Cygnus Gate 88",
+    "tech": 3,
+    "x": 181,
+    "y": 468,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys089",
+    "name": "Pioneer Terminal 89",
+    "tech": 3,
+    "x": 646,
+    "y": 846,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys090",
+    "name": "Nebula Prime 90",
+    "tech": 6,
+    "x": 856,
+    "y": 587,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys091",
+    "name": "Nexus Relay 91",
+    "tech": 6,
+    "x": 126,
+    "y": 919,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys092",
+    "name": "Helix Reach 92",
+    "tech": 1,
+    "x": 931,
+    "y": 129,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys093",
+    "name": "Pioneer Outpost 93",
+    "tech": 3,
+    "x": 308,
+    "y": 639,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys094",
+    "name": "Lyra Terminal 94",
+    "tech": 3,
+    "x": 228,
+    "y": 723,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys095",
+    "name": "Altair Haven 95",
+    "tech": 4,
+    "x": 277,
+    "y": 947,
+    "description": "Tech level 4 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys096",
+    "name": "Vega Station 96",
+    "tech": 6,
+    "x": 453,
+    "y": 869,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys097",
+    "name": "Altair Prime 97",
+    "tech": 1,
+    "x": 361,
+    "y": 809,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys098",
+    "name": "Helix Colony 98",
+    "tech": 3,
+    "x": 185,
+    "y": 779,
+    "description": "Tech level 3 system known for frontier trade and volatile markets."
+  },
+  {
+    "id": "sys099",
+    "name": "Artemis Haven 99",
+    "tech": 6,
+    "x": 457,
+    "y": 594,
+    "description": "Tech level 6 system known for industry and volatile markets."
+  },
+  {
+    "id": "sys100",
+    "name": "Astra Station 100",
+    "tech": 1,
+    "x": 924,
+    "y": 727,
+    "description": "Tech level 1 system known for frontier trade and volatile markets."
+  }
+]

@@ -1,0 +1,955 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Mystery Manor is a professional-grade deduction game for 1 human player and 3-7 AI opponents. Replicating the classic tabletop experience, players must navigate a 20x20 manor, enter rooms through specific doors, and use a detailed deduction notebook to identify the hidden culprit, location, and tool. Includes a local save system.
+TAGS: Deduction, Strategy, Tabletop, Mystery, AI, Logical Elimination
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mystery Manor: Professional Edition V2.21</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Playfair+Display:wght@700&display=swap');
+
+        :root {
+            --bg-main: #020617;
+            --panel: #1e293b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: #f1f5f9;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1, h2, h3 { font-family: 'Playfair Display', serif; }
+
+        #board-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 1/1;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            grid-template-rows: repeat(20, 1fr);
+            gap: 1px;
+            background: #334155;
+            width: 100%;
+            height: 100%;
+            border: 1px solid #475569;
+        }
+
+        .cell {
+            background: #1e293b;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .hall { background: #1e293b; }
+        
+        .door-v { border-left: 3px solid #ffffff !important; }
+        .door-v-r { border-right: 3px solid #ffffff !important; }
+        .door-h { border-top: 3px solid #ffffff !important; }
+        .door-h-b { border-bottom: 3px solid #ffffff !important; }
+
+        .room-overlay {
+            position: absolute;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-family: 'Playfair Display', serif;
+            font-weight: bold;
+            color: #facc15; 
+            text-transform: uppercase;
+            z-index: 5;
+            padding: 2px;
+            line-height: 1;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+        }
+
+        .notebook-table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.65rem;
+            table-layout: fixed;
+        }
+
+        .notebook-table th, .notebook-table td {
+            border: 1px solid #cbd5e1;
+            padding: 1px 4px;
+            text-align: center;
+            height: 28px;
+            overflow: hidden;
+            white-space: nowrap;
+            transition: background-color 0.2s;
+        }
+
+        .item-col {
+            width: 180px !important;
+            text-align: left !important;
+            padding-left: 8px !important;
+        }
+
+        .row-crossed { background-color: #fee2e2 !important; color: #b91c1c !important; }
+        .row-circled { background-color: #f0fdf4 !important; color: #15803d !important; }
+        .row-highlight { background-color: #fef08a !important; color: #000 !important; } 
+        .col-highlight { background-color: rgba(253, 224, 71, 0.4) !important; color: #000 !important; }
+
+        .label-crossed { text-decoration: line-through; opacity: 0.7; }
+        .label-circled { font-weight: bold; text-decoration: underline; }
+
+        .cell-check { color: #16a34a; font-weight: bold; font-size: 1rem; }
+        .cell-x { color: #dc2626; font-weight: bold; font-size: 1rem; }
+        .cell-num { 
+            display: inline-block;
+            font-size: 0.5rem; 
+            background: #e2e8f0;
+            border-radius: 2px;
+            width: 11px;
+            height: 11px;
+            line-height: 11px;
+            margin: 0.5px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+        .player-token {
+            position: absolute;
+            font-size: 1.4rem;
+            z-index: 50;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes token-pulse {
+            0% { filter: drop-shadow(0 0 2px white); }
+            50% { filter: drop-shadow(0 0 12px white); }
+            100% { filter: drop-shadow(0 0 2px white); }
+        }
+        .active-token {
+            animation: token-pulse 1.5s infinite;
+            z-index: 60;
+        }
+
+        #cell-menu {
+            position: absolute;
+            z-index: 200;
+            background: white;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            border-radius: 8px;
+            padding: 6px;
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .menu-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+        .menu-btn:hover { background: #f1f5f9; }
+
+        .die {
+            width: 34px;
+            height: 34px;
+            background: white;
+            color: black;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+            font-size: 1.1rem;
+        }
+
+        .popover {
+            position: absolute;
+            background: #1e293b;
+            border: 2px solid #475569;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            z-index: 100;
+            padding: 12px;
+        }
+
+        .game-card {
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 4px 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            white-space: nowrap;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            border-bottom: 2px solid #334155;
+        }
+
+        .pill-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: #94a3b8;
+            font-size: 0.75rem;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .pill-btn.active {
+            background: #ef4444;
+            color: white;
+            border-color: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+        }
+
+        input[type=range] { accent-color: #ef4444; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        
+        .help-section {
+            border-bottom: 1px solid #334155;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        .help-section:last-child { border: none; }
+        .help-step {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .step-num {
+            background: #ef4444;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-weight: bold;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-950">
+
+    <div id="cell-menu">
+        <div class="menu-btn text-green-600" onclick="setCellState('check')">✓</div>
+        <div class="menu-btn text-red-600" onclick="setCellState('x')">✕</div>
+        <div class="menu-btn text-slate-400" onclick="setCellState('clear')">Ø</div>
+        <div class="menu-btn" onclick="setCellState('1')">1</div>
+        <div class="menu-btn" onclick="setCellState('2')">2</div>
+        <div class="menu-btn" onclick="setCellState('3')">3</div>
+        <div class="menu-btn" onclick="setCellState('4')">4</div>
+        <div class="menu-btn" onclick="setCellState('5')">5</div>
+        <div class="menu-btn" onclick="setCellState('6')">6</div>
+    </div>
+
+    <!-- ENHANCED HELP OVERLAY -->
+    <div id="help-overlay" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md hidden p-4">
+        <div class="max-w-3xl w-full bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl overflow-y-auto max-h-[85vh] custom-scrollbar">
+            <h2 class="text-3xl font-bold text-red-500 mb-6 uppercase tracking-widest border-b border-slate-700 pb-2">Investigator's Manual</h2>
+            
+            <div class="space-y-6">
+                <!-- Objective -->
+                <div class="help-section">
+                    <h3 class="text-white font-bold mb-2 uppercase text-xs tracking-widest text-red-400">1. The Goal</h3>
+                    <p class="text-slate-300 text-sm leading-relaxed">
+                        A crime has occurred! Inside a <strong>Confidential File</strong> are three cards: one <strong>Suspect</strong>, one <strong>Location</strong>, and one <strong>Tool</strong>. 
+                        Your mission is to be the first to identify these three cards. 
+                        If a player (including you) holds a card in their hand, that card <strong>cannot</strong> be in the secret file.
+                    </p>
+                </div>
+
+                <!-- Moving -->
+                <div class="help-section">
+                    <h3 class="text-white font-bold mb-2 uppercase text-xs tracking-widest text-red-400">2. Movement & The Manor</h3>
+                    <div class="space-y-3">
+                        <div class="help-step">
+                            <div class="step-num">A</div>
+                            <p class="text-slate-300 text-sm">Roll the dice to see how far you can move. You must use all your moves unless you enter a room.</p>
+                        </div>
+                        <div class="help-step">
+                            <div class="step-num">B</div>
+                            <p class="text-slate-300 text-sm">Rooms are entered through <strong>White Lines (Doors)</strong>. You stop movement immediately upon entering.</p>
+                        </div>
+                        <div class="help-step">
+                            <div class="step-num">C</div>
+                            <p class="text-slate-300 text-sm">You must leave your current tile to end your turn. No loitering in the same spot!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Suggesting -->
+                <div class="help-section">
+                    <h3 class="text-white font-bold mb-2 uppercase text-xs tracking-widest text-red-400">3. Questioning Guests</h3>
+                    <p class="text-slate-300 text-sm leading-relaxed mb-3">
+                        When you enter a room, you make a <strong>Suggestion</strong> (e.g., "I suggest Baron Birch in the Library with the Dagger").
+                    </p>
+                    <ul class="list-disc pl-5 text-slate-300 text-sm space-y-2">
+                        <li>The player to your left checks their hand for any of those three cards.</li>
+                        <li>If they have one, they show it <strong>only to you</strong>. Your notebook will mark this automatically.</li>
+                        <li>If they don't, the question moves to the next player.</li>
+                        <li>If no one has the cards, you've likely found the solution!</li>
+                    </ul>
+                </div>
+
+                <!-- Notebook -->
+                <div class="help-section">
+                    <h3 class="text-white font-bold mb-2 uppercase text-xs tracking-widest text-red-400">4. Using Your Notebook</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                            <h4 class="text-white text-xs font-bold mb-1 uppercase">Labels</h4>
+                            <p class="text-slate-400 text-xs">Click a Name (e.g. 'Baron Birch') to cycle states: Crossed out (ruled out), Circled (high priority), or Normal.</p>
+                        </div>
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                            <h4 class="text-white text-xs font-bold mb-1 uppercase">Cells (P1-P8)</h4>
+                            <p class="text-slate-400 text-xs">Click a cell to mark <strong>✓</strong> (player has it) or <strong>✕</strong> (player doesn't). Use numbers <strong>1-6</strong> to group possibilities.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Winning -->
+                <div class="help-section">
+                    <h3 class="text-white font-bold mb-2 uppercase text-xs tracking-widest text-red-400">5. Making an Accusation</h3>
+                    <p class="text-slate-300 text-sm leading-relaxed">
+                        When you are certain, click <strong>Make Accusation</strong>. Enter the Suspect, Location, and Tool. 
+                        <strong>Warning:</strong> If you are wrong, you are eliminated from the game!
+                    </p>
+                </div>
+            </div>
+            
+            <button onclick="toggleHelp(false)" class="mt-8 w-full bg-red-700 hover:bg-red-600 text-white font-bold py-4 rounded-xl uppercase tracking-widest transition shadow-lg">Begin My Investigation</button>
+        </div>
+    </div>
+
+    <!-- SETUP SCREEN -->
+    <div id="setup-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 p-4">
+        <div class="max-w-4xl w-full bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar">
+            <div class="flex justify-between items-start mb-8">
+                <div>
+                    <h1 class="text-4xl text-red-600 uppercase tracking-widest font-bold">Mystery Manor</h1>
+                    <p class="text-slate-500 text-xs mt-1 uppercase tracking-tighter italic">V2.21 Professional Edition</p>
+                </div>
+                <div class="flex gap-2">
+                    <button id="resume-btn" onclick="resumeGame()" class="hidden bg-green-700 hover:bg-green-600 text-white border border-green-500 px-4 py-2 rounded-full font-bold text-xs transition">
+                        RESUME PREVIOUS INVESTIGATION
+                    </button>
+                    <button onclick="toggleHelp(true)" class="bg-blue-900/50 hover:bg-blue-800 text-blue-300 border border-blue-700 px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 transition">
+                        <span>❓</span> HOW TO PLAY
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-8">
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="font-bold border-b border-slate-700 pb-2 mb-4 uppercase text-slate-300 tracking-wider">New Investigation</h3>
+                        <div class="space-y-6">
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-xs font-bold uppercase text-slate-400">Total Players (4-8)</label>
+                                    <span id="player-count-display" class="text-red-500 font-bold">4 Players</span>
+                                </div>
+                                <input type="range" id="total-players-slider" min="4" max="8" value="4" step="1" class="w-full cursor-pointer" oninput="updateSetupDisplay()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold mb-3 uppercase text-slate-400">AI Difficulty</label>
+                                <div class="flex gap-2">
+                                    <button class="pill-btn active" data-diff="easy" onclick="setDifficulty('easy')">EASY</button>
+                                    <button class="pill-btn" data-diff="normal" onclick="setDifficulty('normal')">NORMAL</button>
+                                    <button class="pill-btn" data-diff="hard" onclick="setDifficulty('hard')">HARD</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold mb-2 uppercase text-slate-400">Choose Your Character</label>
+                                <select id="human-character-select" class="w-full bg-slate-800 border border-slate-600 p-3 rounded-lg text-sm text-white outline-none focus:border-red-500" onchange="updateSetupDisplay()"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-bold border-b border-slate-700 pb-2 mb-4 uppercase text-slate-300 tracking-wider">The Guest List</h3>
+                    <div id="player-setup-list" class="space-y-3"></div>
+                </div>
+            </div>
+            <button onclick="startGame()" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-[1.01] active:scale-[0.99] uppercase tracking-widest text-lg shadow-xl">Begin New Investigation</button>
+        </div>
+    </div>
+
+    <div id="modal-bg" class="modal-background" onclick="closeEmojiPicker()" style="display:none; z-index:250; position:fixed; inset:0; background:rgba(0,0,0,0.5);"></div>
+    <div id="emoji-picker" style="display:none;"></div>
+
+    <header class="bg-black p-2 flex justify-between items-center border-b border-slate-800">
+        <div class="flex items-center gap-4">
+            <h2 class="text-lg text-red-700 uppercase font-bold tracking-tighter">Mystery Manor</h2>
+            <div id="turn-indicator" class="text-xs font-bold bg-slate-800 px-3 py-1 rounded border border-slate-600">P1's Turn</div>
+        </div>
+        <div id="narrative" class="text-[0.65rem] italic text-slate-400 max-w-md truncate">Awaiting start.</div>
+    </header>
+
+    <main class="flex-grow flex overflow-hidden">
+        <div class="flex-1 p-2 flex flex-col items-center justify-center bg-slate-950 relative">
+            <div id="board-container">
+                <div id="board" class="game-grid"></div>
+                <div id="tokens-layer"></div>
+                
+                <div id="interrogation-popover" class="popover hidden top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80">
+                    <div id="suggest-input-stage">
+                        <h3 class="text-xs font-bold text-red-500 mb-3 text-center uppercase tracking-widest">Make a Suggestion</h3>
+                        <div class="space-y-3">
+                            <div><select id="suggest-suspect" class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-[0.7rem]"></select></div>
+                            <div><select id="suggest-tool" class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-[0.7rem]"></select></div>
+                            <p id="room-notice-pop" class="text-[0.6rem] text-slate-500 italic text-center"></p>
+                            <button onclick="submitSuggestion()" class="w-full bg-red-700 py-2 rounded font-bold uppercase text-[0.7rem] tracking-widest">Ask Players</button>
+                        </div>
+                    </div>
+                    <div id="suggest-verify-stage" class="hidden text-center">
+                        <h3 id="verify-header" class="text-xs font-bold text-blue-400 mb-2 uppercase tracking-widest">Investigation</h3>
+                        <div id="verify-body" class="bg-slate-900 border border-slate-700 p-3 rounded text-[0.65rem] mb-4 space-y-1"></div>
+                        <div id="verify-controls"></div>
+                    </div>
+                </div>
+
+                <div id="reveal-popover" class="popover hidden top-4 right-4 w-56 border-blue-500">
+                    <h3 id="reveal-title" class="text-[0.6rem] font-bold text-blue-400 mb-2 uppercase text-center">Evidence</h3>
+                    <div id="reveal-card" class="bg-white text-slate-900 p-3 rounded-lg font-bold text-base mb-3 shadow-inner text-center border-2 border-slate-300">---</div>
+                    <button onclick="closeReveal()" class="w-full bg-blue-600 py-1.5 rounded font-bold uppercase text-[0.65rem]">Got it</button>
+                </div>
+            </div>
+            
+            <div class="w-full max-w-[600px] mt-2 bg-slate-900 p-2 rounded border border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="flex gap-1" id="dice-container">
+                        <div class="die" id="die-1">?</div>
+                        <div class="die" id="die-2">?</div>
+                    </div>
+                    <button onclick="rollDie()" id="roll-btn" class="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded font-bold uppercase text-[0.7rem] shadow-lg">Roll Dice</button>
+                    <button onclick="endTurn()" id="end-turn-btn" class="hidden bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded font-bold uppercase text-[0.7rem] shadow-lg border border-slate-500">End Turn</button>
+                </div>
+                <div id="player-cards" class="flex gap-2 overflow-x-auto max-w-[340px] py-1 custom-scrollbar"></div>
+            </div>
+        </div>
+
+        <aside class="w-[360px] bg-white text-slate-900 flex flex-col border-l-2 border-slate-300">
+            <div class="p-2 border-b border-slate-200 bg-slate-100 flex justify-between items-center">
+                <h3 class="font-bold text-[0.6rem] uppercase tracking-widest">Deduction Notebook</h3>
+                <span class="text-[0.5rem] bg-slate-200 px-1 rounded font-bold">V2.21</span>
+            </div>
+            <div class="flex-grow overflow-x-auto overflow-y-auto custom-scrollbar">
+                <table class="notebook-table">
+                    <thead id="notebook-head">
+                        <tr class="bg-slate-50 text-[0.5rem]">
+                            <th class="item-col">ITEM</th>
+                        </tr>
+                    </thead>
+                    <tbody id="notebook-body"></tbody>
+                </table>
+            </div>
+            <div class="p-2 bg-slate-50 border-t border-slate-200 space-y-1">
+                <button onclick="openAccusation()" class="w-full bg-red-800 text-white py-1.5 rounded text-[0.65rem] font-bold uppercase hover:bg-red-700 transition">Make Accusation</button>
+            </div>
+        </aside>
+    </main>
+
+    <script type="text/javascript">
+        const SUSPECTS = [
+            { name: "Baron Birch", emoji: "🎩" }, { name: "Madam Marigold", emoji: "💃" },
+            { name: "Captain Cobalt", emoji: "🎖️" }, { name: "Chef Saffron", emoji: "👨‍🍳" },
+            { name: "Lady Lavender", emoji: "🌹" }, { name: "Inspector Ivory", emoji: "🕵️" },
+            { name: "Duke Denim", emoji: "👑" }, { name: "Countess Coral", emoji: "💎" }
+        ];
+
+        const LOCATIONS = [
+            { name: "Grand Conservatory", emoji: "🌿" }, { name: "Imperial Ballroom", emoji: "🎭" },
+            { name: "Royal Kitchen", emoji: "🍳" }, { name: "Billiard Lounge", emoji: "🎱" },
+            { name: "Great Library", emoji: "📚" }, { name: "Dining Hall", emoji: "🍽️" },
+            { name: "Art Gallery", emoji: "🖼️" }, { name: "Gothic Study", emoji: "🖋️" },
+            { name: "Wine Cellar", emoji: "🍷" }, { name: "Secret Chamber", emoji: "🗝️" },
+            { name: "Grand Foyer", emoji: "🏛️" }
+        ];
+
+        const TOOLS = [
+            { name: "Heavy Statuette", emoji: "🗿" }, { name: "Silk Cord", emoji: "🧵" },
+            { name: "Garden Shears", emoji: "✂️" }, { name: "Flintlock", emoji: "🔫" },
+            { name: "Poison Vial", emoji: "🧪" }, { name: "Iron Wrench", emoji: "🔧" }
+        ];
+
+        const ALL_ITEMS = [...SUSPECTS, ...LOCATIONS, ...TOOLS];
+        const ROOM_COLORS = { 1: "#064e3b", 2: "#1e3a8a", 3: "#450a0a", 4: "#312e81", 5: "#3f3f46", 6: "#713f12", 7: "#3730a3", 8: "#422006", 9: "#171717", 10: "#3b0764", 11: "#0c4a6e" };
+
+        const ROOMS_META = [
+            { id: 1, name: "Grand Conservatory", r1:0, c1:0, r2:3, c2:4, doors: [[3,2]] },
+            { id: 2, name: "Imperial Ballroom", r1:0, c1:7, r2:2, c2:12, doors: [[1,7]] },
+            { id: 3, name: "Royal Kitchen", r1:0, c1:15, r2:3, c2:19, doors: [[3,17]] },
+            { id: 4, name: "Billiard Lounge", r1:6, c1:0, r2:8, c2:3, doors: [[6,3]] },
+            { id: 5, name: "Great Library", r1:6, c1:16, r2:8, c2:19, doors: [[7,16]] },
+            { id: 6, name: "Dining Hall", r1:11, c1:0, r2:13, c2:3, doors: [[11,3]] },
+            { id: 7, name: "Art Gallery", r1:11, c1:16, r2:13, c2:19, doors: [[11,16]] },
+            { id: 8, name: "Gothic Study", r1:16, c1:0, r2:19, c2:4, doors: [[16,2]] },
+            { id: 9, name: "Secret Chamber", r1:9, c1:8, r2:11, c2:11, doors: [[11,9]] },
+            { id: 10, name: "Wine Cellar", r1:16, c1:15, r2:19, c2:19, doors: [[16,17]] },
+            { id: 11, name: "Grand Foyer", r1:17, c1:7, r2:19, c2:12, doors: [[17,9]] }
+        ];
+
+        const ROOM_LAYOUT = Array(20).fill().map(() => Array(20).fill(0));
+        ROOMS_META.forEach(m => { for(let r=m.r1; r<=m.r2; r++) for(let c=m.c1; c<=m.c2; c++) ROOM_LAYOUT[r][c] = m.id; });
+
+        let state = { 
+            players: [], currentPlayerIndex: 0, solution: {}, dieRolled: false, movesLeft: 0, totalPlayers: 4, difficulty: 'easy', activeCell: null, 
+            verifyLoop: { active: false, query: { suspect: '', location: '', tool: '' }, currentStepIndex: 0, revealed: false },
+            notebook: { cells: {}, rowLabels: {} } 
+        };
+
+        const STORAGE_KEY = 'mystery_manor_save_v221';
+
+        function initApp() {
+            const charSelect = document.getElementById('human-character-select');
+            charSelect.innerHTML = SUSPECTS.map(s => `<option value="${s.name}">${s.emoji} ${s.name}</option>`).join('');
+            checkSave();
+            updateSetupDisplay();
+        }
+
+        function checkSave() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) document.getElementById('resume-btn').classList.remove('hidden');
+        }
+
+        function saveGame() {
+            if (!state.players.length) return;
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.error("Save failed", e); }
+        }
+
+        function resumeGame() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                state = JSON.parse(saved);
+                document.getElementById('setup-screen').classList.add('hidden');
+                initBoard(); initNotebook(); populateInterrogation(); startTurn();
+            }
+        }
+
+        window.startGame = startGame;
+        window.resumeGame = resumeGame;
+        window.rollDie = rollDie;
+        window.endTurn = endTurn;
+        window.submitSuggestion = submitSuggestion;
+        window.closeReveal = closeReveal;
+        window.nextVerifyStep = nextVerifyStep;
+        window.showHumanReveal = showHumanReveal;
+        window.finishTurnPrompt = finishTurnPrompt;
+        window.openAccusation = openAccusation;
+        window.toggleHelp = toggleHelp;
+        window.setDifficulty = setDifficulty;
+        window.updateSetupDisplay = updateSetupDisplay;
+        window.openCellMenu = openCellMenu;
+        window.setCellState = setCellState;
+        window.cycleRowLabel = cycleRowLabel;
+
+        function toggleHelp(show) { document.getElementById('help-overlay').classList.toggle('hidden', !show); }
+        function setDifficulty(diff) { state.difficulty = diff; document.querySelectorAll('.pill-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.diff === diff)); }
+
+        function updateSetupDisplay() {
+            const slider = document.getElementById('total-players-slider');
+            if(!slider) return;
+            state.totalPlayers = parseInt(slider.value);
+            document.getElementById('player-count-display').innerText = `${state.totalPlayers} Players`;
+            const hName = document.getElementById('human-character-select').value;
+            const hChar = SUSPECTS.find(s => s.name === hName);
+            const list = document.getElementById('player-setup-list');
+            list.innerHTML = `<div class="flex gap-4 items-center bg-slate-800 p-3 rounded-xl border border-slate-600 shadow-md"><span class="text-2xl">${hChar.emoji}</span><div class="flex-1"><div class="text-xs font-bold text-slate-400 uppercase tracking-tighter">Player 1 (You)</div><div class="text-sm font-bold text-white">${hChar.name}</div></div><span class="bg-blue-600 text-[0.6rem] px-2 py-0.5 rounded-full font-bold">HUMAN</span></div>`;
+            const others = SUSPECTS.filter(s => s.name !== hName);
+            for (let i = 1; i < state.totalPlayers; i++) {
+                const ai = others[i-1];
+                list.innerHTML += `<div class="flex gap-4 items-center bg-slate-800/50 p-3 rounded-xl border border-slate-700"><span class="text-2xl grayscale opacity-50">${ai.emoji}</span><div class="flex-1"><div class="text-xs font-bold text-slate-500 uppercase tracking-tighter">Player ${i+1}</div><div class="text-sm font-bold text-slate-400">${ai.name}</div></div><span class="bg-slate-700 text-[0.6rem] px-2 py-0.5 rounded-full font-bold">AI</span></div>`;
+            }
+        }
+
+        function startGame() {
+            const hName = document.getElementById('human-character-select').value;
+            const others = SUSPECTS.filter(s => s.name !== hName);
+            const sIdx = Math.floor(Math.random() * SUSPECTS.length), lIdx = Math.floor(Math.random() * LOCATIONS.length), tIdx = Math.floor(Math.random() * TOOLS.length);
+            state.solution = { suspect: SUSPECTS[sIdx].name, location: LOCATIONS[lIdx].name, tool: TOOLS[tIdx].name };
+            let deck = [...SUSPECTS.filter((_, i) => i !== sIdx).map(x => x.name), ...LOCATIONS.filter((_, i) => i !== lIdx).map(x => x.name), ...TOOLS.filter((_, i) => i !== tIdx).map(x => x.name)].sort(() => Math.random() - 0.5);
+            const starts = [[0,5], [5,19], [19,14], [14,0], [0,14], [14,19], [19,5], [5,0]];
+            state.players = [];
+            state.players.push({ id: 1, name: hName, emoji: SUSPECTS.find(s => s.name === hName).emoji, isHuman: true, pos: [...starts[0]], cards: [], eliminated: false, internalNotebook: {} });
+            for (let i = 1; i < state.totalPlayers; i++) { state.players.push({ id: i+1, name: others[i-1].name, emoji: others[i-1].emoji, isHuman: false, pos: [...starts[i]], cards: [], eliminated: false, internalNotebook: {} }); }
+            let idx = 0; while(deck.length > 0) { state.players[idx % state.totalPlayers].cards.push(deck.pop()); idx++; }
+            state.players.forEach(p => {
+                ALL_ITEMS.forEach(item => p.internalNotebook[item.name] = { known: false });
+                p.cards.forEach(card => p.internalNotebook[card] = { known: true, owner: p.id });
+            });
+            state.notebook = { cells: {}, rowLabels: {} };
+            document.getElementById('setup-screen').classList.add('hidden');
+            initBoard(); initNotebook(); autoMarkCards(); populateInterrogation(); startTurn();
+        }
+
+        function initBoard() {
+            const b = document.getElementById('board'); b.innerHTML = '';
+            for (let r = 0; r < 20; r++) {
+                for (let c = 0; c < 20; c++) {
+                    const v = ROOM_LAYOUT[r][c], cell = document.createElement('div');
+                    cell.className = `cell ${v > 0 ? 'room' : 'hall'}`;
+                    if (v > 0) cell.style.backgroundColor = ROOM_COLORS[v];
+                    cell.id = `cell-${r}-${c}`; cell.onclick = () => handleMove(r, c);
+                    const meta = ROOMS_META.find(m => m.id === v || (m.doors.some(d => d[0] === r && d[1] === c)));
+                    const isD = ROOMS_META.some(m => m.doors.some(d => d[0] === r && d[1] === c));
+                    if (isD) {
+                        const mta = ROOMS_META.find(m => m.doors.some(d => d[0] === r && d[1] === c));
+                        const [dr, dc] = mta.doors.find(d => d[0] === r && d[1] === c);
+                        if (dr > 0 && ROOM_LAYOUT[dr-1][dc] === 0) cell.classList.add('door-h');
+                        else if (dr < 19 && ROOM_LAYOUT[dr+1][dc] === 0) cell.classList.add('door-h-b');
+                        else if (dc > 0 && ROOM_LAYOUT[dr][dc-1] === 0) cell.classList.add('door-v');
+                        else if (dc < 19 && ROOM_LAYOUT[dr][dc+1] === 0) cell.classList.add('door-v-r');
+                    }
+                    b.appendChild(cell);
+                }
+            }
+            const ct = document.getElementById('board-container');
+            ct.querySelectorAll('.room-overlay').forEach(ov => ov.remove());
+            ROOMS_META.forEach(m => {
+                const ov = document.createElement('div'); ov.className = 'room-overlay';
+                ov.style.top = `${(m.r1 / 20) * 100}%`; ov.style.left = `${(m.c1 / 20) * 100}%`;
+                ov.style.width = `${((m.c2 - m.c1 + 1) / 20) * 100}%`; ov.style.height = `${((m.r2 - m.r1 + 1) / 20) * 100}%`;
+                ov.style.fontSize = `0.5rem`; const loc = LOCATIONS.find(l => l.name === m.name);
+                ov.innerHTML = `<span>${loc ? loc.emoji : ''}</span><span>${m.name}</span>`; ct.appendChild(ov);
+            });
+            updateTokens();
+        }
+
+        function updateTokens() {
+            const layer = document.getElementById('tokens-layer'); layer.innerHTML = '';
+            state.players.forEach((p, idx) => {
+                const token = document.createElement('div'); token.className = 'player-token';
+                if (idx === state.currentPlayerIndex) token.classList.add('active-token');
+                token.innerText = p.emoji; token.style.top = `${(p.pos[0] / 20) * 100 + 2.5}%`;
+                token.style.left = `${(p.pos[1] / 20) * 100 + 2.5}%`; layer.appendChild(token);
+            });
+        }
+
+        function initNotebook() {
+            const head = document.getElementById('notebook-head').rows[0];
+            while(head.cells.length > 1) head.deleteCell(1);
+            for(let i=0; i<state.totalPlayers; i++) { const th = document.createElement('th'); th.innerText = `P${i+1}`; head.appendChild(th); }
+            const body = document.getElementById('notebook-body'); body.innerHTML = '';
+            const addSec = (title, items) => {
+                body.innerHTML += `<tr class="bg-slate-200 font-bold text-[0.45rem]"><td colspan="${state.totalPlayers + 1}" class="py-0.5">${title}</td></tr>`;
+                items.forEach(item => {
+                    let cells = ''; 
+                    for(let i=1; i<=state.totalPlayers; i++) {
+                        const cKey = `${item.name}_${i}`;
+                        const cData = state.notebook.cells[cKey] || { main: '', nums: [] };
+                        let mH = '';
+                        if (cData.main === 'check') mH = '<span class="cell-check">✓</span>';
+                        else if (cData.main === 'x') mH = '<span class="cell-x">✕</span>';
+                        let nH = (cData.nums || []).map(n => `<span class="cell-num">${n}</span>`).join('');
+                        cells += `<td class="cursor-pointer relative h-full" data-item="${item.name}" data-p="${i}" onclick="openCellMenu(this, event)"><div class="cell-main">${mH}</div><div class="cell-nums flex flex-wrap justify-center absolute inset-0 pointer-events-none p-0.5">${nH}</div></td>`;
+                    }
+                    const rClass = state.notebook.rowLabels[item.name] || 'label-normal';
+                    let tClass = 'row-normal';
+                    if (rClass === 'label-crossed') tClass = 'row-crossed';
+                    if (rClass === 'label-circled') tClass = 'row-circled';
+                    body.innerHTML += `<tr data-item="${item.name}" class="${tClass}"><td class="item-col cursor-pointer hover:bg-slate-50 ${rClass}" onclick="cycleRowLabel(this)">${item.emoji} ${item.name}</td>${cells}</tr>`;
+                });
+            };
+            addSec("SUSPECTS", SUSPECTS); addSec("LOCATIONS", LOCATIONS); addSec("TOOLS", TOOLS);
+        }
+
+        function cycleRowLabel(td) {
+            const row = td.closest('tr');
+            const itemName = row.dataset.item;
+            if (td.classList.contains('label-normal')) { 
+                td.classList.replace('label-normal', 'label-crossed'); row.className = 'row-crossed';
+                state.notebook.rowLabels[itemName] = 'label-crossed';
+            } else if (td.classList.contains('label-crossed')) { 
+                td.classList.replace('label-crossed', 'label-circled'); row.className = 'row-circled';
+                state.notebook.rowLabels[itemName] = 'label-circled';
+            } else { 
+                td.classList.replace('label-circled', 'label-normal'); row.className = 'row-normal';
+                state.notebook.rowLabels[itemName] = 'label-normal';
+            }
+            saveGame();
+        }
+
+        function openCellMenu(td, e) {
+            state.activeCell = td; const m = document.getElementById('cell-menu'); m.style.display = 'grid';
+            let t = e.pageY - 40, l = e.pageX - 40; if (l + 120 > window.innerWidth) l = window.innerWidth - 130;
+            if (t + 120 > window.innerHeight) t = window.innerHeight - 130;
+            m.style.top = `${t}px`; m.style.left = `${l}px`; e.stopPropagation();
+        }
+
+        function setCellState(type) {
+            if (!state.activeCell) return;
+            const main = state.activeCell.querySelector('.cell-main'), nums = state.activeCell.querySelector('.cell-nums');
+            const itName = state.activeCell.dataset.item, pIdx = state.activeCell.dataset.p;
+            const cKey = `${itName}_${pIdx}`;
+            if (!state.notebook.cells[cKey]) state.notebook.cells[cKey] = { main: '', nums: [] };
+            let cData = state.notebook.cells[cKey];
+            if (type === 'check') { main.innerHTML = '<span class="cell-check">✓</span>'; cData.main = 'check'; }
+            else if (type === 'x') { main.innerHTML = '<span class="cell-x">✕</span>'; cData.main = 'x'; }
+            else if (type === 'clear') { main.innerHTML = ''; nums.innerHTML = ''; cData.main = ''; cData.nums = []; }
+            else { 
+                const n = parseInt(type);
+                if (cData.nums.includes(n)) cData.nums = cData.nums.filter(x => x !== n);
+                else { cData.nums.push(n); cData.nums.sort(); }
+                nums.innerHTML = cData.nums.map(x => `<span class="cell-num">${x}</span>`).join('');
+            }
+            document.getElementById('cell-menu').style.display = 'none';
+            saveGame();
+        }
+
+        function handleMove(r, c) {
+            const p = state.players[state.currentPlayerIndex]; if (!p.isHuman || !state.dieRolled || state.movesLeft <= 0) return;
+            const tRId = ROOM_LAYOUT[r][c], cRId = ROOM_LAYOUT[p.pos[0]][p.pos[1]];
+            if (tRId > 0) {
+                const meta = ROOMS_META.find(m => m.id === tRId);
+                if (!meta.doors.some(d => d[0] === r && d[1] === c)) return;
+                if (cRId === tRId) return;
+            }
+            if (Math.abs(p.pos[0] - r) + Math.abs(p.pos[1] - c) === 1) {
+                p.pos = [r, c]; state.movesLeft--; updateDiceUI(); updateTokens();
+                if (ROOM_LAYOUT[r][c] > 0) { state.movesLeft = 0; updateDiceUI(); showInterrogation(); }
+            }
+        }
+
+        function rollDie() {
+            if (state.dieRolled) return;
+            const d1 = Math.floor(Math.random() * 6) + 1, d2 = Math.floor(Math.random() * 6) + 1;
+            state.movesLeft = d1 + d2; state.dieRolled = true;
+            document.getElementById('die-1').innerText = d1; document.getElementById('die-2').innerText = d2;
+            document.getElementById('roll-btn').classList.add('hidden'); document.getElementById('end-turn-btn').classList.remove('hidden');
+        }
+
+        function updateDiceUI() { document.getElementById('die-1').innerText = state.movesLeft > 0 ? "•" : "0"; document.getElementById('die-2').innerText = state.movesLeft; }
+
+        function startTurn() {
+            const p = state.players[state.currentPlayerIndex]; state.dieRolled = false; state.movesLeft = 0; state.verifyLoop.active = false;
+            document.getElementById('turn-indicator').innerText = `${p.name}'s Turn`;
+            document.getElementById('die-1').innerText = "?"; document.getElementById('die-2').innerText = "?";
+            document.getElementById('roll-btn').classList.remove('hidden'); document.getElementById('end-turn-btn').classList.add('hidden');
+            document.getElementById('interrogation-popover').classList.add('hidden'); document.getElementById('reveal-popover').classList.add('hidden');
+            clearHighlights(); updateTokens(); const ct = document.getElementById('player-cards'); ct.innerHTML = '';
+            if (p.isHuman) {
+                p.cards.forEach(cn => {
+                    const it = ALL_ITEMS.find(x => x.name === cn);
+                    ct.innerHTML += `<div class="game-card"><span>${it ? it.emoji : ''}</span> <span>${cn}</span></div>`;
+                });
+            }
+            saveGame();
+            if (!p.isHuman) setTimeout(aiLogic, 600);
+        }
+
+        function clearHighlights() { document.querySelectorAll('.row-highlight, .col-highlight').forEach(el => el.classList.remove('row-highlight', 'col-highlight')); }
+        function applyHighlights(s, l, t) { clearHighlights(); document.querySelectorAll('#notebook-body tr[data-item]').forEach(row => { if ([s,l,t].includes(row.dataset.item)) row.classList.add('row-highlight'); }); }
+        function highlightColumn(pId) { document.querySelectorAll('.col-highlight').forEach(el => el.classList.remove('col-highlight')); document.querySelectorAll(`td[data-p="${pId}"]`).forEach(td => td.classList.add('col-highlight')); const h = document.getElementById('notebook-head').rows[0]; if (h.cells[pId]) h.cells[pId].classList.add('col-highlight'); }
+
+        function endTurn() { state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.totalPlayers; startTurn(); }
+
+        function showInterrogation() {
+            const p = state.players[state.currentPlayerIndex]; if(!p.isHuman) return;
+            const rName = LOCATIONS[ROOM_LAYOUT[p.pos[0]][p.pos[1]]-1].name;
+            document.getElementById('room-notice-pop').innerText = `You are in: ${rName}`;
+            document.getElementById('suggest-input-stage').classList.remove('hidden');
+            document.getElementById('suggest-verify-stage').classList.add('hidden');
+            document.getElementById('interrogation-popover').classList.remove('hidden');
+        }
+
+        function submitSuggestion() {
+            const s = document.getElementById('suggest-suspect').value, t = document.getElementById('suggest-tool').value;
+            const p = state.players[state.currentPlayerIndex], l = LOCATIONS[ROOM_LAYOUT[p.pos[0]][p.pos[1]]-1].name;
+            initVerifyLoop(s, l, t);
+        }
+
+        function initVerifyLoop(s, l, t) {
+            state.verifyLoop = { active: true, query: { suspect: s, location: l, tool: t }, currentStepIndex: 1, revealed: false };
+            applyHighlights(s, l, t);
+            document.getElementById('suggest-input-stage').classList.add('hidden');
+            document.getElementById('suggest-verify-stage').classList.remove('hidden');
+            document.getElementById('interrogation-popover').classList.remove('hidden');
+            updateVerifyUI();
+        }
+
+        function updateVerifyUI() {
+            const asker = state.players[state.currentPlayerIndex];
+            const target = state.players[(state.currentPlayerIndex + state.verifyLoop.currentStepIndex) % state.totalPlayers];
+            const q = state.verifyLoop.query;
+            const body = document.getElementById('verify-body'), controls = document.getElementById('verify-controls');
+            highlightColumn(target.id);
+            body.innerHTML = `<div class="text-white font-bold mb-1">Asking ${target.name} (P${target.id})...</div><div class="text-[0.55rem] text-slate-400">${q.suspect} / ${q.location} / ${q.tool}</div>`;
+            const m = target.cards.filter(c => [q.suspect, q.location, q.tool].includes(c));
+            if (m.length > 0) {
+                state.verifyLoop.revealed = true; const card = m[Math.floor(Math.random() * m.length)];
+                updateAiBrains(asker, target, true, card, q);
+                if (asker.isHuman) {
+                    body.innerHTML += `<div class="text-green-500 font-bold mt-2">THEY HAVE EVIDENCE!</div>`;
+                    controls.innerHTML = `<button onclick="showHumanReveal('${target.name}', '${card}')" class="w-full bg-blue-700 py-2 rounded font-bold uppercase text-[0.7rem]">Check Card</button>`;
+                } else {
+                    body.innerHTML += `<div class="text-green-500 font-bold mt-2">${target.name} showed evidence.</div>`;
+                    controls.innerHTML = `<button onclick="finishTurnPrompt()" class="w-full bg-slate-700 py-2 rounded font-bold uppercase text-[0.7rem]">Finish</button>`;
+                }
+            } else {
+                updateAiBrains(asker, target, false, null, q);
+                body.innerHTML += `<div class="text-red-500 font-bold mt-2">Cannot disprove.</div>`;
+                if (state.verifyLoop.currentStepIndex < state.totalPlayers - 1) controls.innerHTML = `<button onclick="nextVerifyStep()" class="w-full bg-blue-700 py-2 rounded font-bold uppercase text-[0.7rem]">Next Player</button>`;
+                else { body.innerHTML += `<div class="text-slate-200 mt-2">No one disproved it.</div>`; controls.innerHTML = `<button onclick="finishTurnPrompt()" class="w-full bg-slate-700 py-2 rounded font-bold uppercase text-[0.7rem]">Finish Turn</button>`; }
+            }
+        }
+
+        function updateAiBrains(asker, resp, cardShown, cardName, q) {
+            state.players.forEach(p => {
+                if (p.isHuman) return;
+                if (p.id === asker.id && cardShown) p.internalNotebook[cardName] = { known: true, owner: resp.id };
+                if (state.difficulty === 'easy') return;
+                if (!cardShown && state.difficulty === 'hard') {
+                    [q.suspect, q.location, q.tool].forEach(it => { p.internalNotebook[it].notOwnedBy = p.internalNotebook[it].notOwnedBy || []; p.internalNotebook[it].notOwnedBy.push(resp.id); });
+                }
+            });
+        }
+
+        function nextVerifyStep() { state.verifyLoop.currentStepIndex++; updateVerifyUI(); }
+        function showHumanReveal(from, card) { document.getElementById('interrogation-popover').classList.add('hidden'); showReveal(from, card); }
+        function finishTurnPrompt() { document.getElementById('interrogation-popover').classList.add('hidden'); clearHighlights(); document.getElementById('end-turn-btn').classList.remove('hidden'); }
+        function showReveal(from, card) {
+            const it = ALL_ITEMS.find(x => x.name === card);
+            const pop = document.getElementById('reveal-popover'); document.getElementById('reveal-card').innerHTML = `${it ? it.emoji : ''} ${card}`;
+            document.getElementById('reveal-title').innerText = `${from} reveals:`; pop.classList.remove('hidden');
+        }
+        function closeReveal() { document.getElementById('reveal-popover').classList.add('hidden'); document.getElementById('end-turn-btn').classList.remove('hidden'); clearHighlights(); }
+        function openAccusation() {
+            const s = prompt("FINAL SUSPECT:"), l = prompt("FINAL LOCATION:"), t = prompt("FINAL TOOL:");
+            if (s === state.solution.suspect && l === state.solution.location && t === state.solution.tool) { alert("WINNER!"); location.reload(); }
+            else { alert("WRONG!"); endTurn(); }
+        }
+        function autoMarkCards() {
+            const p1 = state.players[0]; document.querySelectorAll('#notebook-body tr[data-item]').forEach(row => {
+                const item = row.dataset.item, p1Cell = row.querySelector('[data-p="1"] .cell-main');
+                const cKey = `${item}_1`;
+                if (!state.notebook.cells[cKey]) state.notebook.cells[cKey] = { main: '', nums: [] };
+                if (p1.cards.includes(item)) { 
+                    p1Cell.innerHTML = '<span class="cell-check">✓</span>'; 
+                    state.notebook.cells[cKey].main = 'check';
+                    for(let i=2; i<=state.totalPlayers; i++) { 
+                        const c = row.querySelector(`[data-p="${i}"] .cell-main`); 
+                        if(c) c.innerHTML = '<span class="cell-x">✕</span>'; 
+                        state.notebook.cells[`${item}_${i}`] = { main: 'x', nums: [] };
+                    }
+                    const lbl = row.querySelector('td:first-child');
+                    if (lbl.classList.contains('label-normal')) {
+                        lbl.classList.replace('label-normal', 'label-crossed'); row.className = 'row-crossed';
+                        state.notebook.rowLabels[item] = 'label-crossed';
+                    }
+                }
+                else { 
+                    p1Cell.innerHTML = '<span class="cell-x">✕</span>'; 
+                    state.notebook.cells[cKey].main = 'x';
+                }
+            });
+        }
+        function populateInterrogation() {
+            document.getElementById('suggest-suspect').innerHTML = SUSPECTS.map(x => `<option value="${x.name}">${x.emoji} ${x.name}</option>`).join('');
+            document.getElementById('suggest-tool').innerHTML = TOOLS.map(x => `<option value="${x.name}">${x.emoji} ${x.name}</option>`).join('');
+        }
+
+        function aiLogic() {
+            const p = state.players[state.currentPlayerIndex];
+            if (!state.dieRolled) rollDie();
+            setTimeout(() => {
+                const totalM = state.movesLeft;
+                const sPos = [...p.pos], sRId = ROOM_LAYOUT[sPos[0]][sPos[1]];
+                const unkR = ROOMS_META.filter(rm => !p.internalNotebook[rm.name].known);
+                const tRooms = unkR.length > 0 ? unkR : ROOMS_META.filter(rm => rm.id !== sRId);
+                const tDoors = tRooms.flatMap(rm => rm.doors);
+                let q = [[sPos[0], sPos[1], 0]], v = new Set();
+                v.add(sPos[0] + ',' + sPos[1]);
+                let reach = [];
+                while(q.length > 0) {
+                    const [r, c, d] = q.shift();
+                    if (d > 0) reach.push({pos: [r, c], dist: d, isR: ROOM_LAYOUT[r][c] > 0});
+                    if (d < totalM) {
+                        if (d > 0 && ROOM_LAYOUT[r][c] > 0) continue; 
+                        const adj = [[r+1, c], [r-1, c], [r, c+1], [r, c-1]].filter(a => a[0]>=0 && a[0]<20 && a[1]>=0 && a[1]<20);
+                        adj.forEach(([nr, nc]) => {
+                            if (v.has(nr + ',' + nc)) return;
+                            const tId = ROOM_LAYOUT[nr][nc];
+                            if (tId > 0) {
+                                const mta = ROOMS_META.find(m => m.id === tId);
+                                if (!mta.doors.some(dr => dr[0] === nr && dr[1] === nc)) return;
+                                if (tId === sRId) return;
+                            }
+                            v.add(nr + ',' + nc);
+                            q.push([nr, nc, d + 1]);
+                        });
+                    }
+                }
+                let dest = null;
+                const rReached = reach.filter(t => t.isR);
+                if (rReached.length > 0) {
+                    const tReached = rReached.filter(t => {
+                        const rid = ROOM_LAYOUT[t.pos[0]][t.pos[1]];
+                        const rn = ROOMS_META.find(m => m.id === rid).name;
+                        return !p.internalNotebook[rn].known;
+                    });
+                    dest = (tReached.length > 0 ? tReached[0] : rReached[0]).pos;
+                } else {
+                    const fullTiles = reach.filter(t => t.dist === totalM);
+                    if (fullTiles.length > 0) {
+                        let bt = fullTiles[0], md = Infinity;
+                        fullTiles.forEach(t => {
+                            tDoors.forEach(dr => {
+                                const ds = Math.abs(t.pos[0]-dr[0]) + Math.abs(t.pos[1]-dr[1]);
+                                if (ds < md) { md = ds; bt = t; }
+                            });
+                        });
+                        dest = bt.pos;
+                    } else if (reach.length > 0) dest = reach[reach.length - 1].pos;
+                }
+                if (dest) p.pos = dest;
+                state.movesLeft = 0; updateTokens(); updateDiceUI();
+                if (ROOM_LAYOUT[p.pos[0]][p.pos[1]] > 0) {
+                    const rIdx = ROOM_LAYOUT[p.pos[0]][p.pos[1]];
+                    const s = SUSPECTS.filter(x => !p.internalNotebook[x.name].known)[0]?.name || SUSPECTS[Math.floor(Math.random()*SUSPECTS.length)].name;
+                    const t = TOOLS.filter(x => !p.internalNotebook[x.name].known)[0]?.name || TOOLS[Math.floor(Math.random()*TOOLS.length)].name;
+                    initVerifyLoop(s, LOCATIONS[rIdx-1].name, t);
+                } else { document.getElementById('end-turn-btn').classList.remove('hidden'); }
+            }, 600);
+        }
+
+        initApp();
+        document.addEventListener('click', () => { 
+            const menu = document.getElementById('cell-menu');
+            if (menu) menu.style.display = 'none'; 
+        });
+    </script>
+</body>
+</html>

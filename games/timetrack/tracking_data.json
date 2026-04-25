@@ -1,0 +1,55 @@
+[
+    {
+        "id": "699c96e07b77f",
+        "user_name": "Other",
+        "category": "Administrative",
+        "signed_in_user": "ryan.krawchuk@edmonton.ca",
+        "notes": "Making the TimeTracker",
+        "start_time": "2026-02-23 10:00:20",
+        "end_time": "2026-02-23 11:21:33",
+        "duration_seconds": 4873
+    },
+    {
+        "id": "699c9b21f1d74",
+        "user_name": "Other",
+        "category": "Breaks",
+        "signed_in_user": "ryan.krawchuk@edmonton.ca",
+        "notes": "Lunch",
+        "start_time": "2026-02-23 11:23:29",
+        "end_time": "2026-02-23 11:53:41",
+        "duration_seconds": 1812
+    },
+    {
+        "id": "699caab5ef9cf",
+        "user_name": "Arvinder",
+        "category": "Helping Other Analysts",
+        "project_name": null,
+        "signed_in_user": "ryan.krawchuk@edmonton.ca",
+        "notes": "Tableau Help with report",
+        "start_time": "2026-02-23 12:29:57",
+        "end_time": "2026-02-23 13:24:25",
+        "duration_seconds": 3268
+    },
+    {
+        "id": "699cb798a0fa5",
+        "user_name": "Other",
+        "category": "Project Meeting",
+        "project_name": "311 App Upgrade",
+        "signed_in_user": "ryan.krawchuk@edmonton.ca",
+        "notes": "App Config Meeting & Troubleshooting",
+        "start_time": "2026-02-23 13:24:56",
+        "end_time": "2026-02-23 14:30:47",
+        "duration_seconds": 3951
+    },
+    {
+        "id": "699db3a62d8f9",
+        "user_name": "Other",
+        "category": "Email Work",
+        "project_name": null,
+        "signed_in_user": "ryan.krawchuk@edmonton.ca",
+        "notes": "",
+        "start_time": "2026-02-24 07:00:22",
+        "end_time": "2026-02-24 08:00:22",
+        "duration_seconds": 3600
+    }
+]

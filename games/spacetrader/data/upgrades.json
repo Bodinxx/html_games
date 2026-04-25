@@ -1,0 +1,14 @@
+{
+  "weapons": [
+    {"level": 1, "name": "Pulse Laser", "price": 0, "attack": 9},
+    {"level": 2, "name": "Ion Cannon", "price": 900, "attack": 14},
+    {"level": 3, "name": "Plasma Railgun", "price": 1800, "attack": 20},
+    {"level": 4, "name": "Antimatter Lance", "price": 3200, "attack": 28}
+  ],
+  "shields": [
+    {"level": 1, "name": "Deflector Shield", "price": 0, "defense": 4},
+    {"level": 2, "name": "Phase Shield", "price": 850, "defense": 7},
+    {"level": 3, "name": "Aegis Shield", "price": 1700, "defense": 11},
+    {"level": 4, "name": "Fortress Shield", "price": 3000, "defense": 16}
+  ]
+}

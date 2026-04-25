@@ -1,0 +1,1106 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: A fully customizable, responsive Snakes and Ladders game for 1-4 players. Features include procedural board generation, AI opponents, custom token avatars and colors, animated movement, and sound effects.
+TAGS: Board Game, Multiplayer, Classic, Simulation, Family
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snakes and Ladders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #f0f9ff;
+            overflow: hidden; /* No scrollbars ever */
+            user-select: none;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Board Grid Styling */
+        .board-container {
+            position: relative;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            margin: auto;
+            aspect-ratio: 1/1;
+            
+            /* Responsive Sizing Logic: Fit within parent without overflow */
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* If screen/container is wider than tall, limit by height */
+        @media (min-aspect-ratio: 1/1) {
+            .board-container {
+                height: 100%;
+                width: auto;
+            }
+        }
+
+        /* If screen/container is taller than wide, limit by width */
+        @media (max-aspect-ratio: 1/1) {
+            .board-container {
+                width: 100%;
+                height: auto;
+            }
+        }
+
+        .grid-square {
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 2px 0 0 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: rgba(0,0,0,0.3);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        @media (min-width: 640px) {
+            .grid-square {
+                font-size: 0.9rem;
+                padding: 4px 0 0 6px;
+            }
+        }
+
+        .square-odd { background-color: #e0f2fe; }
+        .square-even { background-color: #fff; }
+
+        #connections-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Player Tokens */
+        .token {
+            position: absolute;
+            width: 7%;
+            height: 7%;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: left 0.5s ease-in-out, top 0.5s ease-in-out;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background-color: white;
+            will-change: transform, left, top;
+        }
+
+        /* Token Selection UI */
+        .token-btn { transition: transform 0.1s; }
+        .token-btn:active { transform: scale(0.9); }
+
+        .token-option {
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .token-option:hover {
+            transform: scale(1.1);
+            background-color: #f1f5f9;
+        }
+        .token-option.selected {
+            border-color: #0ea5e9;
+            background-color: #e0f2fe;
+            transform: scale(1.1);
+        }
+        .token-option.taken {
+            opacity: 0.5;
+            filter: grayscale(0.5);
+        }
+
+        .color-option {
+            width: 3rem; /* Larger touch target */
+            height: 3rem;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: transform 0.2s;
+        }
+        .color-option:hover { transform: scale(1.1); }
+        .color-option.selected {
+            border-color: #334155;
+            transform: scale(1.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Dice Animation */
+        @keyframes roll {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(90deg); }
+            50% { transform: rotate(180deg); }
+            75% { transform: rotate(270deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .rolling {
+            animation: roll 0.5s linear infinite;
+        }
+
+        /* Dice Face Styles */
+        .dice-face {
+            display: grid;
+            width: 100%;
+            height: 100%;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            padding: 4px;
+        }
+        .dot {
+            background-color: #334155;
+            border-radius: 50%;
+            align-self: center;
+            justify-self: center;
+            width: 8px;
+            height: 8px;
+        }
+        .face-1 { grid-template-areas: ". . ." ". c ." ". . ."; }
+        .face-2 { grid-template-areas: "tl . ." ". . ." ". . br"; }
+        .face-3 { grid-template-areas: "tl . ." ". c ." ". . br"; }
+        .face-4 { grid-template-areas: "tl . tr" ". . ." "bl . br"; }
+        .face-5 { grid-template-areas: "tl . tr" ". c ." "bl . br"; }
+        .face-6 { grid-template-areas: "tl . tr" "ml . mr" "bl . br"; }
+        
+        .area-tl { grid-area: tl; }
+        .area-tr { grid-area: tr; }
+        .area-ml { grid-area: ml; }
+        .area-c  { grid-area: c; }
+        .area-mr { grid-area: mr; }
+        .area-bl { grid-area: bl; }
+        .area-br { grid-area: br; }
+
+    </style>
+</head>
+<body class="text-slate-800 h-screen w-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm p-4 z-30 shrink-0">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-sky-600 flex items-center gap-2">
+                <span class="text-3xl">🐍</span> Snakes & Ladders
+            </h1>
+            <div class="flex gap-2">
+                <button onclick="toggleSound()" id="sound-btn" class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 w-8 h-8 flex items-center justify-center rounded-full transition" title="Toggle Sound">
+                    🔊
+                </button>
+                <button onclick="resetGame()" class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1 rounded-full transition">
+                    New Game
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-hidden relative flex flex-col md:flex-row max-w-7xl mx-auto w-full h-full">
+        
+        <!-- Setup Modal -->
+        <div id="setup-screen" class="absolute inset-0 z-50 bg-white/95 backdrop-blur-sm flex items-center justify-center p-4">
+            <!-- Main Setup Card -->
+            <div class="relative bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-2xl w-[95%] border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+                <h2 class="text-2xl font-bold mb-6 text-center text-slate-700 shrink-0">Game Setup</h2>
+                
+                <div class="overflow-y-auto flex-1 space-y-6 px-1">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-500 mb-2">Number of Players</label>
+                        <div class="flex gap-2 justify-center">
+                            <button onclick="setPlayerCount(2)" class="player-count-btn flex-1 py-3 rounded-lg border-2 border-sky-100 hover:border-sky-500 hover:bg-sky-50 transition font-bold text-slate-600 text-lg" data-count="2">2</button>
+                            <button onclick="setPlayerCount(3)" class="player-count-btn flex-1 py-3 rounded-lg border-2 border-sky-100 hover:border-sky-500 hover:bg-sky-50 transition font-bold text-slate-600 text-lg" data-count="3">3</button>
+                            <button onclick="setPlayerCount(4)" class="player-count-btn flex-1 py-3 rounded-lg border-2 border-sky-100 hover:border-sky-500 hover:bg-sky-50 transition font-bold text-slate-600 text-lg" data-count="4">4</button>
+                        </div>
+                    </div>
+
+                    <div id="player-config-list" class="space-y-3">
+                        <!-- Generated by JS -->
+                    </div>
+
+                    <button onclick="startGame()" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-sky-200 transition-all shrink-0 text-lg mt-4">
+                        Start Game
+                    </button>
+                </div>
+                <!-- Duplicate Modal Removed Here -->
+            </div>
+        </div>
+
+        <!-- Left Column: Board (Flexible, no scroll) -->
+        <div class="flex-1 flex items-center justify-center p-2 md:p-4 overflow-hidden min-h-0 min-w-0">
+            <div class="board-container bg-white" id="game-board">
+                <!-- SVG Layer -->
+                <svg id="connections-layer" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <!-- Lines generated by JS -->
+                </svg>
+                <!-- Grid Cells generated by JS -->
+                <div id="grid-cells" class="grid grid-cols-10 grid-rows-10 w-full h-full absolute top-0 left-0"></div>
+                <!-- Player Tokens injected here -->
+            </div>
+        </div>
+
+        <!-- Right Column: Controls & Stats -->
+        <div class="h-auto md:h-full md:w-80 bg-white border-t md:border-t-0 md:border-l border-slate-200 p-4 flex flex-row md:flex-col items-center md:justify-center gap-4 shadow-xl z-20 shrink-0">
+            
+            <!-- Current Player Card -->
+            <div class="bg-slate-50 rounded-xl p-3 md:p-4 border border-slate-100 flex-1 md:flex-none w-full max-w-[200px] md:max-w-none">
+                <h3 class="hidden md:block text-xs uppercase tracking-wider font-bold text-slate-400 mb-2">Current Turn</h3>
+                <div class="flex items-center gap-3">
+                    <div id="current-player-avatar" class="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-slate-200 shadow-sm flex items-center justify-center text-xl md:text-2xl"></div>
+                    <div>
+                        <div id="current-player-name" class="font-bold text-base md:text-lg text-slate-700 leading-tight">Player 1</div>
+                        <div id="current-player-type" class="text-xs text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full inline-block">Human</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dice Area -->
+            <div class="flex-1 flex flex-col items-center justify-center">
+                <div id="dice-container" class="w-16 h-16 md:w-24 md:h-24 mb-2 md:mb-6 cursor-pointer transition-transform hover:scale-105 active:scale-95">
+                    <div id="dice" class="w-full h-full bg-white rounded-xl shadow-[0_4px_0_0_#cbd5e1] border-2 border-slate-200 flex items-center justify-center text-2xl md:text-4xl font-bold text-slate-700">
+                        <span class="text-xs md:text-sm text-slate-400">Roll</span>
+                    </div>
+                </div>
+                
+                <button id="roll-btn" onclick="handleManualRoll()" class="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 px-6 md:py-3 md:px-8 rounded-full shadow-lg shadow-sky-200 transition-all w-full max-w-[150px] md:max-w-[200px] text-sm md:text-base">
+                    ROLL DICE
+                </button>
+                <p id="status-msg" class="text-xs md:text-sm text-slate-500 mt-2 md:mt-4 text-center h-4 md:h-5 font-medium animate-pulse whitespace-nowrap"></p>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Token Selector Overlay (Separate Full Screen) -->
+    <div id="token-selector-modal" class="hidden fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <!-- Enlarged Container -->
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-5xl transform transition-all flex flex-col max-h-[95vh]">
+            <div class="flex items-center justify-between mb-6 shrink-0">
+                <div>
+                    <h3 class="text-3xl font-bold text-slate-700">Customize Token</h3>
+                    <p class="text-slate-500 text-sm mt-1">Choose your favorite color and icon.</p>
+                </div>
+                <button onclick="closeTokenSelector()" class="text-slate-400 hover:text-slate-600 text-4xl font-bold leading-none w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-100 transition">&times;</button>
+            </div>
+            
+            <div class="flex-1 overflow-visible space-y-8"> <!-- overflow-visible for no scrollbars, container expands -->
+                
+                <!-- Color Selection -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Chip Color</label>
+                    <div id="color-grid" class="flex flex-wrap gap-4">
+                        <!-- Colors injected here -->
+                    </div>
+                </div>
+
+                <hr class="border-slate-100">
+
+                <!-- Icon Selection -->
+                <div>
+                    <div class="flex justify-between items-baseline mb-4">
+                        <label class="block text-sm font-bold text-slate-400 uppercase tracking-wider">Select Icon</label>
+                        <span class="text-xs text-slate-400 italic">Duplicate choices will swap with the current owner.</span>
+                    </div>
+                    <!-- Wider grid -->
+                    <div id="token-grid" class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3">
+                        <!-- Tokens injected here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 pt-4 border-t border-slate-100 flex justify-end">
+                <button onclick="closeTokenSelector()" class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Winner Modal (Restructured) -->
+    <div id="winner-modal" class="hidden absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+        <!-- Bouncing Box -->
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center animate-[bounce_1s_infinite] mb-8">
+            <div class="text-6xl mb-4">🏆</div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-2">Winner!</h2>
+            <p id="winner-name" class="text-xl text-sky-600 font-bold">Player 1</p>
+        </div>
+        
+        <!-- Static Button -->
+        <button onclick="resetGame()" class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-4 px-10 rounded-full shadow-lg transition transform hover:scale-105">
+            Play Again
+        </button>
+    </div>
+
+<script>
+    // --- Configuration & Constants ---
+    const BOARD_SIZE = 10;
+    
+    // Config for procedural generation
+    const GENERATION_CONFIG = {
+        numSnakes: 7,
+        numLadders: 7,
+    };
+
+    // Available Tokens (20 total)
+    const TOKENS = [
+        { id: 'dog', icon: '🐶' },
+        { id: 'cat', icon: '🐱' },
+        { id: 'fox', icon: '🦊' },
+        { id: 'frog', icon: '🐸' },
+        { id: 'pizza', icon: '🍕' },
+        { id: 'soccer', icon: '⚽' },
+        { id: 'car', icon: '🚗' },
+        { id: 'rocket', icon: '🚀' },
+        { id: 'alien', icon: '👽' },
+        { id: 'ghost', icon: '👻' },
+        { id: 'robot', icon: '🤖' },
+        { id: 'crown', icon: '👑' },
+        { id: 'panda', icon: '🐼' },
+        { id: 'unicorn', icon: '🦄' },
+        { id: 'dragon', icon: '🐉' },
+        { id: 'burger', icon: '🍔' },
+        { id: 'ball', icon: '🏀' },
+        { id: 'flower', icon: '🌸' },
+        { id: 'sun', icon: '☀️' },
+        { id: 'moon', icon: '🌙' }
+    ];
+
+    // Chip Colors (8 Light Shades)
+    const CHIP_COLORS = [
+        { id: 'pink', hex: '#fecdd3' },    // Rose 200
+        { id: 'orange', hex: '#fed7aa' },  // Orange 200
+        { id: 'yellow', hex: '#fef08a' },  // Yellow 200
+        { id: 'green', hex: '#bbf7d0' },   // Green 200
+        { id: 'cyan', hex: '#a5f3fc' },    // Cyan 200
+        { id: 'blue', hex: '#bfdbfe' },    // Blue 200
+        { id: 'purple', hex: '#e9d5ff' },  // Purple 200
+        { id: 'slate', hex: '#e2e8f0' }    // Slate 200
+    ];
+
+    // Store generated jumps
+    let jumps = {};
+
+    // --- State ---
+    let setupState = {
+        count: 2,
+        players: [
+            { id: 1, name: "Player 1", isAI: false, tokenId: 'dog', color: '#fecdd3' },
+            { id: 2, name: "Player 2", isAI: true, tokenId: 'cat', color: '#bfdbfe' },
+            { id: 3, name: "Player 3", isAI: true, tokenId: 'fox', color: '#bbf7d0' },
+            { id: 4, name: "Player 4", isAI: true, tokenId: 'frog', color: '#fef08a' }
+        ],
+        editingPlayerId: null
+    };
+
+    let players = [];
+    let currentPlayerIndex = 0;
+    let isRolling = false;
+    let isSoundEnabled = true;
+    let currentGameId = 0; // Tracks game generation to invalidate old timers
+
+    // --- Audio System ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+
+    function playTone(freq, duration, type = 'sine') {
+        if (!isSoundEnabled) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    const Sounds = {
+        roll: () => {
+             for(let i=0; i<5; i++) {
+                 setTimeout(() => playTone(200 + Math.random()*200, 0.05, 'square'), i*50);
+             }
+        },
+        step: () => playTone(600, 0.1, 'sine'),
+        ladder: () => {
+            [440, 554, 659, 880].forEach((freq, i) => {
+                setTimeout(() => playTone(freq, 0.2, 'triangle'), i*100);
+            });
+        },
+        snake: () => {
+            if (!isSoundEnabled) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 1.5);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 1.5);
+        },
+        win: () => {
+            [523, 659, 783, 1046].forEach((freq, i) => {
+                setTimeout(() => playTone(freq, 0.4, 'square'), i*150);
+            });
+        }
+    };
+
+    function toggleSound() {
+        isSoundEnabled = !isSoundEnabled;
+        const btn = document.getElementById('sound-btn');
+        btn.innerText = isSoundEnabled ? '🔊' : '🔇';
+        btn.classList.toggle('text-red-500', !isSoundEnabled);
+    }
+
+    // --- DOM Elements ---
+    const gridCells = document.getElementById('grid-cells');
+    const svgLayer = document.getElementById('connections-layer');
+    const diceEl = document.getElementById('dice');
+    const rollBtn = document.getElementById('roll-btn');
+    const statusMsg = document.getElementById('status-msg');
+    const boardContainer = document.getElementById('game-board');
+    const playerConfigList = document.getElementById('player-config-list');
+    const tokenSelectorModal = document.getElementById('token-selector-modal');
+
+    // --- Initialization ---
+
+    function init() {
+        generateBoard();
+        createGrid();
+        drawConnections();
+        
+        let availableIds = TOKENS.map(t => t.id);
+        setupState.players.forEach(p => {
+            const r = Math.floor(Math.random() * availableIds.length);
+            p.tokenId = availableIds[r];
+            availableIds.splice(r, 1);
+            const c = Math.floor(Math.random() * CHIP_COLORS.length);
+            p.color = CHIP_COLORS[c].hex;
+        });
+
+        renderSetupUI();
+    }
+
+    // --- Setup UI Logic ---
+
+    function setPlayerCount(count) {
+        setupState.count = count;
+        renderSetupUI();
+    }
+
+    function toggleAI(playerId) {
+        const p = setupState.players.find(pl => pl.id === playerId);
+        if (p) {
+            p.isAI = !p.isAI;
+            renderSetupUI();
+        }
+    }
+
+    function renderSetupUI() {
+        document.querySelectorAll('.player-count-btn').forEach(btn => {
+            if (parseInt(btn.dataset.count) === setupState.count) {
+                btn.classList.add('bg-sky-500', 'text-white', 'border-sky-500');
+                btn.classList.remove('text-slate-600', 'bg-sky-50');
+            } else {
+                btn.classList.remove('bg-sky-500', 'text-white', 'border-sky-500');
+                btn.classList.add('text-slate-600');
+            }
+        });
+
+        playerConfigList.innerHTML = '';
+        
+        for (let i = 0; i < setupState.count; i++) {
+            const p = setupState.players[i];
+            const tokenIcon = TOKENS.find(t => t.id === p.tokenId)?.icon || '❓';
+            const isP1 = p.id === 1;
+            
+            const row = document.createElement('div');
+            row.className = "flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100 shadow-sm transition-all hover:border-sky-200";
+            
+            row.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <button onclick="openTokenSelector(${p.id})" class="token-btn w-14 h-14 rounded-full border-2 border-slate-200 flex items-center justify-center text-3xl shadow-sm hover:border-sky-400 hover:shadow-md transition-all relative group" style="background-color: ${p.color};" title="Change Icon/Color">
+                        ${tokenIcon}
+                        <div class="absolute -bottom-1 -right-1 bg-slate-200 rounded-full w-5 h-5 flex items-center justify-center border border-white">
+                            <span class="text-[10px]">✎</span>
+                        </div>
+                    </button>
+                    <div class="flex flex-col">
+                        <span class="font-bold text-slate-700 leading-tight text-lg">${p.name}</span>
+                        <span class="text-sm text-slate-400 font-medium">${p.isAI ? 'Computer' : 'Human'}</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center">
+                    ${isP1 ? 
+                        '<span class="px-3 py-1 bg-white border border-slate-100 rounded-lg text-xs font-bold text-slate-400 uppercase tracking-wider">Player 1</span>' : 
+                        `<label class="flex items-center cursor-pointer relative select-none group">
+                            <input type="checkbox" onchange="toggleAI(${p.id})" class="sr-only peer" ${p.isAI ? 'checked' : ''}>
+                            <div class="w-12 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-sky-500 shadow-inner"></div>
+                            <span class="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">Toggle AI</span>
+                        </label>`
+                    }
+                </div>
+            `;
+            playerConfigList.appendChild(row);
+        }
+    }
+
+    function openTokenSelector(playerId) {
+        setupState.editingPlayerId = playerId;
+        const currentPlayer = setupState.players.find(p => p.id === playerId);
+        
+        const colorGrid = document.getElementById('color-grid');
+        colorGrid.innerHTML = '';
+        CHIP_COLORS.forEach(c => {
+            const btn = document.createElement('div');
+            const isSelected = currentPlayer.color === c.hex;
+            btn.className = `color-option ${isSelected ? 'selected shadow-md' : ''}`;
+            btn.style.backgroundColor = c.hex;
+            btn.onclick = () => selectColor(c.hex);
+            colorGrid.appendChild(btn);
+        });
+
+        const grid = document.getElementById('token-grid');
+        grid.innerHTML = '';
+        TOKENS.forEach(t => {
+            const btn = document.createElement('div');
+            const owner = setupState.players.find(p => p.tokenId === t.id);
+            const isMine = owner && owner.id === playerId;
+            const isTaken = owner && !isMine;
+            
+            let classes = `token-option text-3xl p-4 rounded-xl flex justify-center items-center bg-slate-50 shadow-sm border-2`;
+            if (isMine) {
+                 classes += ` border-sky-500 ring-2 ring-sky-200`;
+                 btn.style.backgroundColor = currentPlayer.color;
+            } else {
+                 classes += ` border-transparent hover:bg-white hover:shadow-md`;
+            }
+
+            if (isTaken) btn.title = `Swap with ${owner.name}`;
+
+            btn.className = classes;
+            btn.innerHTML = `
+                <div class="relative">
+                    ${t.icon}
+                    ${isTaken ? `<span class="absolute -top-3 -right-3 text-[10px] bg-slate-200 px-1 rounded border border-slate-300 text-slate-500 font-bold">P${owner.id}</span>` : ''}
+                </div>
+            `;
+            btn.onclick = () => selectToken(t.id);
+            grid.appendChild(btn);
+        });
+
+        tokenSelectorModal.classList.remove('hidden');
+    }
+
+    function closeTokenSelector() {
+        tokenSelectorModal.classList.add('hidden');
+        setupState.editingPlayerId = null;
+    }
+
+    function selectColor(hex) {
+        const playerId = setupState.editingPlayerId;
+        const player = setupState.players.find(p => p.id === playerId);
+        player.color = hex;
+        renderSetupUI();
+        openTokenSelector(playerId);
+    }
+
+    function selectToken(newTokenId) {
+        const playerId = setupState.editingPlayerId;
+        const player = setupState.players.find(p => p.id === playerId);
+        const existingOwner = setupState.players.find(p => p.tokenId === newTokenId);
+        
+        if (existingOwner && existingOwner.id !== playerId) {
+            const oldTokenId = player.tokenId;
+            player.tokenId = newTokenId;
+            existingOwner.tokenId = oldTokenId;
+        } else {
+            player.tokenId = newTokenId;
+        }
+
+        renderSetupUI();
+        openTokenSelector(playerId);
+    }
+
+    // --- Game Generation ---
+
+    function generateBoard() {
+        jumps = {};
+        const taken = new Set([1, 100]); 
+        const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+        // Snakes
+        for (let i = 0; i < GENERATION_CONFIG.numSnakes; i++) {
+            let attempts = 0;
+            // High-danger snake logic: First snake must be in last 10 squares (91-99)
+            let minHead = 15;
+            let maxHead = 98;
+            
+            if (i === 0) {
+                minHead = 91;
+                maxHead = 99;
+            }
+
+            while(attempts < 100) {
+                const head = rand(minHead, maxHead);
+                const tail = rand(2, head - 10);
+                if (!taken.has(head) && !taken.has(tail)) {
+                    jumps[head] = tail;
+                    taken.add(head);
+                    taken.add(tail);
+                    break;
+                }
+                attempts++;
+            }
+        }
+
+        // Ladders
+        for (let i = 0; i < GENERATION_CONFIG.numLadders; i++) {
+            let attempts = 0;
+            while(attempts < 100) {
+                const bottom = rand(2, 85);
+                const top = rand(bottom + 10, 99);
+                if (!taken.has(bottom) && !taken.has(top)) {
+                    jumps[bottom] = top;
+                    taken.add(bottom);
+                    taken.add(top);
+                    break;
+                }
+                attempts++;
+            }
+        }
+    }
+
+    function createGrid() {
+        gridCells.innerHTML = '';
+        for (let row = 0; row < BOARD_SIZE; row++) {
+            for (let col = 0; col < BOARD_SIZE; col++) {
+                const visualRowIndex = row; 
+                const logicRowIndex = 9 - visualRowIndex; 
+                let squareNum;
+                if (logicRowIndex % 2 === 0) {
+                    squareNum = (logicRowIndex * 10) + (col + 1);
+                } else {
+                    squareNum = (logicRowIndex * 10) + (10 - col);
+                }
+
+                const cell = document.createElement('div');
+                cell.className = `grid-square ${squareNum % 2 === 0 ? 'square-odd' : 'square-even'} border-r border-b`;
+                cell.innerText = squareNum;
+                if (squareNum === 1) cell.innerText += ' Start';
+                if (squareNum === 100) cell.innerText += ' End';
+                
+                gridCells.appendChild(cell);
+            }
+        }
+    }
+
+    function getCoordinates(squareNum) {
+        if (squareNum < 1) squareNum = 1;
+        if (squareNum > 100) squareNum = 100;
+
+        const rowFromBottom = Math.floor((squareNum - 1) / 10); // 0-9
+        const isEvenRow = rowFromBottom % 2 === 0;
+        const visualRow = 9 - rowFromBottom;
+        const y = (visualRow * 10) + 5;
+
+        let colIndex;
+        if (isEvenRow) {
+            colIndex = (squareNum - 1) % 10;
+        } else {
+            colIndex = 9 - ((squareNum - 1) % 10);
+        }
+        const x = (colIndex * 10) + 5;
+        return { x, y };
+    }
+
+    function drawConnections() {
+        svgLayer.innerHTML = '';
+        for (const [start, end] of Object.entries(jumps)) {
+            const startPos = getCoordinates(parseInt(start));
+            const endPos = getCoordinates(end);
+            const isLadder = end > parseInt(start);
+            if (isLadder) drawLadder(startPos, endPos);
+            else drawSnake(startPos, endPos);
+        }
+    }
+
+    function drawLadder(start, end) {
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        const nx = dx / len;
+        const ny = dy / len;
+        const px = -ny;
+        const py = nx;
+        
+        const w = 0.8; 
+
+        const r1Start = { x: start.x + px*w, y: start.y + py*w };
+        const r1End = { x: end.x + px*w, y: end.y + py*w };
+        const r2Start = { x: start.x - px*w, y: start.y - py*w };
+        const r2End = { x: end.x - px*w, y: end.y - py*w };
+
+        createSvgLine(r1Start, r1End, "#d97706", 1);
+        createSvgLine(r2Start, r2End, "#d97706", 1);
+
+        const rungCount = Math.floor(len / 4); 
+        for(let i=1; i < rungCount; i++) {
+            const t = i / rungCount;
+            const cx = start.x + dx*t;
+            const cy = start.y + dy*t;
+            const rs = { x: cx + px*w, y: cy + py*w };
+            const re = { x: cx - px*w, y: cy - py*w };
+            createSvgLine(rs, re, "#d97706", 0.8);
+        }
+    }
+
+    function getSnakePoint(t, head, tail) {
+        const dx = tail.x - head.x;
+        const dy = tail.y - head.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        const nx = dx/len;
+        const ny = dy/len;
+        const px = -ny;
+        const py = nx;
+        const bx = head.x + dx*t;
+        const by = head.y + dy*t;
+        const amp = 2; 
+        const wiggle = Math.sin(t * Math.PI * 8) * amp * (1 - t*0.5); 
+        
+        return {
+            x: bx + px * wiggle,
+            y: by + py * wiggle
+        };
+    }
+
+    function drawSnake(head, tail) {
+        const steps = 30;
+        let d = `M ${head.x} ${head.y}`;
+        for(let i=1; i<=steps; i++) {
+            const t = i / steps;
+            const p = getSnakePoint(t, head, tail);
+            d += ` L ${p.x} ${p.y}`;
+        }
+
+        const snakeBody = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        snakeBody.setAttribute("d", d);
+        snakeBody.setAttribute("stroke", "#ef4444"); 
+        snakeBody.setAttribute("stroke-width", "3");
+        snakeBody.setAttribute("fill", "none");
+        snakeBody.setAttribute("stroke-linecap", "round");
+        snakeBody.setAttribute("opacity", "0.8");
+        svgLayer.appendChild(snakeBody);
+
+        const snakePattern = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        snakePattern.setAttribute("d", d);
+        snakePattern.setAttribute("stroke", "#fee2e2"); 
+        snakePattern.setAttribute("stroke-width", "1");
+        snakePattern.setAttribute("fill", "none");
+        snakePattern.setAttribute("opacity", "0.8");
+        svgLayer.appendChild(snakePattern);
+
+        const headCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        headCircle.setAttribute("cx", head.x);
+        headCircle.setAttribute("cy", head.y);
+        headCircle.setAttribute("r", "2.5");
+        headCircle.setAttribute("fill", "#ef4444");
+        svgLayer.appendChild(headCircle);
+
+        const eye = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        eye.setAttribute("cx", head.x);
+        eye.setAttribute("cy", head.y);
+        eye.setAttribute("r", "1");
+        eye.setAttribute("fill", "white");
+        svgLayer.appendChild(eye);
+    }
+
+    function createSvgLine(p1, p2, color, width) {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", p1.x);
+        line.setAttribute("y1", p1.y);
+        line.setAttribute("x2", p2.x);
+        line.setAttribute("y2", p2.y);
+        line.setAttribute("stroke", color);
+        line.setAttribute("stroke-width", width);
+        line.setAttribute("opacity", "0.8");
+        line.setAttribute("stroke-linecap", "round");
+        svgLayer.appendChild(line);
+    }
+
+
+    // --- Game Logic ---
+
+    function startGame() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        currentGameId++;
+
+        players = [];
+        for (let i = 0; i < setupState.count; i++) {
+            const config = setupState.players[i];
+            const tokenData = TOKENS.find(t => t.id === config.tokenId);
+            players.push({
+                id: config.id,
+                name: config.name,
+                token: tokenData,
+                color: config.color,
+                isAI: config.isAI,
+                position: 1,
+                el: null
+            });
+        }
+
+        boardContainer.querySelectorAll('.token').forEach(el => el.remove());
+        players.forEach((p, idx) => {
+            const tokenEl = document.createElement('div');
+            tokenEl.className = 'token';
+            tokenEl.innerText = p.token.icon;
+            tokenEl.style.backgroundColor = p.color;
+            
+            const offset = (idx * 3) - (players.length * 1.5);
+            tokenEl.style.transform = `translate(${offset}px, ${offset}px)`;
+            
+            boardContainer.appendChild(tokenEl);
+            p.el = tokenEl;
+            updateTokenPosition(p);
+        });
+
+        document.getElementById('setup-screen').classList.add('hidden');
+        currentPlayerIndex = 0;
+        updateTurnUI();
+    }
+
+    function resetGame() {
+        currentGameId++; 
+        isRolling = false;
+
+        boardContainer.querySelectorAll('.token').forEach(el => el.remove());
+
+        document.getElementById('setup-screen').classList.remove('hidden');
+        document.getElementById('winner-modal').classList.add('hidden');
+        
+        init(); 
+    }
+
+    function updateTokenPosition(player, overrideX, overrideY) {
+        if (overrideX !== undefined) {
+             player.el.style.left = `calc(${overrideX}% - 3.5%)`;
+             player.el.style.top = `calc(${overrideY}% - 3.5%)`;
+        } else {
+             const coords = getCoordinates(player.position);
+             player.el.style.left = `calc(${coords.x}% - 3.5%)`; 
+             player.el.style.top = `calc(${coords.y}% - 3.5%)`;
+        }
+    }
+
+    function updateTurnUI() {
+        const p = players[currentPlayerIndex];
+        const thisGameId = currentGameId;
+        
+        document.getElementById('current-player-name').innerText = p.name;
+        document.getElementById('current-player-avatar').innerText = p.token.icon;
+        document.getElementById('current-player-avatar').style.backgroundColor = p.color;
+        
+        const typeBadge = document.getElementById('current-player-type');
+        typeBadge.innerText = p.isAI ? 'AI' : 'Human';
+        typeBadge.className = `text-xs px-2 py-0.5 rounded-full inline-block ${p.isAI ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600'}`;
+
+        statusMsg.innerText = p.isAI ? `${p.token.icon} Thinking...` : "Your turn!";
+        
+        rollBtn.disabled = true;
+        diceEl.style.cursor = "default";
+        diceEl.onclick = null;
+
+        if (p.isAI) {
+            setTimeout(() => {
+                if(currentGameId === thisGameId) handleAiTurn();
+            }, 1000);
+        } else {
+            rollBtn.disabled = false;
+            diceEl.style.cursor = "pointer";
+            diceEl.onclick = handleManualRoll;
+        }
+    }
+
+    function handleManualRoll() {
+        if (players[currentPlayerIndex].isAI) return;
+        if (isRolling) return;
+        performTurn();
+    }
+
+    function handleAiTurn() {
+        performTurn();
+    }
+
+    function performTurn() {
+        isRolling = true;
+        rollBtn.disabled = true;
+        diceEl.onclick = null;
+        statusMsg.innerText = "Rolling...";
+
+        diceEl.classList.add('rolling');
+        Sounds.roll();
+        
+        const thisGameId = currentGameId;
+        setTimeout(() => {
+            if(currentGameId !== thisGameId) return;
+            const roll = Math.floor(Math.random() * 6) + 1;
+            finishRoll(roll);
+        }, 800);
+    }
+
+    function renderDiceFace(num) {
+        diceEl.innerHTML = '';
+        const face = document.createElement('div');
+        face.className = `dice-face face-${num}`;
+        
+        const positions = {
+            1: ['c'],
+            2: ['tl', 'br'],
+            3: ['tl', 'c', 'br'],
+            4: ['tl', 'tr', 'bl', 'br'],
+            5: ['tl', 'tr', 'c', 'bl', 'br'],
+            6: ['tl', 'tr', 'ml', 'mr', 'bl', 'br']
+        };
+
+        positions[num].forEach(area => {
+            const dot = document.createElement('div');
+            dot.className = `dot area-${area}`;
+            face.appendChild(dot);
+        });
+        
+        diceEl.appendChild(face);
+    }
+
+    function finishRoll(roll) {
+        diceEl.classList.remove('rolling');
+        renderDiceFace(roll);
+        
+        const p = players[currentPlayerIndex];
+
+        const startPos = p.position;
+        let targetPos = startPos + roll;
+        
+        const thisGameId = currentGameId;
+
+        if (targetPos > 100) {
+            targetPos = startPos;
+            endTurn();
+        } else {
+            p.position = targetPos;
+            updateTokenPosition(p);
+            Sounds.step();
+
+            if (targetPos === 100) {
+                setTimeout(() => {
+                    if(currentGameId === thisGameId) handleWin(p);
+                }, 600);
+                return;
+            }
+
+            setTimeout(() => {
+                if(currentGameId === thisGameId) checkJump(p);
+            }, 600);
+        }
+    }
+
+    function animateSnakeSlide(player, startSquare, endSquare) {
+        const startCoords = getCoordinates(startSquare);
+        const endCoords = getCoordinates(endSquare);
+        const thisGameId = currentGameId;
+        
+        player.el.style.transition = 'none';
+        
+        let start = null;
+        const duration = 1500; // 1.5s slide
+
+        function step(timestamp) {
+            if (currentGameId !== thisGameId) return;
+
+            if (!start) start = timestamp;
+            const progress = timestamp - start;
+            const t = Math.min(progress / duration, 1);
+            
+            const p = getSnakePoint(t, startCoords, endCoords);
+            updateTokenPosition(player, p.x, p.y);
+
+            if (t < 1) {
+                window.requestAnimationFrame(step);
+            } else {
+                player.el.style.transition = '';
+                player.position = endSquare;
+                updateTokenPosition(player);
+                checkWinOrEnd(player);
+            }
+        }
+
+        window.requestAnimationFrame(step);
+    }
+
+    function checkJump(player) {
+        const jumpTarget = jumps[player.position];
+        if (jumpTarget) {
+            const isSnake = jumpTarget < player.position;
+            const type = isSnake ? "Snake! 🐍" : "Ladder! 🪜";
+            statusMsg.innerText = type;
+            
+            if (isSnake) {
+                Sounds.snake();
+                animateSnakeSlide(player, player.position, jumpTarget);
+            } else {
+                Sounds.ladder();
+                player.position = jumpTarget;
+                updateTokenPosition(player);
+                checkWinOrEnd(player);
+            }
+        } else {
+            endTurn();
+        }
+    }
+
+    function checkWinOrEnd(player) {
+        const thisGameId = currentGameId;
+        if (player.position === 100) {
+            setTimeout(() => {
+                if(currentGameId === thisGameId) handleWin(player);
+            }, 600);
+        } else {
+            setTimeout(() => {
+                if(currentGameId === thisGameId) endTurn();
+            }, 600);
+        }
+    }
+
+    function endTurn() {
+        isRolling = false;
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+        updateTurnUI();
+    }
+
+    function handleWin(player) {
+        Sounds.win();
+        document.getElementById('winner-name').innerText = `${player.name} (${player.token.icon})`;
+        document.getElementById('winner-modal').classList.remove('hidden');
+    }
+
+    diceEl.innerHTML = '<span class="text-xs md:text-sm text-slate-400 font-bold">Roll</span>';
+    init();
+
+</script>
+</body>
+</html>

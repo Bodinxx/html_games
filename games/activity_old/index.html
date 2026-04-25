@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Points Tracker</title>
+    
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="shortcut icon" href="./favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="WebMage" />
+    <link rel="manifest" href="./site.webmanifest" />
+    
+    <!-- Tailwind CSS (Styling) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons (Phosphor) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- MD5 Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Removed the overriding .hidden rule to allow Tailwind responsive classes to work */
+        
+        /* Custom scrollbar for dark theme */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen flex flex-col">
+
+    <!-- --- AUTH SCREEN --- -->
+    <div id="auth-screen" class="flex-grow flex items-center justify-center p-4">
+        
+        <!-- LOGIN CARD -->
+        <div id="login-card" class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md border border-slate-700">
+            <div class="flex justify-center mb-6">
+                <div class="bg-blue-600 p-3 rounded-full">
+                    <i class="ph-fill ph-sign-in text-3xl text-white"></i>
+                </div>
+            </div>
+            <h2 class="text-2xl font-bold text-center text-white mb-6">Sign In</h2>
+            
+            <div id="login-error" class="hidden bg-red-500/20 border border-red-500 text-red-100 p-3 rounded mb-4 text-sm"></div>
+
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">Email</label>
+                    <input type="email" id="login-email" required class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="you@example.com">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">Password</label>
+                    <input type="password" id="login-pass" required class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-colors">Sign In</button>
+            </form>
+
+            <div class="mt-6 text-center">
+                <button type="button" id="btn-register-toggle" class="text-slate-400 hover:text-white text-sm transition-colors">
+                    Don't have an account? <strong>Sign Up</strong>
+                </button>
+            </div>
+        </div>
+
+        <!-- REGISTER CARD (Hidden by default) -->
+        <div id="register-card" class="hidden bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md border border-slate-700">
+            <div class="flex justify-center mb-6">
+                <div class="bg-emerald-600 p-3 rounded-full">
+                    <i class="ph-fill ph-user-plus text-3xl text-white"></i>
+                </div>
+            </div>
+            <h2 class="text-2xl font-bold text-center text-white mb-6">Create Account</h2>
+            
+            <div id="register-error" class="hidden bg-red-500/20 border border-red-500 text-red-100 p-3 rounded mb-4 text-sm"></div>
+
+            <form id="register-form" class="space-y-4">
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">Display Name</label>
+                    <input type="text" id="reg-name" required class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Runner123">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">Email</label>
+                    <input type="email" id="reg-email" required class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="you@example.com">
+                    <p id="reg-email-error" class="text-xs text-red-500 mt-1 hidden"></p>
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">Password</label>
+                    <input type="password" id="reg-password-new" required class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="••••••••">
+                    
+                    <!-- Password Strength Meter -->
+                    <div class="mt-2 h-1 w-full bg-slate-700 rounded-full overflow-hidden">
+                        <div id="password-strength-bar" class="h-full bg-red-500 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <p id="password-strength-text" class="text-xs text-slate-500 mt-1 h-4"></p>
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">Confirm Password</label>
+                    <input type="password" id="reg-password-confirm" required class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="••••••••">
+                    <p id="reg-pass-match-error" class="text-xs text-red-500 mt-1 hidden">Passwords do not match</p>
+                </div>
+                <button type="submit" id="btn-register-submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded transition-colors opacity-50 cursor-not-allowed" disabled>Create Account</button>
+            </form>
+
+            <div class="mt-6 text-center">
+                <button type="button" id="btn-login-toggle" class="text-slate-400 hover:text-white text-sm transition-colors">
+                    Already have an account? <strong>Sign In</strong>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- --- APP SCREEN (Hidden by default) --- -->
+    <div id="app-screen" class="hidden flex-grow flex flex-col">
+        
+        <!-- Header -->
+        <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-10">
+            <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <div class="bg-gradient-to-tr from-blue-600 to-indigo-600 p-2 rounded-lg">
+                        <i class="ph-bold ph-chart-line-up text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white leading-tight">Activity<span class="text-blue-500">Points</span></h1>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <div class="text-right leading-tight mr-1">
+                        <div class="text-sm text-slate-300">Welcome, <span id="header-displayname" class="font-bold text-white">User</span></div>
+                        <div class="flex items-center justify-end gap-2 text-xs">
+                            <span id="header-role" class="uppercase font-bold px-1.5 py-0.5 rounded border text-[10px] tracking-wider">ROLE</span>
+                            <span id="header-points" class="text-blue-400 font-medium">0 pts</span>
+                        </div>
+                    </div>
+
+                    <button id="logout-btn" class="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white" title="Sign Out">
+                        <i class="ph-bold ph-sign-out text-xl"></i>
+                    </button>
+
+                    <!-- Hamburger Menu Button -->
+                    <button id="mobile-menu-btn" class="md:hidden p-2 text-slate-400 hover:text-white transition-colors" title="Menu">
+                        <i class="ph-bold ph-list text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Nav (Desktop: Horizontal, Mobile: Collapsible Vertical) -->
+            <nav id="main-nav" class="hidden md:flex flex-col md:flex-row justify-center space-y-2 md:space-y-0 md:space-x-2 p-2 bg-slate-900/90 backdrop-blur-sm border-b md:border-b-0 border-slate-800">
+                <button onclick="switchTab('dashboard')" class="nav-btn active flex items-center justify-center md:justify-start space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all bg-blue-600 text-white" data-tab="dashboard">
+                    <i class="ph-bold ph-plus-circle"></i><span>Log</span>
+                </button>
+                <button onclick="switchTab('leaderboard')" class="nav-btn flex items-center justify-center md:justify-start space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all text-slate-400 hover:text-white" data-tab="leaderboard">
+                    <i class="ph-bold ph-trophy"></i><span>Leaderboard</span>
+                </button>
+                <button onclick="switchTab('history')" class="nav-btn flex items-center justify-center md:justify-start space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all text-slate-400 hover:text-white" data-tab="history">
+                    <i class="ph-bold ph-clock-counter-clockwise"></i><span>History</span>
+                </button>
+                <button onclick="switchTab('profile')" class="nav-btn flex items-center justify-center md:justify-start space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all text-slate-400 hover:text-white" data-tab="profile">
+                    <i class="ph-bold ph-user-circle"></i><span>Profile</span>
+                </button>
+                <button id="admin-tab-btn" onclick="switchTab('admin')" class="nav-btn hidden flex items-center justify-center md:justify-start space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all text-slate-400 hover:text-white" data-tab="admin">
+                    <i class="ph-bold ph-shield-check"></i><span>Admin</span>
+                </button>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-4xl mx-auto p-4 pb-20 w-full flex-grow">
+            
+            <!-- TAB: DASHBOARD -->
+            <div id="tab-dashboard" class="space-y-6 tab-content">
+                <!-- Progress Card -->
+                <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <i class="ph-fill ph-trend-up text-9xl text-blue-500"></i>
+                    </div>
+                    <h2 class="text-lg font-medium text-slate-400 mb-1">Weekly Progress</h2>
+                    <div class="flex items-baseline space-x-2">
+                        <span id="dash-current" class="text-4xl font-bold text-white">0</span>
+                        <span id="dash-goal" class="text-slate-500">/ 100 pts</span>
+                    </div>
+                    <div class="mt-4 h-3 bg-slate-700 rounded-full overflow-hidden">
+                        <div id="dash-bar" class="h-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                    <p id="dash-percent" class="mt-2 text-sm text-slate-400">0% of your weekly goal</p>
+                </div>
+
+                <!-- Recovery & Hydration Widgets -->
+                <div class="grid gap-6 md:grid-cols-2">
+                    <!-- Hydration Widget -->
+                    <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-lg font-semibold text-white flex items-center justify-between">
+                                <span><i class="ph-fill ph-drop mr-2 text-blue-400"></i> Hydration</span>
+                                <span class="text-sm font-bold text-blue-300"><span id="hydration-today">0</span> ml</span>
+                            </h3>
+                            <p class="text-slate-400 text-xs mt-1">1 click = 8oz (250ml)</p>
+                        </div>
+                        <button onclick="logWater()" class="mt-4 w-full bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 border border-blue-500/30 font-bold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2">
+                            <i class="ph-bold ph-plus"></i> Add 255ml Water
+                        </button>
+                    </div>
+
+                    <!-- Sleep Widget -->
+                    <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-lg font-semibold text-white flex items-center justify-between">
+                                <span><i class="ph-fill ph-moon-stars mr-2 text-purple-400"></i> Sleep</span>
+                                <span id="sleep-status" class="text-xs font-normal"></span>
+                            </h3>
+                            <p class="text-slate-400 text-xs mt-1">Daily Goal: 8 Hours (Enter closest 15m as decimal, e.g. 8.5)</p>
+                        </div>
+                        <div class="mt-4 flex gap-2">
+                            <input type="number" id="quick-sleep-input" placeholder="Hrs" class="w-20 bg-slate-900 border border-slate-600 rounded-lg p-2 text-white text-center focus:ring-2 focus:ring-purple-500 outline-none">
+                            <button onclick="logSleep()" class="flex-grow bg-purple-500/10 hover:bg-purple-500 hover:text-white text-purple-400 border border-purple-500/30 font-bold py-2 px-4 rounded-lg transition-all">
+                                Log Sleep
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Log Form -->
+                <form id="log-form" class="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl">
+                    <h3 class="text-xl font-semibold text-white mb-6 flex items-center">
+                        <i class="ph-bold ph-plus-circle mr-2 text-blue-400"></i> Log Other Activity
+                    </h3>
+
+                    <div id="loading-activities" class="text-center text-slate-500 py-4 hidden">
+                        Loading activity types...
+                    </div>
+
+                    <!-- Updated Layout for Log Form -->
+                    <div class="flex flex-col md:flex-row gap-4 mb-4 items-start">
+                        <!-- Date & Time (40% on desktop) -->
+                        <div class="w-full md:w-2/5">
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Date & Time</label>
+                            <input type="datetime-local" id="log-timestamp" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+
+                        <!-- Activity Type (40% on desktop) -->
+                        <div class="w-full md:w-2/5">
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Activity Type</label>
+                            <select id="activity-select" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                                <!-- Options populated by JS -->
+                            </select>
+                            <p id="formula-hint" class="mt-2 text-xs text-slate-500">Select an activity</p>
+                        </div>
+
+                        <!-- Value (20% on desktop) -->
+                        <div class="w-full md:w-1/5">
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Value</label>
+                            <input type="number" id="activity-input" step="any" placeholder="e.g. 5000" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="mt-8 flex items-center justify-between bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
+                        <div>
+                            <span class="block text-xs text-slate-500 uppercase tracking-wider">Points Earned</span>
+                            <span id="calc-preview" class="text-2xl font-bold text-blue-400">0.0</span>
+                        </div>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-lg transition-transform transform active:scale-95">
+                            Log It
+                        </button>
+                    </div>
+                    <div id="log-success" class="hidden mt-4 text-center text-emerald-400 font-medium">Logged Successfully!</div>
+                </form>
+            </div>
+
+            <!-- TAB: LEADERBOARD -->
+            <div id="tab-leaderboard" class="hidden space-y-4 tab-content">
+                <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-xl overflow-hidden">
+                    <div class="p-6 border-b border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <h3 class="text-xl font-bold text-white flex items-center">
+                            <i class="ph-fill ph-trophy mr-2 text-yellow-500"></i> Leaderboard
+                        </h3>
+                        <div class="flex bg-slate-900 rounded-lg p-1">
+                            <button onclick="updateLeaderboard('performance')" id="filter-perf" class="px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 text-white transition-colors">% Achievement</button>
+                            <button onclick="updateLeaderboard('absolute')" id="filter-abs" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition-colors">Total Points</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-900/50 text-slate-400 text-sm border-b border-slate-700">
+                                    <th class="p-4 w-16 text-center">#</th>
+                                    <th class="p-4">Athlete</th>
+                                    <th class="p-4 text-center">Goal</th>
+                                    <th class="p-4 text-center">Points</th>
+                                    <th class="p-4 text-right">%</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboard-body" class="divide-y divide-slate-700">
+                                <!-- Rows populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: HISTORY -->
+            <div id="tab-history" class="hidden space-y-4 tab-content">
+                <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-xl p-6">
+                    <h3 class="text-xl font-bold text-white mb-6 flex items-center">
+                        <i class="ph-bold ph-clock-counter-clockwise mr-2 text-blue-400"></i> Recent Activity
+                    </h3>
+                    <div id="history-list" class="space-y-1">
+                        <!-- History items populated by JS -->
+                        <p class="text-slate-500 text-center py-8">Loading history...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: PROFILE -->
+            <div id="tab-profile" class="hidden space-y-4 tab-content">
+                <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-xl p-6">
+                    <h3 class="text-xl font-bold text-white mb-6 flex items-center">
+                        <i class="ph-bold ph-user-circle mr-2 text-blue-400"></i> Edit Profile
+                    </h3>
+                    
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <!-- Left Column: Personal Info -->
+                        <div class="space-y-8">
+                            <!-- Change Display Name -->
+                            <div class="border-b border-slate-700 pb-8">
+                                <h4 class="text-md font-medium text-slate-300 mb-4">Display Name</h4>
+                                <div class="max-w-sm space-y-4">
+                                    <input type="text" id="profile-name" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
+                                    <button onclick="saveProfileName()" class="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded transition-colors">Save Name</button>
+                                    <span id="profile-name-msg" class="ml-3 text-emerald-400 text-sm"></span>
+                                </div>
+                            </div>
+
+                            <!-- Weekly Goal (Corrected ID here) -->
+                            <div>
+                                <h4 class="text-md font-medium text-slate-300 mb-4">Weekly Points Goal</h4>
+                                <div class="bg-blue-900/20 border border-blue-500/20 p-4 rounded-lg mb-4 text-sm text-blue-100">
+                                    The leaderboard uses <strong>"Percentage of Goal"</strong>. Set a realistic target to compete fairly!
+                                </div>
+                                <div class="max-w-sm space-y-4">
+                                    <input type="number" id="profile-goal" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
+                                    <button onclick="saveGoal()" class="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded transition-colors">Update Goal</button>
+                                    <span id="profile-goal-msg" class="ml-3 text-emerald-400 text-sm"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Security -->
+                        <div class="md:border-l md:border-slate-700 md:pl-8">
+                            <h4 class="text-md font-medium text-slate-300 mb-4">Change Password</h4>
+                            <div class="max-w-sm space-y-4">
+                                <div>
+                                    <label class="block text-slate-400 text-xs mb-1">Current Password</label>
+                                    <input type="password" id="profile-old-pass" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-400 text-xs mb-1">New Password</label>
+                                    <input type="password" id="profile-new-pass" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
+                                </div>
+                                <button onclick="saveProfilePass()" class="bg-red-600 hover:bg-red-500 text-white font-medium py-2 px-4 rounded transition-colors">Update Password</button>
+                                <span id="profile-pass-msg" class="ml-3 text-sm"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: ADMIN -->
+            <div id="tab-admin" class="hidden space-y-4 tab-content">
+                <!-- NEW: Export Leaderboard Card -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-xl p-6 mb-6">
+                    <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                        <i class="ph-bold ph-download-simple"></i> Export Leaderboard
+                    </h3>
+                    <div class="flex flex-col md:flex-row gap-4 items-end">
+                        <div class="w-full md:w-auto">
+                            <label class="block text-slate-400 text-sm mb-1">Start Date</label>
+                            <input type="date" id="admin-export-start" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-white text-sm">
+                        </div>
+                        <div class="w-full md:w-auto">
+                            <label class="block text-slate-400 text-sm mb-1">End Date</label>
+                            <input type="date" id="admin-export-end" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-white text-sm">
+                        </div>
+                        <button onclick="downloadLeaderboardCSV()" class="w-full md:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors flex items-center justify-center gap-2">
+                            <i class="ph-bold ph-file-csv"></i> Download CSV
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-xl p-6">
+                    <div class="mb-4">
+                        <h3 class="text-xl font-bold text-white mb-4">User Management</h3>
+                        <input type="text" id="admin-search" onkeyup="renderAdminTable()" placeholder="Search users..." class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-white text-sm">
+                    </div>
+                    <div id="admin-list" class="space-y-1">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- --- JAVASCRIPT --- -->
+    <script>
+        // --- 1. LOCAL DATA STORE (Using JSON files via API) ---
+        
+        // Defaults
+        let ACTIVITY_DB = {
+            'Walking': { unit: 'Steps', factor: 0.01, category: 'Cardio' },
+            'Water': { unit: 'Cups (8oz)', factor: 2, category: 'Recovery' },
+            'Sleep': { unit: 'Hours', factor: 5, category: 'Recovery' }
+        };
+
+        // In-memory Cache
+        let CACHE = {
+            users: [],
+            logs: []
+        };
+
+        // State
+        let currentUser = null;
+        let leaderboardFilter = 'performance';
+
+        // Helper: Format date for Edmonton/MST (Apex style: DD-Mon-YYYY HH:MM)
+        function formatDateEdmonton(isoString) {
+            if (!isoString) return 'Never';
+            const date = new Date(isoString);
+            
+            // Format: DD-Mon-YYYY HH:MM (MST/Edmonton)
+            const options = { 
+                timeZone: 'America/Edmonton',
+                day: '2-digit', 
+                month: 'short', 
+                year: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                hour12: false 
+            };
+            
+            try {
+                const parts = new Intl.DateTimeFormat('en-GB', options).formatToParts(date);
+                const p = {};
+                parts.forEach(({type, value}) => p[type] = value);
+                
+                return `${p.day}-${p.month}-${p.year} ${p.hour}:${p.minute}`;
+            } catch (e) {
+                return 'Invalid Date';
+            }
+        }
+
+        // Helper: Get Current ISO String adjusted for local input
+        function getLocalISOString() {
+            const now = new Date();
+            // Adjust for timezone offset to get local time in ISO format
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            return now.toISOString().slice(0,16);
+        }
+
+        // Load Config & Data
+        async function loadData() {
+            // 1. Activities
+            try {
+                const response = await fetch('activities.json');
+                if (response.ok) {
+                    try {
+                        const fetched = await response.json();
+                        // Merge default critical keys (Water/Sleep) if missing
+                        ACTIVITY_DB = { ...ACTIVITY_DB, ...fetched };
+                        populateActivityDropdown();
+                    } catch (e) {
+                        console.warn("Invalid JSON in activities.json, using defaults");
+                        populateActivityDropdown();
+                    }
+                } else {
+                    populateActivityDropdown();
+                }
+            } catch (error) {
+                console.warn("Using default activities.");
+                populateActivityDropdown();
+            }
+
+            // 2. Users
+            try {
+                const uRes = await fetch('users.json?t=' + new Date().getTime());
+                if (uRes.ok) {
+                    try {
+                        const rawUsers = await uRes.json();
+                        if (Array.isArray(rawUsers)) {
+                            CACHE.users = rawUsers;
+                        } else if (rawUsers && typeof rawUsers === 'object') {
+                            CACHE.users = [rawUsers];
+                        } else {
+                            CACHE.users = [];
+                        }
+                    } catch (e) {
+                        console.error("Invalid JSON content in users.json", e);
+                        CACHE.users = [];
+                    }
+                }
+            } catch(e) { console.error("Could not fetch users.json", e); }
+
+            // 3. Logs
+            try {
+                const lRes = await fetch('logs.json?t=' + new Date().getTime());
+                if (lRes.ok) {
+                    try {
+                        const rawLogs = await lRes.json();
+                        if (Array.isArray(rawLogs)) {
+                            CACHE.logs = rawLogs;
+                        } else {
+                            CACHE.logs = [];
+                        }
+                    } catch (e) {
+                        console.error("Invalid JSON content in logs.json", e);
+                    }
+                }
+            } catch(e) { console.error("Could not fetch logs.json", e); }
+        }
+
+        // Database Interface (Syncs Cache to Server)
+        const DB = {
+            getUsers: () => Array.isArray(CACHE.users) ? CACHE.users : [],
+            saveUsers: async (users) => {
+                CACHE.users = users;
+                try {
+                    await fetch('api.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ action: 'save_users', data: users })
+                    });
+                } catch(e) {
+                    console.error("Failed to save users to server", e);
+                    // No alert() here to prevent blocking UI if backend is offline
+                }
+            },
+            getLogs: () => Array.isArray(CACHE.logs) ? CACHE.logs : [],
+            saveLogs: async (logs) => {
+                CACHE.logs = logs;
+                try {
+                    await fetch('api.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ action: 'save_logs', data: logs })
+                    });
+                } catch(e) {
+                    console.error("Failed to save logs to server", e);
+                }
+            }
+        };
+
+        // --- 2. AUTH LOGIC ---
+
+        function login(email, password) {
+            const users = DB.getUsers();
+            const emailEncoded = btoa(email.trim().toLowerCase());
+            const passHash = md5(password);
+
+            const user = users.find(u => 
+                (u.email === emailEncoded || u.email === email) && 
+                (u.password === passHash || u.password === password)
+            );
+            
+            if (user) {
+                currentUser = user;
+                sessionStorage.setItem('apt_session_user', JSON.stringify(user));
+                showApp();
+                return true;
+            }
+            return false;
+        }
+
+        async function register(name, email, password) {
+            // EXTRA SAFETY CHECK: Prevent corrupted data from being saved
+            if (typeof password !== 'string' || password.trim().startsWith('<')) {
+                alert("Critical Error: Invalid password format detected.");
+                return false;
+            }
+
+            const users = DB.getUsers();
+            const emailEncoded = btoa(email.trim().toLowerCase());
+
+            // Check for duplicate (both encoded and plain text just in case)
+            if (users.some(u => u.email === emailEncoded || u.email === email.trim().toLowerCase())) return false;
+
+            const newUser = {
+                id: 'u_' + Date.now(),
+                displayName: name,
+                email: emailEncoded, // Privacy: Store Base64 Encoded
+                password: md5(password), // Security: Store MD5 Hash
+                role: 'user',
+                // Default Goal Calculation:
+                // Sleep: 8hrs * 7days * 5pts = 280
+                // Water: 1000ml (4 cups) * 7days * 2pts = 56
+                // Steps: 21000 * 0.01 = 210
+                // Total = 546 (Rounded to 550)
+                baselineGoal: 550, 
+                currentPoints: 0,
+                totalPoints: 0,
+                lastActive: new Date().toISOString()
+            };
+
+            users.push(newUser);
+            await DB.saveUsers(users); // Wait for file write
+            
+            currentUser = newUser;
+            sessionStorage.setItem('apt_session_user', JSON.stringify(newUser));
+            showApp();
+            return true;
+        }
+
+        function logout() {
+            currentUser = null;
+            sessionStorage.removeItem('apt_session_user');
+            showAuth();
+        }
+
+        function checkSession() {
+            const stored = sessionStorage.getItem('apt_session_user');
+            if (stored) {
+                const sessUser = JSON.parse(stored);
+                // Re-find in fresh cache to get latest points
+                const freshUser = DB.getUsers().find(u => u.id === sessUser.id);
+                if (freshUser) {
+                    currentUser = freshUser;
+                    showApp();
+                    return;
+                }
+            }
+            showAuth();
+        }
+
+        // --- 3. UI SWITCHING ---
+
+        function showApp() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            
+            // Set default Log Date to Now
+            document.getElementById('log-timestamp').value = getLocalISOString();
+            
+            updateUI();
+            renderHistory();
+            renderLeaderboard();
+            if(currentUser.role === 'admin') renderAdminTable();
+        }
+
+        function showAuth() {
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('app-screen').classList.add('hidden');
+        }
+
+        function updateUI() {
+            if(!currentUser) return;
+            
+            // Header updates
+            document.getElementById('header-displayname').innerText = currentUser.displayName;
+            document.getElementById('header-points').innerText = `${currentUser.currentPoints.toFixed(1)} pts`;
+            
+            const roleEl = document.getElementById('header-role');
+            roleEl.innerText = currentUser.role;
+            
+            if(currentUser.role === 'admin') {
+                // Admin styling (Purple)
+                roleEl.className = "uppercase font-bold px-1.5 py-0.5 rounded border text-[10px] tracking-wider bg-purple-500/10 text-purple-400 border-purple-500/20";
+                document.getElementById('admin-tab-btn').classList.remove('hidden');
+            } else {
+                // User styling (Slate)
+                roleEl.className = "uppercase font-bold px-1.5 py-0.5 rounded border text-[10px] tracking-wider bg-slate-800 text-slate-400 border-slate-700";
+                document.getElementById('admin-tab-btn').classList.add('hidden');
+            }
+
+            document.getElementById('dash-current').innerText = currentUser.currentPoints.toFixed(0);
+            document.getElementById('dash-goal').innerText = `/ ${currentUser.baselineGoal} pts`;
+            const pct = Math.min(100, (currentUser.currentPoints / currentUser.baselineGoal) * 100);
+            document.getElementById('dash-bar').style.width = `${pct}%`;
+            document.getElementById('dash-percent').innerText = `${pct.toFixed(1)}% of weekly goal`;
+
+            // Pre-fill forms (Corrected ID 'profile-goal')
+            const goalInput = document.getElementById('profile-goal');
+            if (goalInput) goalInput.value = currentUser.baselineGoal;
+            
+            const nameInput = document.getElementById('profile-name');
+            if (nameInput) nameInput.value = currentUser.displayName;
+
+            // New: Update Daily Stats
+            updateDailyStats();
+        }
+
+        // --- 4. FORM HANDLERS ---
+
+        const regName = document.getElementById('reg-name');
+        const regEmail = document.getElementById('reg-email');
+        const regPass = document.getElementById('reg-password-new');
+        const regConfirm = document.getElementById('reg-password-confirm');
+        const regBtn = document.getElementById('btn-register-submit');
+        const regEmailError = document.getElementById('reg-email-error');
+        const regPassMatchError = document.getElementById('reg-pass-match-error');
+        const strengthBar = document.getElementById('password-strength-bar');
+        const strengthText = document.getElementById('password-strength-text');
+
+        function validateRegister() {
+            const name = regName.value.trim();
+            const email = regEmail.value.trim();
+            const pass = regPass.value;
+            const confirm = regConfirm.value;
+            const emailHasError = !regEmailError.classList.contains('hidden');
+            
+            let score = 0;
+            if (pass.length > 5) score++;
+            if (pass.length > 8) score++;
+            if (/[A-Z]/.test(pass)) score++;
+            if (/[0-9]/.test(pass)) score++;
+            if (/[^A-Za-z0-9]/.test(pass)) score++;
+
+            let width = 0;
+            let color = 'bg-red-500';
+            let text = 'Weak';
+            if (score <= 1) { width = 20; color = 'bg-red-500'; text = 'Weak'; }
+            else if (score <= 3) { width = 50; color = 'bg-yellow-500'; text = 'Moderate'; }
+            else if (score <= 4) { width = 80; color = 'bg-blue-500'; text = 'Strong'; }
+            else { width = 100; color = 'bg-emerald-500'; text = 'Very Strong'; }
+            if (pass.length === 0) { width = 0; text = ''; }
+
+            strengthBar.style.width = `${width}%`;
+            strengthBar.className = `h-full transition-all duration-300 ${color}`;
+            strengthText.innerText = text;
+
+            const passwordsMatch = pass === confirm;
+            if (confirm && !passwordsMatch) {
+                regPassMatchError.classList.remove('hidden');
+            } else {
+                regPassMatchError.classList.add('hidden');
+            }
+
+            const isValid = name && email && pass && confirm && passwordsMatch && !emailHasError;
+            regBtn.disabled = !isValid;
+            if (isValid) {
+                regBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                regBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        [regName, regEmail, regPass, regConfirm].forEach(el => {
+            el.addEventListener('input', validateRegister);
+        });
+
+        regEmail.addEventListener('blur', () => {
+            const email = regEmail.value.trim();
+            if (!email) return;
+            const emailEncoded = btoa(email.toLowerCase());
+            const users = DB.getUsers();
+            if (users.some(u => u.email === emailEncoded || u.email === email.toLowerCase())) {
+                regEmailError.innerText = "Email already registered";
+                regEmailError.classList.remove('hidden');
+            } else {
+                regEmailError.classList.add('hidden');
+            }
+            validateRegister();
+        });
+
+        document.getElementById('btn-register-toggle').addEventListener('click', () => {
+            document.getElementById('login-card').classList.add('hidden');
+            document.getElementById('register-card').classList.remove('hidden');
+        });
+        document.getElementById('btn-login-toggle').addEventListener('click', () => {
+            document.getElementById('register-card').classList.add('hidden');
+            document.getElementById('login-card').classList.remove('hidden');
+        });
+
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            if(!login(email, pass)) {
+                document.getElementById('login-error').innerText = "Invalid credentials";
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            validateRegister();
+            if(regBtn.disabled) return;
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const pass = document.getElementById('reg-password-new').value;
+            
+            regBtn.innerText = "Creating...";
+            regBtn.disabled = true;
+
+            const success = await register(name, email, pass);
+            if(!success) {
+                // If it fails (e.g. backend down), try to log it but don't block
+                console.error("Registration failed");
+                regBtn.innerText = "Create Account";
+                regBtn.disabled = false;
+            }
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', logout);
+
+        // Mobile Menu Toggle
+        document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+            const nav = document.getElementById('main-nav');
+            nav.classList.toggle('hidden');
+        });
+
+        // --- 5. LOGGING LOGIC ---
+
+        function updateDailyStats() {
+            if (!currentUser) return;
+            
+            const options = { timeZone: 'America/Edmonton', year: 'numeric', month: 'numeric', day: 'numeric' };
+            const today = new Intl.DateTimeFormat('en-US', options).format(new Date());
+
+            const logs = DB.getLogs();
+            
+            // Filter for today + current user
+            const todaysLogs = logs.filter(l => {
+                if (l.userId !== currentUser.id) return false;
+                const lDate = new Intl.DateTimeFormat('en-US', options).format(new Date(l.timestamp));
+                return lDate === today;
+            });
+
+            // Hydration
+            const waterLogs = todaysLogs.filter(l => l.activity === 'Water');
+            const waterCups = waterLogs.reduce((acc, l) => acc + (parseFloat(l.input) || 0), 0);
+            const waterMl = Math.round(waterCups * 250); // 1 cup approx 250ml
+            
+            const hydEl = document.getElementById('hydration-today');
+            if(hydEl) hydEl.innerText = waterMl;
+
+            // Sleep
+            const sleepLogs = todaysLogs.filter(l => l.activity === 'Sleep');
+            const sleepEl = document.getElementById('sleep-status');
+            
+            if(sleepEl) {
+                if (sleepLogs.length > 0) {
+                    const totalSleep = sleepLogs.reduce((acc, l) => acc + (parseFloat(l.input) || 0), 0);
+                    sleepEl.innerHTML = `<span class="text-emerald-400">✓ ${totalSleep}h today</span>`;
+                } else {
+                    sleepEl.innerHTML = `<span class="text-slate-500">Not logged</span>`;
+                }
+            }
+        }
+
+        // Helper to log quick actions (Water/Sleep)
+        window.logWater = async () => {
+            await logActivity('Water', 1); 
+        };
+
+        window.logSleep = async () => {
+            const val = parseFloat(document.getElementById('quick-sleep-input').value);
+            if (val > 0) {
+                await logActivity('Sleep', val);
+                document.getElementById('quick-sleep-input').value = '';
+            }
+        };
+
+        // Shared logging function
+        async function logActivity(actName, val) {
+            if (!val || !currentUser) return;
+            
+            const actData = ACTIVITY_DB[actName] || { unit: 'Units', factor: 1 }; 
+            const points = parseFloat((val * actData.factor).toFixed(1));
+
+            // Get selected date from Dashboard, or default to Now
+            const dateInput = document.getElementById('log-timestamp');
+            let timestamp = new Date().toISOString(); // Default fallback
+            
+            if (dateInput && dateInput.value) {
+                timestamp = new Date(dateInput.value).toISOString();
+            }
+
+            const logs = DB.getLogs();
+            logs.push({
+                id: 'log_' + Date.now(),
+                userId: currentUser.id,
+                activity: actName,
+                input: val,
+                unit: actData.unit,
+                points: points,
+                timestamp: timestamp
+            });
+            await DB.saveLogs(logs);
+
+            const users = DB.getUsers();
+            const uIndex = users.findIndex(u => u.id === currentUser.id);
+            if(uIndex >= 0) {
+                users[uIndex].currentPoints += points;
+                users[uIndex].totalPoints += points;
+                users[uIndex].lastActive = new Date().toISOString();
+                await DB.saveUsers(users);
+                currentUser = users[uIndex]; 
+                sessionStorage.setItem('apt_session_user', JSON.stringify(currentUser));
+            }
+
+            // RESET DATE PICKER TO NOW
+            if(dateInput) dateInput.value = getLocalISOString();
+
+            updateUI();
+            renderHistory();
+            const successMsg = document.getElementById('log-success');
+            successMsg.innerText = `Logged: ${actName}`;
+            successMsg.classList.remove('hidden');
+            setTimeout(() => successMsg.classList.add('hidden'), 3000);
+        }
+
+        window.deleteLog = async (logId) => {
+            if(!confirm("Delete this activity? Points will be deducted.")) return;
+
+            const logs = DB.getLogs();
+            const logIndex = logs.findIndex(l => l.id === logId);
+            
+            if (logIndex === -1) return;
+            
+            const log = logs[logIndex];
+            const pointsToRemove = log.points;
+
+            // Remove log
+            const newLogs = logs.filter(l => l.id !== logId);
+            await DB.saveLogs(newLogs);
+
+            // Update User
+            const users = DB.getUsers();
+            const uIndex = users.findIndex(u => u.id === currentUser.id);
+            if(uIndex >= 0) {
+                // Prevent negative points just in case, though basic subtraction is fine
+                users[uIndex].currentPoints = Math.max(0, users[uIndex].currentPoints - pointsToRemove);
+                users[uIndex].totalPoints = Math.max(0, users[uIndex].totalPoints - pointsToRemove);
+                await DB.saveUsers(users);
+                currentUser = users[uIndex];
+                sessionStorage.setItem('apt_session_user', JSON.stringify(currentUser));
+            }
+
+            updateUI();
+            renderHistory();
+        };
+
+        window.editLogDate = async (logId) => {
+            const logs = DB.getLogs();
+            const log = logs.find(l => l.id === logId);
+            if(!log) return;
+
+            // Format current log date for prompt default (rough ISO)
+            const currentIso = new Date(log.timestamp).toISOString().slice(0, 16);
+            
+            const newDateStr = prompt("Enter new date (YYYY-MM-DD HH:MM):", currentIso.replace('T', ' '));
+            
+            if(newDateStr) {
+                // Try to parse
+                const newDate = new Date(newDateStr);
+                if(isNaN(newDate.getTime())) {
+                    alert("Invalid date format.");
+                    return;
+                }
+
+                log.timestamp = newDate.toISOString();
+                await DB.saveLogs(logs);
+                renderHistory();
+            }
+        };
+
+        const select = document.getElementById('activity-select');
+        const input = document.getElementById('activity-input');
+        const hint = document.getElementById('formula-hint');
+        const preview = document.getElementById('calc-preview');
+
+        function populateActivityDropdown() {
+            select.innerHTML = '';
+            const sortedActivities = Object.keys(ACTIVITY_DB).sort();
+            const categories = {};
+            
+            // Group activities by category
+            sortedActivities.forEach(act => {
+                const cat = ACTIVITY_DB[act].category || 'Other';
+                if(!categories[cat]) categories[cat] = [];
+                categories[cat].push(act);
+            });
+
+            // Sort Categories: Alphabetical, with 'Recovery' last
+            const sortedCategories = Object.keys(categories).sort((a, b) => {
+                if (a === 'Recovery') return 1;
+                if (b === 'Recovery') return -1;
+                return a.localeCompare(b);
+            });
+
+            // Render groups
+            sortedCategories.forEach(cat => {
+                const group = document.createElement('optgroup');
+                group.label = cat;
+                categories[cat].forEach(act => {
+                    const opt = document.createElement('option');
+                    opt.value = act;
+                    opt.text = act;
+                    group.appendChild(opt);
+                });
+                select.appendChild(group);
+            });
+            
+            // Set default to Walking
+            if (ACTIVITY_DB['Walking']) {
+                select.value = 'Walking';
+            }
+            
+            updateCalc();
+        }
+
+        function updateCalc() {
+            if (!ACTIVITY_DB[select.value]) return;
+            const act = ACTIVITY_DB[select.value];
+            hint.innerText = `Formula: ${act.unit} × ${act.factor}`;
+            const val = parseFloat(input.value) || 0;
+            preview.innerText = (val * act.factor).toFixed(1);
+        }
+        select.addEventListener('change', updateCalc);
+        input.addEventListener('input', updateCalc);
+
+        document.getElementById('log-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const val = parseFloat(input.value);
+            if (!val || !currentUser) return;
+            
+            const btn = e.target.querySelector('button');
+            const originalText = btn.innerText;
+            btn.innerText = "Logging...";
+            btn.disabled = true;
+
+            const actName = select.value;
+            await logActivity(actName, val);
+
+            input.value = '';
+            updateCalc();
+            
+            btn.innerText = originalText;
+            btn.disabled = false;
+        });
+
+        // --- 6. HISTORY & LEADERBOARD ---
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+            const allLogs = DB.getLogs();
+            const myLogs = allLogs.filter(l => l.userId === currentUser.id).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            if(myLogs.length === 0) {
+                list.innerHTML = '<p class="text-slate-500 text-center py-8">No logs yet.</p>';
+                return;
+            }
+            myLogs.slice(0, 10).forEach(log => {
+                const date = formatDateEdmonton(log.timestamp);
+                const div = document.createElement('div');
+                div.className = "bg-slate-900/50 px-4 py-0.5 rounded-lg border border-slate-700/50 flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4";
+                div.innerHTML = `
+                    <div class="flex-grow flex flex-col md:flex-row md:items-center md:gap-4">
+                        <div class="font-medium text-white">${log.activity}</div>
+                        <div class="text-sm text-slate-400">${log.input} ${log.unit} • ${date}</div>
+                    </div>
+                    <div class="text-right flex items-center gap-3 md:w-auto justify-end">
+                        <div>
+                            <div class="text-lg font-bold text-blue-400">+${log.points.toFixed(1)}</div>
+                            <div class="text-[10px] text-slate-500 uppercase">POINTS</div>
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="editLogDate('${log.id}')" class="text-slate-500 hover:text-blue-400 transition-colors p-1" title="Edit Date">
+                                <i class="ph-bold ph-pencil-simple"></i>
+                            </button>
+                            <button onclick="deleteLog('${log.id}')" class="text-slate-500 hover:text-red-400 transition-colors p-1" title="Delete Entry">
+                                <i class="ph-bold ph-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        window.updateLeaderboard = (filter) => {
+            leaderboardFilter = filter;
+            document.getElementById('filter-perf').className = filter === 'performance' 
+                ? "px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 text-white transition-colors"
+                : "px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition-colors";
+            document.getElementById('filter-abs').className = filter === 'absolute' 
+                ? "px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 text-white transition-colors"
+                : "px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition-colors";
+            renderLeaderboard();
+        };
+
+        function renderLeaderboard() {
+            const tbody = document.getElementById('leaderboard-body');
+            tbody.innerHTML = '';
+            
+            const users = DB.getUsers();
+            const sorted = [...users].sort((a, b) => {
+                const aCurrent = parseFloat(a.currentPoints) || 0;
+                const bCurrent = parseFloat(b.currentPoints) || 0;
+                const aGoal = parseFloat(a.baselineGoal) || 1; // Prevent div by zero
+                const bGoal = parseFloat(b.baselineGoal) || 1;
+
+                if (leaderboardFilter === 'performance') {
+                    const aP = (aCurrent / aGoal);
+                    const bP = (bCurrent / bGoal);
+                    return bP - aP; // Descending Percentage
+                }
+                // 'absolute'
+                return bCurrent - aCurrent; // Descending Points
+            });
+
+            sorted.forEach((u, idx) => {
+                const isMe = u.id === currentUser.id;
+                
+                // Parse for display
+                const cPoints = parseFloat(u.currentPoints) || 0;
+                const bGoal = parseFloat(u.baselineGoal) || 1;
+                const percent = ((cPoints / bGoal) * 100).toFixed(1);
+                
+                const tr = document.createElement('tr');
+                tr.className = `border-b border-slate-700 hover:bg-slate-700/50 transition-colors ${isMe ? 'bg-blue-900/20' : ''}`;
+                tr.innerHTML = `
+                    <td class="p-4 text-center font-mono text-slate-500">${idx < 3 ? ['🥇','🥈','🥉'][idx] : idx + 1}</td>
+                    <td class="p-4 font-medium text-white">
+                        ${u.displayName}
+                        ${isMe ? '<span class="ml-2 text-xs bg-blue-600 px-1 rounded">You</span>' : ''}
+                    </td>
+                    <td class="p-4 text-center text-slate-400 text-sm">${bGoal}</td>
+                    <td class="p-4 text-center font-medium text-blue-300">${cPoints.toFixed(0)}</td>
+                    <td class="p-4 text-right font-bold ${parseFloat(percent) >= 100 ? 'text-emerald-400' : 'text-slate-300'}">${percent}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.saveGoal = async () => {
+            // Corrected ID to avoid conflict with removed tab
+            const val = parseInt(document.getElementById('profile-goal').value);
+            if(!val) return;
+            
+            const users = DB.getUsers();
+            const uIndex = users.findIndex(u => u.id === currentUser.id);
+            if(uIndex >= 0) {
+                users[uIndex].baselineGoal = val;
+                await DB.saveUsers(users);
+                currentUser = users[uIndex];
+                
+                // Corrected ID
+                const msg = document.getElementById('profile-goal-msg');
+                msg.innerText = "Saved!";
+                setTimeout(() => msg.innerText = "", 2000);
+                updateUI(); // Refresh dash
+            }
+        };
+
+        // --- PROFILE FUNCTIONS ---
+        window.saveProfileName = async () => {
+            const name = document.getElementById('profile-name').value.trim();
+            if(!name) return;
+
+            const users = DB.getUsers();
+            const uIndex = users.findIndex(u => u.id === currentUser.id);
+            if(uIndex >= 0) {
+                users[uIndex].displayName = name;
+                await DB.saveUsers(users);
+                currentUser = users[uIndex];
+                
+                const msg = document.getElementById('profile-name-msg');
+                msg.innerText = "Saved!";
+                setTimeout(() => msg.innerText = "", 2000);
+                updateUI();
+            }
+        };
+
+        window.saveProfilePass = async () => {
+            const oldPass = document.getElementById('profile-old-pass').value;
+            const newPass = document.getElementById('profile-new-pass').value;
+            const msg = document.getElementById('profile-pass-msg');
+            
+            if(!oldPass || !newPass) {
+                msg.innerText = "Fields cannot be empty";
+                msg.className = "ml-3 text-sm text-red-500";
+                return;
+            }
+
+            // Verify old pass (hashed)
+            const oldHash = md5(oldPass);
+            if (currentUser.password !== oldHash && currentUser.password !== oldPass) {
+                msg.innerText = "Incorrect current password";
+                msg.className = "ml-3 text-sm text-red-500";
+                return;
+            }
+
+            const users = DB.getUsers();
+            const uIndex = users.findIndex(u => u.id === currentUser.id);
+            if(uIndex >= 0) {
+                users[uIndex].password = md5(newPass);
+                await DB.saveUsers(users);
+                currentUser = users[uIndex];
+                
+                msg.innerText = "Password Updated!";
+                msg.className = "ml-3 text-sm text-emerald-400";
+                
+                document.getElementById('profile-old-pass').value = '';
+                document.getElementById('profile-new-pass').value = '';
+                setTimeout(() => msg.innerText = "", 3000);
+            }
+        };
+
+        // --- ADMIN FUNCTIONS ---
+
+        window.downloadLeaderboardCSV = () => {
+            const startStr = document.getElementById('admin-export-start').value;
+            const endStr = document.getElementById('admin-export-end').value;
+
+            if (!startStr || !endStr) {
+                alert("Please select both start and end dates.");
+                return;
+            }
+
+            const startDate = new Date(startStr + 'T00:00:00');
+            const endDate = new Date(endStr + 'T23:59:59.999');
+
+            const logs = DB.getLogs();
+            const users = DB.getUsers();
+
+            // Aggregate
+            const userStats = {};
+            
+            // Init stats for all users
+            users.forEach(u => {
+                userStats[u.id] = { 
+                    name: u.displayName, 
+                    email: u.email,
+                    points: 0, 
+                    count: 0 
+                };
+            });
+
+            logs.forEach(log => {
+                const logDate = new Date(log.timestamp);
+                if (logDate >= startDate && logDate <= endDate) {
+                    if (userStats[log.userId]) {
+                        userStats[log.userId].points += (parseFloat(log.points) || 0);
+                        userStats[log.userId].count += 1;
+                    }
+                }
+            });
+
+            // Convert to array and sort
+            const leaderboard = Object.values(userStats).sort((a,b) => b.points - a.points);
+
+            // Generate CSV
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Rank,User,Email,Total Points,Activity Count\n";
+
+            leaderboard.forEach((row, index) => {
+                let email = row.email;
+                try { email = atob(email); } catch(e){}
+                const rowStr = `${index + 1},"${row.name}","${email}",${row.points.toFixed(1)},${row.count}`;
+                csvContent += rowStr + "\n";
+            });
+
+            // Download
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `leaderboard_${startStr}_to_${endStr}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        window.changeUserRole = async (userId, currentRole) => {
+            const newRole = currentRole === 'admin' ? 'user' : 'admin';
+            if(!confirm(`Change role from ${currentRole.toUpperCase()} to ${newRole.toUpperCase()}?`)) return;
+
+            const users = DB.getUsers();
+            const uIndex = users.findIndex(u => u.id === userId);
+            
+            if(uIndex >= 0) {
+                users[uIndex].role = newRole;
+                await DB.saveUsers(users);
+                renderAdminTable();
+            }
+        };
+
+        window.resetUserPassword = async (userId) => {
+            if(!confirm("Are you sure? This will reset the password to 'password123'.")) return;
+
+            const users = DB.getUsers();
+            const uIndex = users.findIndex(u => u.id === userId);
+            
+            if(uIndex >= 0) {
+                users[uIndex].password = md5('password123'); // Default reset password
+                await DB.saveUsers(users);
+                alert("Password reset to: password123");
+                renderAdminTable();
+            } else {
+                alert("User not found.");
+            }
+        };
+
+        window.deleteUser = async (userId) => {
+            if(!confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
+            
+            // Remove User
+            const newUsers = DB.getUsers().filter(u => u.id !== userId);
+            await DB.saveUsers(newUsers);
+            
+            // Remove Logs
+            const newLogs = DB.getLogs().filter(l => l.userId !== userId);
+            await DB.saveLogs(newLogs);
+            
+            alert("User deleted.");
+            renderAdminTable();
+        };
+
+        window.setUserGoal = async (userId, currentGoal) => {
+            const newGoal = prompt("Enter new weekly goal:", currentGoal);
+            if(newGoal && !isNaN(newGoal)) {
+                const users = DB.getUsers();
+                const uIndex = users.findIndex(u => u.id === userId);
+                if(uIndex >= 0) {
+                    users[uIndex].baselineGoal = parseInt(newGoal);
+                    await DB.saveUsers(users);
+                    renderAdminTable();
+                }
+            }
+        };
+
+        window.renderAdminTable = () => {
+            const term = document.getElementById('admin-search').value.toLowerCase();
+            const list = document.getElementById('admin-list');
+            list.innerHTML = '';
+            
+            // Get users (guaranteed to be an array now via DB.getUsers)
+            const users = DB.getUsers();
+            
+            // Debug if empty
+            if (users.length === 0) {
+                list.innerHTML = '<div class="p-4 text-center text-slate-500">No users loaded (Check console for JSON errors).</div>';
+                return;
+            }
+            
+            // Safeguard against missing data properties during filter
+            const filtered = users.filter(u => {
+                if (!u) return false;
+                let emailStr = u.email || "";
+                try { emailStr = atob(u.email); } catch(e) { emailStr = u.email || ""; }
+                
+                const nameStr = u.displayName || "";
+                
+                return (emailStr.toLowerCase().includes(term) || nameStr.toLowerCase().includes(term));
+            });
+
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="p-4 text-center text-slate-500">No matches found.</div>';
+                return;
+            }
+
+            filtered.forEach(u => {
+                const date = formatDateEdmonton(u.lastActive);
+                
+                // Decode email for display
+                let displayEmail = u.email || "Unknown";
+                try { displayEmail = atob(u.email); } catch(e) { displayEmail = u.email; }
+
+                const isMe = u.id === currentUser.id;
+                
+                let actions = '';
+                if(isMe) {
+                    actions = `<span class="text-xs text-slate-500 italic">Current User</span>`;
+                } else {
+                    actions = `
+                        <div class="flex justify-end gap-2">
+                            <button onclick="changeUserRole('${u.id}', '${u.role}')" class="text-xs bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white px-2 py-1 rounded transition-colors border border-purple-500/20" title="Change Role">
+                                <i class="ph-bold ph-user-gear"></i>
+                            </button>
+                            <button onclick="setUserGoal('${u.id}', ${u.baselineGoal})" class="text-xs bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white px-2 py-1 rounded transition-colors border border-blue-500/20" title="Edit Goal">
+                                <i class="ph-bold ph-pencil-simple"></i>
+                            </button>
+                            <button onclick="resetUserPassword('${u.id}')" class="text-xs bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500 hover:text-white px-2 py-1 rounded transition-colors border border-yellow-500/20" title="Reset Password">
+                                <i class="ph-bold ph-key"></i>
+                            </button>
+                            <button onclick="deleteUser('${u.id}')" class="text-xs bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-2 py-1 rounded transition-colors border border-red-500/20" title="Delete User">
+                                <i class="ph-bold ph-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+
+                const div = document.createElement('div');
+                div.className = "bg-slate-900/50 px-4 py-0.5 rounded-lg border border-slate-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2";
+                div.innerHTML = `
+                    <div class="flex-grow">
+                        <div class="flex items-center gap-2">
+                            <span class="font-medium text-white">${u.displayName || 'No Name'}</span>
+                            <span class="bg-slate-700 px-1.5 rounded text-[10px] text-slate-300 uppercase">${u.role}</span>
+                        </div>
+                        <div class="text-xs text-slate-500 flex flex-wrap gap-x-3 gap-y-1 mt-0.5">
+                            <span>${displayEmail}</span>
+                            <span class="text-slate-700">|</span>
+                            <span>Goal: ${u.baselineGoal}</span>
+                            <span class="text-slate-700">|</span>
+                            <span class="text-blue-400">${(u.totalPoints || 0).toFixed(1)} pts</span>
+                            <span class="text-slate-700">|</span>
+                            <span>${date}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 justify-end">
+                        ${actions}
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        };
+
+        window.switchTab = (tabId) => {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if(btn.dataset.tab === tabId) {
+                    btn.classList.add('bg-blue-600', 'text-white');
+                    btn.classList.remove('text-slate-400', 'hover:text-white');
+                } else {
+                    btn.classList.remove('bg-blue-600', 'text-white');
+                    btn.classList.add('text-slate-400', 'hover:text-white');
+                }
+            });
+            
+            // Close mobile menu on tab switch
+            const nav = document.getElementById('main-nav');
+            if (!nav.classList.contains('hidden')) {
+                nav.classList.add('hidden');
+            }
+        };
+
+        // --- INIT ---
+        (async () => {
+            await loadData();
+            checkSession();
+        })();
+
+    </script>
+    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

@@ -1,0 +1,712 @@
+<!-- 
+CATEGORY: Tools
+DESCRIPTION: A browser-based AI background remover for images. Utilizing WebAssembly-powered libraries, it provides local, privacy-first background removal with manual restore and erase tools, adjustable brush sizes, and instant previews, entirely client-side.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Background Remover</title>
+    <!-- Using Inter font for a clean look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Dark Theme Variables */
+            --primary: #6366f1;
+            --primary-hover: #818cf8;
+            --bg: #0F172A;        /* Requested Dark Blue */
+            --card-bg: #1E293B;   /* Slate 800 */
+            --text-main: #F8FAFC; /* Slate 50 */
+            --text-sub: #94A3B8;  /* Slate 400 */
+            --border: #334155;    /* Slate 700 */
+            --radius: 16px;
+            --danger: #ef4444;    /* Red for Eraser */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .app-container {
+            /* Changed to 98% as requested */
+            max-width: 98%;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -0.025em;
+            color: var(--text-main);
+        }
+
+        .header p {
+            color: var(--text-sub);
+            margin-top: 5px;
+            font-size: 1rem;
+        }
+
+        /* Main Card */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            min-height: 70vh;
+        }
+
+        /* Drop Zone */
+        .drop-zone {
+            border: 2px dashed #475569;
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #192436; /* Requested Drop Zone Color */
+            position: relative;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .drop-zone.drag-over {
+            border-color: var(--primary);
+            background: #1e293b;
+            transform: scale(1.005);
+        }
+
+        .drop-zone:hover {
+            border-color: var(--primary);
+            background: #1e293b;
+        }
+
+        .icon-upload {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            color: var(--text-sub);
+        }
+
+        .drop-zone h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
+            color: var(--text-main);
+        }
+
+        .drop-zone p {
+            margin: 0;
+            color: var(--text-sub);
+            font-size: 1rem;
+        }
+
+        input[type="file"] { display: none; }
+
+        /* Preview Area */
+        .workspace {
+            display: none; /* Hidden initially */
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            height: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .workspace { grid-template-columns: 1fr; }
+        }
+
+        .image-card {
+            background: #0F172A; /* Darker bg for contrast */
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .image-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .image-container {
+            width: 100%;
+            height: 60vh; /* Taller area */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #1e293b; /* Fallback dark bg */
+            position: relative;
+        }
+
+        /* Dark Checkerboard for transparency */
+        .transparency-grid {
+            background-image: linear-gradient(45deg, #334155 25%, transparent 25%), 
+                              linear-gradient(-45deg, #334155 25%, transparent 25%), 
+                              linear-gradient(45deg, transparent 75%, #334155 75%), 
+                              linear-gradient(-45deg, transparent 75%, #334155 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        img, canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Editor Overlay Canvas */
+        #editorCanvas {
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        /* Actions */
+        .action-bar {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            text-decoration: none;
+        }
+
+        .btn-primary:hover:not(:disabled) { background-color: var(--primary-hover); }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid #475569;
+            color: var(--text-main);
+        }
+
+        .btn-outline:hover { background-color: #334155; }
+
+        .btn-tool {
+            background-color: #334155;
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            border: 1px solid transparent;
+        }
+        
+        .btn-tool:hover {
+            background-color: #475569;
+        }
+
+        .btn-tool.active-restore {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary-hover);
+        }
+
+        .btn-tool.active-erase {
+            background-color: var(--danger);
+            color: white;
+            border-color: #f87171;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Tool Controls */
+        .tool-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: #0f172a;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        
+        .tool-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .tool-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+        }
+
+        .brush-size-slider {
+            width: 80px;
+        }
+
+        /* Loading State */
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.95); /* Dark overlay */
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #334155;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .badge {
+            background: #1e1b4b;
+            color: #818cf8;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border: 1px solid #312e81;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Helpers */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <div class="header">
+            <h1>Remove Background</h1>
+            <p>Runs entirely in your browser. Use the tools below to refine the result.</p>
+        </div>
+
+        <div class="card">
+            <!-- Drop Zone -->
+            <div id="dropZone" class="drop-zone">
+                <svg class="icon-upload" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <h3>Click or Drag & Drop an Image</h3>
+                <p>Supports JPG, PNG, WEBP</p>
+                <input type="file" id="fileInput" accept="image/*">
+            </div>
+
+            <!-- Workspace (Comparison View) -->
+            <div id="workspace" class="workspace">
+                
+                <!-- Original Image (Source) -->
+                <div class="image-card">
+                    <div class="image-header">
+                        Original
+                    </div>
+                    <div class="image-container">
+                        <img id="originalPreview" alt="Original">
+                    </div>
+                </div>
+
+                <!-- Result Image (Canvas) -->
+                <div class="image-card">
+                    <div class="image-header">
+                        <div>
+                            Result
+                            <span id="statusBadge" class="badge hidden">DONE</span>
+                        </div>
+                        <div id="editorControls" class="tool-controls hidden">
+                            <div class="tool-group">
+                                <button id="btnRestore" class="btn btn-tool" title="Paint to reveal original image">Restore</button>
+                                <button id="btnErase" class="btn btn-tool" title="Paint to remove background (transparent)">Erase</button>
+                            </div>
+                            <div class="tool-divider"></div>
+                            <div class="tool-group">
+                                <span style="font-size: 0.7rem; color: var(--text-sub); text-transform: uppercase;">Size</span>
+                                <input type="range" id="brushSize" class="brush-size-slider" min="5" max="100" value="30" title="Brush Size">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="image-container transparency-grid" id="canvasContainer">
+                        <!-- Canvas for rendering and editing -->
+                        <canvas id="editorCanvas" class="hidden"></canvas>
+                        
+                        <!-- Loading Overlay inside the result box -->
+                        <div id="loadingOverlay" class="loading-overlay">
+                            <div class="spinner"></div>
+                            <span id="loadingText" class="progress-text">Initializing AI...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div id="actionBar" class="action-bar hidden">
+                <button id="resetBtn" class="btn btn-outline">Start Over</button>
+                <div class="btn-group">
+                    <a id="downloadBtn" class="btn btn-primary hidden" download="no-bg.png">
+                        Download Image
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 1. IMPORT FIX: Import everything as a module object
+        import * as imgly from "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm";
+        
+        // 2. EXPORT HANDLING: Robust check
+        let removeBackgroundFn = imgly.removeBackground;
+        if (typeof removeBackgroundFn !== 'function') {
+            removeBackgroundFn = imgly.default;
+        }
+
+        // Elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const workspace = document.getElementById('workspace');
+        const originalPreview = document.getElementById('originalPreview');
+        const editorCanvas = document.getElementById('editorCanvas');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        const actionBar = document.getElementById('actionBar');
+        const resetBtn = document.getElementById('resetBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const statusBadge = document.getElementById('statusBadge');
+        
+        // Editor Controls
+        const editorControls = document.getElementById('editorControls');
+        const btnRestore = document.getElementById('btnRestore');
+        const btnErase = document.getElementById('btnErase');
+        const brushSizeInput = document.getElementById('brushSize');
+
+        // State
+        let currentFile = null;
+        let originalImageBitmap = null; // Store the raw original image for restoration
+        let ctx = null; // Canvas context
+        let currentTool = null; // 'restore' or 'erase' or null
+        let isDrawing = false;
+
+        // --- Drag & Drop Handlers ---
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+        ['dragenter', 'dragover'].forEach(eventName => dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false));
+        ['dragleave', 'drop'].forEach(eventName => dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false));
+        
+        dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files), false);
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        // --- Main Logic ---
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    currentFile = file;
+                    startProcess(file);
+                } else {
+                    alert('Please upload an image file.');
+                }
+            }
+        }
+
+        async function startProcess(file) {
+            if (typeof removeBackgroundFn !== 'function') {
+                alert("Error: AI Library failed to load. Please refresh.");
+                return;
+            }
+
+            // Setup UI
+            dropZone.classList.add('hidden');
+            workspace.style.display = 'grid';
+            actionBar.classList.remove('hidden');
+            resetBtn.disabled = true;
+
+            // Set download filename: "original-nobg.png"
+            const lastDot = file.name.lastIndexOf('.');
+            const fileName = lastDot === -1 ? file.name : file.name.substring(0, lastDot);
+            downloadBtn.download = `${fileName}-nobg.png`;
+            
+            // Setup Source
+            const fileUrl = URL.createObjectURL(file);
+            originalPreview.src = fileUrl;
+            
+            // Load Original Image for Canvas use later
+            const img = new Image();
+            img.src = fileUrl;
+            await new Promise(r => img.onload = r);
+            originalImageBitmap = img;
+
+            // Setup Result Area
+            loadingOverlay.style.display = 'flex';
+            editorCanvas.classList.add('hidden');
+            statusBadge.classList.add('hidden');
+            downloadBtn.classList.add('hidden');
+            editorControls.classList.add('hidden');
+
+            try {
+                // AI Processing
+                const blob = await removeBackgroundFn(file, {
+                    progress: (key, current, total) => {
+                        const percent = Math.round((current / total) * 100);
+                        if(key.includes('model') || key.includes('onnx')) {
+                            loadingText.textContent = `Loading AI Model: ${percent}%`;
+                        } else {
+                            loadingText.textContent = "Processing image...";
+                        }
+                    }
+                });
+
+                // Load result into Canvas
+                const resultUrl = URL.createObjectURL(blob);
+                const resultImg = new Image();
+                resultImg.src = resultUrl;
+                await new Promise(r => resultImg.onload = r);
+
+                // Initialize Canvas
+                editorCanvas.width = resultImg.width;
+                editorCanvas.height = resultImg.height;
+                ctx = editorCanvas.getContext('2d');
+                ctx.drawImage(resultImg, 0, 0);
+
+                // Show Result
+                editorCanvas.classList.remove('hidden');
+                statusBadge.classList.remove('hidden');
+                editorControls.classList.remove('hidden');
+                
+                updateDownloadLink();
+                downloadBtn.classList.remove('hidden');
+
+            } catch (error) {
+                console.error(error);
+                loadingText.textContent = "Error: " + error.message;
+                loadingText.style.color = "#ef4444";
+                return;
+            } finally {
+                if(!loadingText.textContent.includes("Error")) {
+                    loadingOverlay.style.display = 'none';
+                }
+                resetBtn.disabled = false;
+            }
+        }
+
+        function updateDownloadLink() {
+            // Convert canvas content to blob URL
+            editorCanvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                downloadBtn.href = url;
+            });
+        }
+
+        // --- Editing / Restoration Logic ---
+
+        function setTool(toolName) {
+            // If clicking the active tool, turn it off
+            if (currentTool === toolName) {
+                currentTool = null;
+                btnRestore.classList.remove('active-restore');
+                btnErase.classList.remove('active-erase');
+                editorCanvas.style.cursor = 'default';
+                return;
+            }
+
+            // Switch tool
+            currentTool = toolName;
+            
+            // UI Updates
+            btnRestore.classList.remove('active-restore');
+            btnErase.classList.remove('active-erase');
+            
+            if (toolName === 'restore') {
+                btnRestore.classList.add('active-restore');
+            } else if (toolName === 'erase') {
+                btnErase.classList.add('active-erase');
+            }
+
+            // Visual cursor cue
+            const color = toolName === 'erase' ? 'red' : 'white';
+            editorCanvas.style.cursor = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>') 12 12, crosshair`;
+        }
+
+        btnRestore.addEventListener('click', () => setTool('restore'));
+        btnErase.addEventListener('click', () => setTool('erase'));
+
+        function getMousePos(evt) {
+            const rect = editorCanvas.getBoundingClientRect();
+            // Calculate scale factors in case canvas is resized by CSS
+            const scaleX = editorCanvas.width / rect.width;
+            const scaleY = editorCanvas.height / rect.height;
+            return {
+                x: (evt.clientX - rect.left) * scaleX,
+                y: (evt.clientY - rect.top) * scaleY
+            };
+        }
+
+        function applyTool(x, y) {
+            if (!ctx || !originalImageBitmap || !currentTool) return;
+
+            const size = parseInt(brushSizeInput.value);
+            
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2, true);
+            ctx.closePath();
+
+            if (currentTool === 'restore') {
+                // Clip to the circle, then draw original image
+                ctx.clip();
+                // Ensure we use default composite mode for restoring
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(originalImageBitmap, 0, 0);
+            } else if (currentTool === 'erase') {
+                // Use destination-out to remove content (make transparent)
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        }
+
+        // Mouse Events
+        editorCanvas.addEventListener('mousedown', (e) => {
+            if(!currentTool) return;
+            isDrawing = true;
+            const pos = getMousePos(e);
+            applyTool(pos.x, pos.y);
+        });
+
+        editorCanvas.addEventListener('mousemove', (e) => {
+            if(!currentTool || !isDrawing) return;
+            const pos = getMousePos(e);
+            applyTool(pos.x, pos.y);
+        });
+
+        window.addEventListener('mouseup', () => {
+            if(isDrawing) {
+                isDrawing = false;
+                updateDownloadLink(); // Update download button after drawing
+            }
+        });
+
+        // Touch Events for Mobile
+        editorCanvas.addEventListener('touchstart', (e) => {
+            if(!currentTool) return;
+            isDrawing = true;
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent("mousedown", {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            editorCanvas.dispatchEvent(mouseEvent);
+        }, {passive: false});
+
+        editorCanvas.addEventListener('touchmove', (e) => {
+            if(!currentTool || !isDrawing) return;
+            e.preventDefault(); // Prevent scrolling
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent("mousemove", {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            editorCanvas.dispatchEvent(mouseEvent);
+        }, {passive: false});
+
+        window.addEventListener('touchend', () => {
+            if (isDrawing) {
+                isDrawing = false;
+                updateDownloadLink();
+            }
+        });
+
+
+        // --- Reset ---
+        resetBtn.addEventListener('click', () => {
+            currentFile = null;
+            originalPreview.src = "";
+            ctx = null;
+            originalImageBitmap = null;
+            
+            workspace.style.display = 'none';
+            actionBar.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            
+            // Reset Editor
+            currentTool = null;
+            btnRestore.classList.remove('active-restore');
+            btnErase.classList.remove('active-erase');
+            editorCanvas.style.cursor = 'default';
+            fileInput.value = "";
+        });
+
+    </script>
+    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 16px; bottom: 16px; height: 50px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>

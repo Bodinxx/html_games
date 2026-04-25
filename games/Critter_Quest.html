@@ -1,0 +1,947 @@
+<!-- 
+CATEGORY: z_In Development
+DESCRIPTION: 
+TAGS: 
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Critter Lab: Quest - Ultimate Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            --pixel-font: 'Press+Start+2P', cursive;
+        }
+
+        body {
+            background-color: #020617;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+            overflow-y: auto;
+            margin: 0;
+            user-select: none;
+        }
+
+        .pixel-text {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+            line-height: 1.5;
+        }
+
+        .game-container {
+            width: 100vw;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .screen {
+            display: none;
+            flex: 1;
+            position: relative;
+            min-height: 100vh;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        #screen-map.active {
+            height: 100vh;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+
+        #map-canvas {
+            image-rendering: pixelated;
+            cursor: pointer;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+
+        .option-btn {
+            background: #1e293b;
+            border: 2px solid #334155;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .option-btn.selected {
+            border-color: #fbbf24;
+            background: #334155;
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
+            transform: scale(1.05);
+        }
+
+        .hp-bar-bg {
+            height: 14px;
+            background: #000;
+            border: 2px solid #334155;
+            border-radius: 7px;
+            overflow: hidden;
+        }
+
+        .hp-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            transition: width 0.5s ease-in-out;
+        }
+
+        .flash { animation: flash-anim 0.2s 3; }
+        @keyframes flash-anim { 0%, 100% { background: transparent; } 50% { background: white; } }
+        
+        .shake { animation: shake-anim 0.5s; }
+        @keyframes shake-anim {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .color-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+        .color-btn:hover { transform: scale(1.1); }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    
+    <!-- START SCREEN -->
+    <div id="screen-start" class="screen active justify-center p-8 bg-gradient-to-br from-slate-900 to-black">
+        <div class="text-center space-y-8 max-w-xl w-full">
+            <h1 class="pixel-text text-4xl text-yellow-400 drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]">CRITTER LAB<br>QUEST</h1>
+            <div class="p-8 glass-panel space-y-4">
+                <button onclick="switchScreen('designer')" class="w-full py-6 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl pixel-text text-lg shadow-xl transform active:scale-95 transition">NEW GAME</button>
+                <div class="relative">
+                    <button onclick="document.getElementById('load-input').click()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl pixel-text transform active:scale-95 transition">LOAD LAB FILE</button>
+                    <input type="file" id="load-input" class="hidden" accept=".json" onchange="loadGame(event)">
+                </div>
+            </div>
+            <p class="text-gray-500 pixel-text text-[8px] animate-pulse">PRESS BUTTON TO INITIALIZE</p>
+        </div>
+    </div>
+
+    <!-- DESIGNER SCREEN -->
+    <div id="screen-designer" class="screen flex-col items-center p-6 bg-[#020617]">
+        <div class="flex justify-between w-full max-w-6xl mb-6">
+            <h1 class="pixel-text text-xl text-yellow-400">LAB DESIGNER</h1>
+        </div>
+        
+        <div class="flex flex-col lg:flex-row gap-6 w-full max-w-6xl flex-1 mb-12">
+            <!-- Preview Box -->
+            <div class="glass-panel p-8 flex-1 flex flex-col items-center justify-center min-h-[450px] lg:sticky lg:top-6 h-fit">
+                <div id="designer-preview-container" class="w-80 h-80 mb-8"></div>
+                <div class="w-full max-w-sm space-y-4">
+                    <div>
+                        <label class="block text-[8px] pixel-text text-gray-500 mb-2">CRITTER NAME</label>
+                        <input id="critter-name" type="text" maxlength="12" placeholder="Enter Name..." class="bg-black/50 border-2 border-yellow-500/30 p-4 text-white text-center rounded-xl pixel-text focus:outline-none focus:border-yellow-400 w-full">
+                    </div>
+                    <div>
+                        <label class="block text-[8px] pixel-text text-gray-500 mb-2">INITIAL POWER</label>
+                        <select onchange="updateDesigner('initialPower', this.value)" id="initial-power-select" class="w-full bg-black/50 border-2 border-blue-500/30 p-4 text-white rounded-xl pixel-text text-[9px] appearance-none cursor-pointer">
+                            <!-- Populated via JS -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Customization Panel -->
+            <div class="glass-panel p-8 w-full lg:w-[500px] space-y-10 h-fit pb-12">
+                <!-- Shape -->
+                <section>
+                    <label class="block text-[9px] pixel-text mb-4 text-gray-400 uppercase tracking-widest">Molecular Shape</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="updateDesigner('shape', 'square')" id="opt-shape-square" class="option-btn p-3 rounded-lg text-[8px] pixel-text">SQRE</button>
+                        <button onclick="updateDesigner('shape', 'round')" id="opt-shape-round" class="option-btn p-3 rounded-lg text-[8px] pixel-text">RND</button>
+                        <button onclick="updateDesigner('shape', 'tall')" id="opt-shape-tall" class="option-btn p-3 rounded-lg text-[8px] pixel-text">TALL</button>
+                        <button onclick="updateDesigner('shape', 'wide')" id="opt-shape-wide" class="option-btn p-3 rounded-lg text-[8px] pixel-text">WIDE</button>
+                        <button onclick="updateDesigner('shape', 'hexagon')" id="opt-shape-hexagon" class="option-btn p-3 rounded-lg text-[8px] pixel-text">HEX</button>
+                        <button onclick="updateDesigner('shape', 'oval')" id="opt-shape-oval" class="option-btn p-3 rounded-lg text-[8px] pixel-text">OVAL</button>
+                        <button onclick="updateDesigner('shape', 'teardrop')" id="opt-shape-teardrop" class="option-btn p-3 rounded-lg text-[8px] pixel-text">TEAR</button>
+                    </div>
+                </section>
+
+                <!-- Color -->
+                <section>
+                    <label class="block text-[9px] pixel-text mb-4 text-gray-400 uppercase tracking-widest">Pigment array</label>
+                    <div class="flex flex-wrap gap-2 justify-start" id="color-grid"></div>
+                </section>
+
+                <!-- Texture -->
+                <section>
+                    <label class="block text-[9px] pixel-text mb-4 text-gray-400 uppercase tracking-widest">Cellular Texture</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="updateDesigner('texture', 'smooth')" id="opt-texture-smooth" class="option-btn p-3 rounded-lg text-[8px] pixel-text">SMOOTH</button>
+                        <button onclick="updateDesigner('texture', 'fuzzy')" id="opt-texture-fuzzy" class="option-btn p-3 rounded-lg text-[8px] pixel-text">FUZZY</button>
+                        <button onclick="updateDesigner('texture', 'bumpy')" id="opt-texture-bumpy" class="option-btn p-3 rounded-lg text-[8px] pixel-text">BUMPY</button>
+                    </div>
+                </section>
+
+                <!-- Arms -->
+                <section>
+                    <label class="block text-[9px] pixel-text mb-4 text-gray-400 uppercase tracking-widest">Manipulators (Arms)</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="updateDesigner('arms', 'none')" id="opt-arms-none" class="option-btn p-3 rounded-lg text-[8px] pixel-text">NONE</button>
+                        <button onclick="updateDesigner('arms', 'nub')" id="opt-arms-nub" class="option-btn p-3 rounded-lg text-[8px] pixel-text">NUBS</button>
+                        <button onclick="updateDesigner('arms', 'strong')" id="opt-arms-strong" class="option-btn p-3 rounded-lg text-[8px] pixel-text">STRNG</button>
+                        <button onclick="updateDesigner('arms', 'tentacle')" id="opt-arms-tentacle" class="option-btn p-3 rounded-lg text-[8px] pixel-text">TENT</button>
+                    </div>
+                </section>
+
+                <!-- Legs -->
+                <section>
+                    <label class="block text-[9px] pixel-text mb-4 text-gray-400 uppercase tracking-widest">Locomotors (Legs)</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="updateDesigner('legs', 'none')" id="opt-legs-none" class="option-btn p-3 rounded-lg text-[8px] pixel-text">NONE</button>
+                        <button onclick="updateDesigner('legs', 'nub')" id="opt-legs-nub" class="option-btn p-3 rounded-lg text-[8px] pixel-text">NUBS</button>
+                        <button onclick="updateDesigner('legs', 'claw')" id="opt-legs-claw" class="option-btn p-3 rounded-lg text-[8px] pixel-text">CLAW</button>
+                        <button onclick="updateDesigner('legs', 'tread')" id="opt-legs-tread" class="option-btn p-3 rounded-lg text-[8px] pixel-text">TRAD</button>
+                    </div>
+                </section>
+
+                <!-- Symbols -->
+                <section>
+                    <label class="block text-[9px] pixel-text mb-4 text-gray-400 uppercase tracking-widest">Idenitity Symbol</label>
+                    <div class="grid grid-cols-5 gap-2">
+                        <button onclick="updateDesigner('symbol', 'none')" id="opt-sym-none" class="option-btn p-3 rounded-lg text-lg">❌</button>
+                        <button onclick="updateDesigner('symbol', '⚡')" id="opt-sym-bolt" class="option-btn p-3 rounded-lg text-lg">⚡</button>
+                        <button onclick="updateDesigner('symbol', '🔥')" id="opt-sym-fire" class="option-btn p-3 rounded-lg text-lg">🔥</button>
+                        <button onclick="updateDesigner('symbol', '💧')" id="opt-sym-water" class="option-btn p-3 rounded-lg text-lg">💧</button>
+                        <button onclick="updateDesigner('symbol', '💀')" id="opt-sym-skull" class="option-btn p-3 rounded-lg text-lg">💀</button>
+                    </div>
+                </section>
+
+                <!-- Moods -->
+                <section>
+                    <label class="block text-[9px] pixel-text mb-4 text-gray-400 uppercase tracking-widest">Neural Logic (Mood)</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="updateDesigner('mood', 'happy')" id="opt-mood-happy" class="option-btn p-3 rounded-lg text-[8px] pixel-text">HAPPY</button>
+                        <button onclick="updateDesigner('mood', 'angry')" id="opt-mood-angry" class="option-btn p-3 rounded-lg text-[8px] pixel-text">ANGRY</button>
+                        <button onclick="updateDesigner('mood', 'cool')" id="opt-mood-cool" class="option-btn p-3 rounded-lg text-[8px] pixel-text">COOL</button>
+                        <button onclick="updateDesigner('mood', 'robo')" id="opt-mood-robo" class="option-btn p-3 rounded-lg text-[8px] pixel-text">ROBO</button>
+                    </div>
+                </section>
+
+                <button onclick="startGame()" class="w-full py-6 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-2xl pixel-text shadow-2xl transform active:scale-95 transition mt-8">INITIALIZE CRITTER</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAP SCREEN -->
+    <div id="screen-map" class="screen flex-col">
+        <canvas id="map-canvas" class="flex-1"></canvas>
+        <div class="absolute top-4 left-4 glass-panel p-4 flex items-center gap-4 border-l-4 border-yellow-500">
+            <div id="map-player-icon" class="w-14 h-14 bg-black/40 rounded-xl flex items-center justify-center border border-white/10"></div>
+            <div>
+                <div id="map-player-name" class="pixel-text text-[11px] text-yellow-400 mb-1">CRITTER</div>
+                <div class="text-[9px] opacity-70 font-mono tracking-widest text-blue-300" id="power-threshold-info">DATA PROGRESS: 0/5</div>
+            </div>
+        </div>
+        <div class="absolute bottom-8 right-8">
+            <button onclick="switchScreen('menagerie')" class="p-5 bg-blue-600 rounded-3xl shadow-2xl flex items-center gap-4 hover:bg-blue-500 transition-all transform hover:-translate-y-1 border-b-4 border-blue-800">
+                <span class="text-3xl">🐾</span> 
+                <span class="pixel-text text-[10px] tracking-widest">MENAGERIE</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- BATTLE SCREEN -->
+    <div id="screen-battle" class="screen flex-col items-center justify-between p-8 bg-gradient-to-b from-[#020617] to-[#1e1b4b]">
+        <div class="flex w-full justify-between items-start max-w-6xl mt-12">
+            <!-- Enemy -->
+            <div class="flex flex-col items-center space-y-4">
+                <div class="glass-panel p-5 min-w-[240px]">
+                    <div id="enemy-name" class="pixel-text mb-4 text-red-400 text-sm">WILD UNIT</div>
+                    <div class="hp-bar-bg"><div id="enemy-hp-fill" class="hp-bar-fill w-full"></div></div>
+                </div>
+                <div id="enemy-sprite" class="w-72 h-72 flex items-center justify-center filter drop-shadow-[0_0_50px_rgba(255,0,0,0.3)]"></div>
+            </div>
+            
+            <div class="pixel-text text-5xl text-yellow-500/30 mt-32 animate-pulse">VS</div>
+
+            <!-- Player -->
+            <div class="flex flex-col items-center space-y-4">
+                <div id="player-sprite" class="w-72 h-72 flex items-center justify-center filter drop-shadow-[0_0_50px_rgba(34,197,94,0.2)]"></div>
+                <div class="glass-panel p-5 min-w-[240px]">
+                    <div id="player-name-battle" class="pixel-text mb-4 text-green-400 text-sm">MY CRITTER</div>
+                    <div class="hp-bar-bg"><div id="player-hp-fill" class="hp-bar-fill w-full"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full max-w-4xl space-y-4">
+            <div id="battle-log" class="glass-panel p-6 h-32 overflow-y-auto text-[11px] font-mono border-l-4 border-yellow-500 bg-black/60 leading-relaxed"></div>
+            <div id="battle-controls" class="flex flex-wrap justify-center gap-2 w-full"></div>
+        </div>
+    </div>
+
+    <!-- MENAGERIE SCREEN -->
+    <div id="screen-menagerie" class="screen flex-col items-center p-8 bg-[#020617]">
+        <div class="flex justify-between items-center w-full max-w-6xl mb-12">
+            <h1 class="pixel-text text-2xl text-blue-400">THE MENAGERIE</h1>
+            <div class="flex gap-4 items-center">
+                <button onclick="saveGame()" class="px-6 py-3 bg-blue-900/50 hover:bg-blue-800 rounded-xl pixel-text text-[9px] border border-blue-400/30 text-blue-100 transition">💾 EXPORT JSON</button>
+                <button onclick="switchScreen('map')" class="px-8 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl pixel-text text-[9px] border border-white/5">BACK TO FIELD</button>
+            </div>
+        </div>
+        <div id="menagerie-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl"></div>
+    </div>
+
+    <!-- TRAINING OVERLAY -->
+    <div id="training-modal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-50 p-6">
+        <div class="glass-panel p-12 max-w-2xl w-full text-center border-2 border-yellow-500">
+            <div class="text-3xl pixel-text text-yellow-400 mb-8">EVOLUTIONARY LEAP</div>
+            <p id="training-message" class="mb-10 text-gray-300 italic text-lg leading-relaxed"></p>
+            <div id="training-icon" class="w-56 h-56 mx-auto mb-10 bg-white/5 rounded-full flex items-center justify-center shadow-[0_0_100px_rgba(251,191,36,0.15)]"></div>
+            <button onclick="confirmTraining()" class="w-full py-6 bg-green-600 hover:bg-green-500 text-white font-bold rounded-2xl pixel-text tracking-widest shadow-2xl">ASSIMILATE POWER</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ABILITIES = {
+        'Tackle': { name: 'Tackle', type: 'Normal', damage: 15, color: '#94a3b8' },
+        'Boxing': { name: 'Boxing', type: 'Physical', damage: 22, color: '#fca5a5' },
+        'Roundhouse': { name: 'Roundhouse', type: 'Physical', damage: 28, color: '#f87171' },
+        'Water Jet': { name: 'Water Jet', type: 'Water', damage: 25, color: '#3b82f6' },
+        'Hydro Pump': { name: 'Hydro Pump', type: 'Water', damage: 40, color: '#1d4ed8' },
+        'Fire Ember': { name: 'Fire Ember', type: 'Fire', damage: 25, color: '#ef4444' },
+        'Flamethrower': { name: 'Flamethrower', type: 'Fire', damage: 38, color: '#b91c1c' },
+        'Leaf Razor': { name: 'Leaf Razor', type: 'Leaf', damage: 25, color: '#22c55e' },
+        'Solar Beam': { name: 'Solar Beam', type: 'Leaf', damage: 45, color: '#15803d' },
+        'Volt Shock': { name: 'Volt Shock', type: 'Electric', damage: 25, color: '#eab308' },
+        'Thunderbolt': { name: 'Thunderbolt', type: 'Electric', damage: 42, color: '#ca8a04' }
+    };
+
+    const TYPE_POWERS = { 
+        'Water': 'Water Jet', 
+        'Fire': 'Fire Ember', 
+        'Leaf': 'Leaf Razor', 
+        'Electric': 'Volt Shock',
+        'Physical': 'Boxing'
+    };
+
+    const EXTENDED_POWERS = {
+        'Water': ['Water Jet', 'Hydro Pump'],
+        'Fire': ['Fire Ember', 'Flamethrower'],
+        'Leaf': ['Leaf Razor', 'Solar Beam'],
+        'Electric': ['Volt Shock', 'Thunderbolt'],
+        'Physical': ['Boxing', 'Roundhouse']
+    };
+    
+    const PALETTE = [
+        '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', 
+        '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', 
+        '#ec4899', '#f43f5e', '#64748b', '#475569', '#ffffff', '#1e293b'
+    ];
+
+    let state = {
+        screen: 'start',
+        designerCritter: {
+            name: 'Critter-01',
+            shape: 'square',
+            color: '#8b5cf6',
+            texture: 'smooth',
+            pattern: 'none',
+            arms: 'nub',
+            legs: 'nub',
+            mood: 'happy',
+            symbol: 'none',
+            accessories: [],
+            hp: 100, maxHp: 100,
+            powers: ['Tackle']
+        },
+        menagerie: [],
+        activeCritterIdx: 0,
+        defeatStats: { 'Water Jet': 0, 'Fire Ember': 0, 'Leaf Razor': 0, 'Volt Shock': 0, 'Boxing': 0, 'Hydro Pump': 0, 'Flamethrower': 0, 'Solar Beam': 0, 'Thunderbolt': 0, 'Roundhouse': 0 },
+        trainingThreshold: 5,
+        map: { x: 400, y: 300, targetX: 400, targetY: 300, speed: 4.5, overworldCritters: [], decorations: [] },
+        battle: { enemy: null, isPlayerTurn: true, status: 'fighting', targetId: null },
+        lastPowerHunted: null,
+        pendingPower: null
+    };
+
+    function getActiveCritter() {
+        return state.menagerie[state.activeCritterIdx] || state.designerCritter;
+    }
+
+    function sanitizeId(str) { return (str || "").replace(/[^a-zA-Z0-9]/g, ''); }
+
+    function getSvgDataUrl(svgString) {
+        return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+    }
+
+    function createCritterSVG(critter, size = 100) {
+        if (!critter) return '';
+        const { shape, color, texture, arms, legs, mood, symbol, accessories } = critter;
+        const pattern = critter.pattern || 'none';
+        const safeColor = sanitizeId(color);
+        
+        let defs = '';
+        if (pattern === 'stripe') {
+            defs = `<pattern id="pats-${safeColor}" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)"><rect width="10" height="10" fill="${color}" /><line x1="0" y1="0" x2="0" y2="10" style="stroke:rgba(0,0,0,0.1);stroke-width:4" /></pattern>`;
+        } else if (pattern === 'dots') {
+            defs = `<pattern id="patd-${safeColor}" patternUnits="userSpaceOnUse" width="12" height="12"><rect width="12" height="12" fill="${color}" /><circle cx="6" cy="6" r="2.5" fill="rgba(0,0,0,0.1)" /></pattern>`;
+        }
+
+        if (texture === 'fuzzy') {
+            defs += `<filter id="fuzz"><feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="3" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="3" /></filter>`;
+        } else if (texture === 'bumpy') {
+            defs += `<filter id="bump"><feTurbulence type="turbulence" baseFrequency="0.12" numOctaves="2" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="7" /></filter>`;
+        }
+
+        const fill = pattern === 'none' ? color : `url(#pat${pattern[0]}-${safeColor})`;
+        const filterStr = texture !== 'smooth' ? `filter="url(#${texture === 'fuzzy' ? 'fuzz' : 'bump'})"` : '';
+        
+        let bodyPath = '';
+        switch(shape) {
+            case 'round': bodyPath = '<circle cx="50" cy="55" r="35"'; break;
+            case 'tall': bodyPath = '<rect x="30" y="25" width="40" height="65" rx="20"'; break;
+            case 'wide': bodyPath = '<rect x="15" y="40" width="70" height="45" rx="15"'; break;
+            case 'hexagon': bodyPath = '<polygon points="50,20 85,37 85,73 50,90 15,73 15,37"'; break;
+            case 'oval': bodyPath = '<ellipse cx="50" cy="55" rx="40" ry="30"'; break;
+            case 'teardrop': bodyPath = '<path d="M50,15 C50,15 15,60 15,75 C15,90 85,90 85,75 C85,60 50,15 50,15 Z"'; break;
+            default: bodyPath = '<rect x="22" y="32" width="56" height="56" rx="15"';
+        }
+        const bodySVG = `${bodyPath} fill="${fill}" stroke="#000" stroke-width="2" ${filterStr} />`;
+
+        let limbSVG = '';
+        if (legs === 'nub') limbSVG += `<ellipse cx="30" cy="85" rx="8" ry="6" fill="${color}" stroke="#000"/><ellipse cx="70" cy="85" rx="8" ry="6" fill="${color}" stroke="#000"/>`;
+        if (legs === 'claw') limbSVG += `<path d="M25 80 L18 95 L32 95 Z" fill="#000"/><path d="M75 80 L68 95 L82 95 Z" fill="#000"/>`;
+        if (legs === 'tread') limbSVG += `<rect x="20" y="85" width="60" height="10" rx="5" fill="#333" stroke="#000"/>`;
+
+        if (arms === 'nub') limbSVG += `<ellipse cx="15" cy="55" rx="6" ry="8" fill="${color}" stroke="#000"/><ellipse cx="85" cy="55" rx="6" ry="8" fill="${color}" stroke="#000"/>`;
+        if (arms === 'strong') limbSVG += `<rect x="5" y="45" width="15" height="25" rx="5" fill="${color}" stroke="#000"/><rect x="80" y="45" width="15" height="25" rx="5" fill="${color}" stroke="#000"/>`;
+        if (arms === 'tentacle') limbSVG += `<path d="M10 50 Q0 70 15 80" stroke="${color}" stroke-width="6" fill="none"/><path d="M90 50 Q100 70 85 80" stroke="${color}" stroke-width="6" fill="none"/>`;
+
+        const eyeY = (shape === 'tall' || shape === 'teardrop') ? 45 : (shape === 'wide' ? 55 : 52);
+        let faceSVG = `<circle cx="38" cy="${eyeY}" r="6" fill="white" stroke="#000"/><circle cx="38" cy="${eyeY}" r="3" fill="black" />`;
+        faceSVG += `<circle cx="62" cy="${eyeY}" r="6" fill="white" stroke="#000"/><circle cx="62" cy="${eyeY}" r="3" fill="black" />`;
+
+        const mouthY = eyeY + 15;
+        switch(mood) {
+            case 'angry': faceSVG += `<path d="M40 ${mouthY+5} L60 ${mouthY}" stroke="black" stroke-width="3"/><path d="M30 ${eyeY-10} L45 ${eyeY-5}" stroke="black" stroke-width="2"/><path d="M70 ${eyeY-10} L55 ${eyeY-5}" stroke="black" stroke-width="2"/>`; break;
+            case 'cool': faceSVG += `<rect x="28" y="${eyeY-5}" width="44" height="8" fill="black" rx="2"/>`; break;
+            case 'robo': faceSVG += `<rect x="25" y="${eyeY-8}" width="50" height="16" fill="none" stroke="red" stroke-width="1"/><rect x="35" y="${eyeY-2}" width="10" height="4" fill="red"/><rect x="55" y="${eyeY-2}" width="10" height="4" fill="red"/>`; break;
+            default: faceSVG += `<path d="M40 ${mouthY} Q50 ${mouthY+10} 60 ${mouthY}" stroke="black" fill="none" stroke-width="3"/>`;
+        }
+
+        let symbolSVG = '';
+        if (symbol && symbol !== 'none') {
+            symbolSVG = `<text x="50" y="${eyeY + 28}" text-anchor="middle" font-size="20" font-family="Arial">${symbol}</text>`;
+        }
+
+        return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+            <defs>${defs}</defs>
+            ${limbSVG}
+            ${bodySVG}
+            ${faceSVG}
+            ${symbolSVG}
+        </svg>`;
+    }
+
+    function switchScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen-' + screenId).classList.add('active');
+        state.screen = screenId;
+        window.scrollTo(0, 0);
+        if (screenId === 'map') initMap();
+        if (screenId === 'menagerie') renderMenagerie();
+        if (screenId === 'designer') initDesigner();
+    }
+
+    function saveGame() {
+        const data = JSON.stringify(state, null, 2);
+        const blob = new Blob([data], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `CritterQuest_${state.designerCritter.name}.json`;
+        a.click();
+    }
+
+    function loadGame(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const loaded = JSON.parse(e.target.result);
+                state = { ...state, ...loaded };
+                updateUI();
+                switchScreen('map');
+            } catch (err) {
+                alert("Invalid lab file!");
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function updateDesigner(field, value) {
+        if (field === 'accessory') {
+            const index = state.designerCritter.accessories.indexOf(value);
+            if (index > -1) state.designerCritter.accessories.splice(index, 1);
+            else state.designerCritter.accessories.push(value);
+        } else if (field === 'initialPower') {
+            state.designerCritter.powers = ['Tackle', value];
+        } else {
+            state.designerCritter[field] = value;
+        }
+        renderDesignerPreview();
+        updateDesignerButtons();
+    }
+
+    function updateDesignerButtons() {
+        const fields = ['shape', 'texture', 'arms', 'legs', 'mood'];
+        fields.forEach(f => {
+            document.querySelectorAll(`[id^="opt-${f}-"]`).forEach(btn => btn.classList.remove('selected'));
+            const active = document.getElementById(`opt-${f}-${state.designerCritter[f]}`);
+            if(active) active.classList.add('selected');
+        });
+
+        document.querySelectorAll(`[id^="opt-sym-"]`).forEach(btn => btn.classList.remove('selected'));
+        const symMap = { 'none': 'none', '⚡': 'bolt', '🔥': 'fire', '💧': 'water', '💀': 'skull' };
+        const symBtn = document.getElementById(`opt-sym-${symMap[state.designerCritter.symbol]}`);
+        if(symBtn) symBtn.classList.add('selected');
+
+        document.querySelectorAll(`.color-btn`).forEach(btn => {
+            btn.style.borderColor = btn.dataset.color === state.designerCritter.color ? '#fbbf24' : 'transparent';
+        });
+    }
+
+    function initDesigner() {
+        const grid = document.getElementById('color-grid');
+        grid.innerHTML = '';
+        PALETTE.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'color-btn';
+            btn.style.backgroundColor = c;
+            btn.dataset.color = c;
+            btn.onclick = () => updateDesigner('color', c);
+            grid.appendChild(btn);
+        });
+
+        const select = document.getElementById('initial-power-select');
+        select.innerHTML = '<option disabled>SELECT CORE ABILITY</option>';
+        Object.keys(ABILITIES).filter(k => k !== 'Tackle').forEach(k => {
+            const opt = document.createElement('option');
+            opt.value = k;
+            opt.innerText = `${k.toUpperCase()} (TYPE: ${ABILITIES[k].type})`;
+            select.appendChild(opt);
+        });
+
+        renderDesignerPreview();
+        updateDesignerButtons();
+        document.getElementById('critter-name').value = state.designerCritter.name;
+    }
+
+    function renderDesignerPreview() {
+        document.getElementById('designer-preview-container').innerHTML = createCritterSVG(state.designerCritter, 320);
+    }
+
+    function startGame() {
+        state.designerCritter.name = document.getElementById('critter-name').value || 'Unit-X';
+        if (state.menagerie.length === 0) state.menagerie.push({...state.designerCritter});
+        updateUI();
+        switchScreen('map');
+    }
+
+    function updateUI() {
+        const active = getActiveCritter();
+        document.getElementById('map-player-icon').innerHTML = createCritterSVG(active, 50);
+        document.getElementById('map-player-name').innerText = active.name;
+        
+        let progText = "HUNT FOR DATA";
+        if (state.lastPowerHunted) {
+            const current = state.defeatStats[state.lastPowerHunted] || 0;
+            progText = `${state.lastPowerHunted}: ${current}/${state.trainingThreshold}`;
+        }
+        document.getElementById('power-threshold-info').innerText = progText;
+    }
+
+    const canvas = document.getElementById('map-canvas');
+    const ctx = canvas.getContext('2d');
+    let mapInitialized = false;
+
+    function initMap() {
+        if (mapInitialized) return;
+        mapInitialized = true;
+        const resize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            generateMapDecorations();
+            if (state.map.overworldCritters.length === 0) generateOverworldCritters();
+        };
+        window.addEventListener('resize', resize);
+        resize();
+        canvas.addEventListener('mousedown', (e) => { state.map.targetX = e.clientX; state.map.targetY = e.clientY; });
+        requestAnimationFrame(mapLoop);
+    }
+
+    function generateMapDecorations() {
+        state.map.decorations = [];
+        for(let i=0; i<60; i++) {
+            state.map.decorations.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, type: Math.random()>0.7?'rock':'grass', size: 5+Math.random()*15 });
+        }
+    }
+
+    function spawnSingleCritter(forceWeak = false) {
+        const types = Object.keys(EXTENDED_POWERS);
+        const type = types[Math.floor(Math.random()*types.length)];
+        const availablePowers = EXTENDED_POWERS[type];
+        const powerName = availablePowers[Math.floor(Math.random()*availablePowers.length)];
+        
+        const powerScale = forceWeak ? (0.7 + Math.random() * 0.25) : (0.7 + Math.random() * 0.9);
+        
+        return {
+            id: Date.now() + Math.random(),
+            x: Math.random()*canvas.width,
+            y: Math.random()*canvas.height,
+            targetX: Math.random()*canvas.width,
+            targetY: Math.random()*canvas.height,
+            shape: ['round', 'square', 'tall', 'hexagon', 'oval', 'teardrop'][Math.floor(Math.random()*6)],
+            type,
+            power: powerName,
+            color: ABILITIES[powerName].color,
+            texture: 'smooth',
+            pattern: 'none',
+            mood: powerScale > 1.3 ? 'angry' : 'happy',
+            arms: 'nub',
+            legs: 'nub',
+            symbol: 'none',
+            accessories: [],
+            powerScale: powerScale
+        };
+    }
+
+    function generateOverworldCritters() {
+        state.map.overworldCritters = [];
+        state.map.overworldCritters.push(spawnSingleCritter(true));
+        for(let i=1; i<6; i++) {
+            state.map.overworldCritters.push(spawnSingleCritter());
+        }
+    }
+
+    function drawMap() {
+        ctx.fillStyle = '#064e3b'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#1e3a8a'; ctx.beginPath(); ctx.arc(canvas.width, 0, 500, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#422006'; ctx.beginPath(); ctx.moveTo(0, canvas.height); ctx.lineTo(400, canvas.height); ctx.lineTo(0, canvas.height-400); ctx.fill();
+
+        state.map.decorations.forEach(d => {
+            ctx.fillStyle = d.type === 'rock' ? '#475569' : '#14532d';
+            ctx.beginPath(); ctx.arc(d.x, d.y, d.size/2, 0, Math.PI*2); ctx.fill();
+        });
+
+        state.map.overworldCritters.forEach(npc => {
+            const visualSize = 36 * (0.8 + (npc.powerScale - 0.7) * 0.4);
+            const svgString = createCritterSVG(npc, visualSize);
+            const img = new Image(); img.src = getSvgDataUrl(svgString);
+            ctx.drawImage(img, npc.x-visualSize/2, npc.y-visualSize/2);
+            
+            if (npc.powerScale > 1.4) {
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(npc.x, npc.y - visualSize/2 - 5, 4, 0, Math.PI*2);
+                ctx.fill();
+            } else if (npc.powerScale < 1.0) {
+                ctx.fillStyle = '#4ade80';
+                ctx.beginPath();
+                ctx.arc(npc.x, npc.y - visualSize/2 - 5, 3, 0, Math.PI*2);
+                ctx.fill();
+            }
+        });
+
+        const active = getActiveCritter();
+        const pSvgString = createCritterSVG(active, 50);
+        const pImg = new Image(); pImg.src = getSvgDataUrl(pSvgString);
+        ctx.drawImage(pImg, state.map.x-25, state.map.y-25);
+    }
+
+    function mapLoop() {
+        if (state.screen !== 'map') return requestAnimationFrame(mapLoop);
+        const dx = state.map.targetX - state.map.x; const dy = state.map.targetY - state.map.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > 5) {
+            state.map.x += (dx/dist)*state.map.speed; state.map.y += (dy/dist)*state.map.speed;
+        }
+        state.map.overworldCritters.forEach(npc => {
+            const ndx = npc.targetX-npc.x; const ndy = npc.targetY-npc.y; const ndist = Math.sqrt(ndx*ndx+ndy*ndy);
+            if(ndist < 10) { npc.targetX = Math.random()*canvas.width; npc.targetY = Math.random()*canvas.height; }
+            else { npc.x += (ndx/ndist)*0.8; npc.y += (ndy/ndist)*0.8; }
+            
+            if(Math.sqrt((npc.x-state.map.x)**2+(npc.y-state.map.y)**2) < 35) {
+                triggerEncounter(npc);
+            }
+        });
+        drawMap();
+        requestAnimationFrame(mapLoop);
+    }
+
+    function triggerEncounter(npc) {
+        if(state.screen !== 'map') return;
+        
+        state.battle.targetId = npc.id;
+        state.battle.enemy = { 
+            ...npc,
+            name: npc.powerScale > 1.4 ? `Elite ${npc.type}` : (npc.powerScale < 1.0 ? `Weak ${npc.type}` : `Wild ${npc.type}`),
+            hp: Math.round(90 * npc.powerScale), 
+            maxHp: Math.round(90 * npc.powerScale)
+        };
+        
+        state.battle.status = 'fighting';
+        document.body.classList.add('flash');
+        setTimeout(() => { document.body.classList.remove('flash'); startBattle(); }, 600);
+    }
+
+    function startBattle() {
+        switchScreen('battle');
+        state.battle.isPlayerTurn = true;
+        document.getElementById('enemy-name').innerText = state.battle.enemy.name;
+        document.getElementById('enemy-sprite').innerHTML = createCritterSVG(state.battle.enemy, 240);
+        document.getElementById('player-name-battle').innerText = getActiveCritter().name;
+        document.getElementById('player-sprite').innerHTML = createCritterSVG(getActiveCritter(), 240);
+        updateBattleUI(); 
+        logBattle(`SYSTEM WARNING: ${state.battle.enemy.name} unit engaged.`);
+        renderBattleControls();
+    }
+
+    function updateBattleUI() {
+        document.getElementById('player-hp-fill').style.width = (getActiveCritter().hp/getActiveCritter().maxHp)*100 + '%';
+        document.getElementById('enemy-hp-fill').style.width = (state.battle.enemy.hp/state.battle.enemy.maxHp)*100 + '%';
+    }
+
+    function logBattle(msg) {
+        const log = document.getElementById('battle-log');
+        log.innerHTML = `<div class="mb-2 text-yellow-100 opacity-90">> ${msg}</div>` + log.innerHTML;
+    }
+
+    // Dynamic Damage Calculation
+    function calculateDamage(baseDamage, scale = 1) {
+        const isCrit = Math.random() < 0.15; // 15% crit chance
+        const variance = 0.85 + Math.random() * 0.3; // 85% to 115% variance
+        let damage = baseDamage * scale * variance;
+        let message = "";
+
+        if (isCrit) {
+            damage *= 1.5;
+            message = "CRITICAL HIT! ";
+        } else if (variance > 1.1) {
+            message = "A powerful strike! ";
+        } else if (variance < 0.9) {
+            message = "A glancing blow... ";
+        }
+
+        return { amount: Math.round(damage), message };
+    }
+
+    function renderBattleControls() {
+        const container = document.getElementById('battle-controls');
+        container.innerHTML = '';
+        
+        if (state.battle.status === 'choice') {
+            const trainBtn = document.createElement('button');
+            trainBtn.className = 'bg-yellow-600 p-3 rounded-xl pixel-text text-[9px] text-white border-b-2 border-yellow-800 hover:bg-yellow-500 min-w-[140px]';
+            trainBtn.innerHTML = `EXTRACT DATA<br>+1 ${state.battle.enemy.power}`;
+            trainBtn.onclick = () => handlePostBattleChoice('train');
+            
+            const rescueBtn = document.createElement('button');
+            rescueBtn.className = 'bg-purple-600 p-3 rounded-xl pixel-text text-[9px] text-white border-b-2 border-purple-800 hover:bg-purple-500 min-w-[140px]';
+            rescueBtn.innerHTML = `RESCUE UNIT<br>ADD TO MENAGERIE`;
+            rescueBtn.onclick = () => handlePostBattleChoice('rescue');
+            
+            container.appendChild(trainBtn);
+            container.appendChild(rescueBtn);
+            return;
+        }
+
+        if (!state.battle.isPlayerTurn) return;
+
+        getActiveCritter().powers.forEach(pName => {
+            const p = ABILITIES[pName];
+            const btn = document.createElement('button');
+            btn.className = 'btn-pixel p-3 rounded-xl text-left flex flex-col hover:brightness-125 border-b-2 border-black/20 text-[9px] min-w-[120px]';
+            btn.style.backgroundColor = p.color;
+            btn.innerHTML = `<span class="pixel-text text-white shadow-sm">${p.name}</span><span class="text-[8px] opacity-80 mt-1 font-bold">${p.type} PWR</span>`;
+            btn.onclick = () => playerMove(pName);
+            container.appendChild(btn);
+        });
+
+        const runBtn = document.createElement('button');
+        runBtn.className = 'bg-slate-600 p-3 rounded-xl pixel-text text-[9px] text-white border-b-2 border-slate-800 hover:bg-slate-500 min-w-[120px]';
+        runBtn.innerHTML = `ESCAPE<br>RUN AWAY`;
+        runBtn.onclick = () => tryEscape();
+        container.appendChild(runBtn);
+    }
+
+    function tryEscape() {
+        if (!state.battle.isPlayerTurn) return;
+        logBattle(`Attempting to escape...`);
+        if (Math.random() < 0.7) {
+            logBattle(`Successfully escaped!`);
+            setTimeout(() => {
+                switchScreen('map');
+                healTeam();
+                updateUI();
+            }, 1000);
+        } else {
+            logBattle(`Could not get away!`);
+            state.battle.isPlayerTurn = false;
+            renderBattleControls();
+            setTimeout(enemyMove, 1000);
+        }
+    }
+
+    function playerMove(powerName) {
+        state.battle.isPlayerTurn = false; renderBattleControls();
+        const p = ABILITIES[powerName]; 
+        const result = calculateDamage(p.damage);
+        
+        logBattle(`${getActiveCritter().name} executes ${p.name.toUpperCase()}.`);
+        if (result.message) logBattle(result.message);
+
+        document.getElementById('enemy-sprite').classList.add('shake');
+        setTimeout(() => {
+            document.getElementById('enemy-sprite').classList.remove('shake');
+            state.battle.enemy.hp -= result.amount; 
+            updateBattleUI();
+            if (state.battle.enemy.hp <= 0) setTimeout(winBattle, 800);
+            else setTimeout(enemyMove, 800);
+        }, 500);
+    }
+
+    function enemyMove() {
+        const p = ABILITIES[state.battle.enemy.power]; 
+        const result = calculateDamage(p.damage, state.battle.enemy.powerScale || 1);
+        
+        logBattle(`${state.battle.enemy.name} retaliates with ${state.battle.enemy.power.toUpperCase()}.`);
+        if (result.message) logBattle(result.message);
+        
+        document.getElementById('player-sprite').classList.add('shake');
+        setTimeout(() => {
+            document.getElementById('player-sprite').classList.remove('shake');
+            getActiveCritter().hp -= result.amount; 
+            updateBattleUI();
+            if (getActiveCritter().hp <= 0) setTimeout(loseBattle, 800);
+            else { state.battle.isPlayerTurn = true; renderBattleControls(); }
+        }, 500);
+    }
+
+    function winBattle() {
+        logBattle(`Target neutralized. Awaiting command...`);
+        state.battle.status = 'choice';
+        renderBattleControls();
+    }
+
+    function finalizeVictory() {
+        state.map.overworldCritters = state.map.overworldCritters.filter(n => n.id !== state.battle.targetId);
+        const hasWeakling = state.map.overworldCritters.some(npc => npc.powerScale < 1.0);
+        state.map.overworldCritters.push(spawnSingleCritter(!hasWeakling));
+        
+        switchScreen('map');
+        healTeam();
+        updateUI();
+    }
+
+    function handlePostBattleChoice(choice) {
+        if (choice === 'train') {
+            const power = state.battle.enemy.power;
+            state.defeatStats[power] = (state.defeatStats[power] || 0) + 1;
+            state.lastPowerHunted = power;
+            logBattle(`Genetic data for ${power} assimilated.`);
+            
+            setTimeout(() => {
+                if (state.defeatStats[power] >= state.trainingThreshold && !getActiveCritter().powers.includes(power)) {
+                    showTraining(power);
+                } else {
+                    finalizeVictory();
+                }
+            }, 800);
+        } else {
+            tryCatch();
+        }
+    }
+
+    function tryCatch() {
+        logBattle(`Initiating data rescue sequence...`);
+        const rescueChance = state.battle.enemy.powerScale > 1.4 ? 0.35 : 0.8;
+        
+        if (Math.random() < rescueChance) {
+            logBattle(`Rescue complete. New critter stabilized in Menagerie.`);
+            state.menagerie.push({
+                ...state.battle.enemy, 
+                hp: 100, maxHp: 100, 
+                powers: ['Tackle', state.battle.enemy.power]
+            });
+            setTimeout(() => finalizeVictory(), 1200);
+        } else { 
+            logBattle(`Rescue sequence failed. Critter escaped.`); 
+            setTimeout(() => finalizeVictory(), 1200);
+        }
+    }
+
+    function loseBattle() { 
+        logBattle(`Unit fainted. Returning to base...`); 
+        setTimeout(() => { healTeam(); switchScreen('map'); }, 2000); 
+    }
+    
+    function healTeam() { state.menagerie.forEach(c => c.hp = c.maxHp); }
+
+    function showTraining(powerName) {
+        state.pendingPower = powerName;
+        const modal = document.getElementById('training-modal');
+        document.getElementById('training-message').innerText = `CRITICAL DATA THRESHOLD REACHED! ${getActiveCritter().name} is ready to assimilate ${powerName} into its genetic matrix.`;
+        document.getElementById('training-icon').innerHTML = `<div style="background:${ABILITIES[powerName].color};" class="w-40 h-40 rounded-full flex items-center justify-center pixel-text text-black border-8 border-white shadow-2xl text-center p-4">${powerName}</div>`;
+        modal.classList.replace('hidden', 'flex');
+    }
+
+    function confirmTraining() {
+        const critter = getActiveCritter();
+        if (!critter.powers.includes(state.pendingPower)) {
+            critter.powers.push(state.pendingPower);
+            state.trainingThreshold += 3;
+        }
+        document.getElementById('training-modal').classList.replace('flex', 'hidden');
+        finalizeVictory();
+    }
+
+    function renderMenagerie() {
+        const grid = document.getElementById('menagerie-grid'); grid.innerHTML = '';
+        state.menagerie.forEach((critter, idx) => {
+            const card = document.createElement('div');
+            card.className = `glass-panel p-8 flex flex-col items-center cursor-pointer transition transform hover:-translate-y-2 border-2 ${state.activeCritterIdx === idx ? 'border-yellow-400 bg-yellow-400/5' : 'border-transparent hover:border-white/20'}`;
+            card.innerHTML = `<div class="mb-8">${createCritterSVG(critter, 160)}</div><div class="pixel-text text-[12px] text-yellow-400 mb-2">${critter.name}</div><div class="text-[9px] opacity-40 mb-8 uppercase tracking-[0.2em] font-bold">${critter.powers.join(' • ')}</div><button class="w-full py-4 ${state.activeCritterIdx === idx ? 'bg-yellow-500 text-black' : 'bg-slate-700 text-white'} rounded-xl pixel-text text-[9px]">${state.activeCritterIdx === idx ? 'ACTIVE UNIT' : 'INITIALIZE'}</button>`;
+            card.onclick = () => { state.activeCritterIdx = idx; updateUI(); renderMenagerie(); };
+            grid.appendChild(card);
+        });
+    }
+
+    window.onload = () => {};
+</script>
+
+</body>
+</html>

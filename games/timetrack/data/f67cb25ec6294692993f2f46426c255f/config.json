@@ -1,0 +1,45 @@
+{
+    "categories": [
+        "Administrative",
+        "Breaks",
+        "Email Work",
+        "General Meeting",
+        "Helping Other Analysts",
+        "Project Meeting",
+        "Project Work",
+        "Providing Training",
+        "Research & Development",
+        "System Enhancement",
+        "System Maintenance"
+    ],
+    "analysts": [
+        "Other",
+        "Andrew",
+        "Arvinder",
+        "Chandelle",
+        "Christina",
+        "Cyndi",
+        "Dermot",
+        "Erin",
+        "Kathryn",
+        "Leah Ann",
+        "Maria",
+        "Natalie",
+        "Phillip",
+        "Renee",
+        "Rob",
+        "Roxanne",
+        "Sasha",
+        "Stefhan",
+        "Teresa",
+        "Veronica",
+        "Vicki"
+    ],
+    "projects": [
+        "311 App Upgrade",
+        "Calabrio",
+        "MPD",
+        "WebEx",
+        "Monthly Reporting"
+    ]
+}

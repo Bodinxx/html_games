@@ -1,0 +1,7 @@
+[
+  {"id":"food","name":"Food","basePrice":35,"volatility":0.2,"minTechProduce":1,"minTechUse":0},
+  {"id":"ore","name":"Ore","basePrice":80,"volatility":0.3,"minTechProduce":0,"minTechUse":2},
+  {"id":"medicine","name":"Medicine","basePrice":180,"volatility":0.25,"minTechProduce":3,"minTechUse":1},
+  {"id":"electronics","name":"Electronics","basePrice":250,"volatility":0.35,"minTechProduce":4,"minTechUse":2},
+  {"id":"water","name":"Water","basePrice":22,"volatility":0.15,"minTechProduce":0,"minTechUse":0}
+]

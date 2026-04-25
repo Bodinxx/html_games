@@ -1,0 +1,19 @@
+[
+    {
+        "team1": "Ryan",
+        "score1": 453,
+        "team2": "Test",
+        "score2": 0,
+        "winner": "Ryan",
+        "date": "2025-12-16 05:24"
+    },
+    {
+        "team1": "Team 1",
+        "score1": 78,
+        "team2": "Team 2",
+        "score2": 159,
+        "winner": "Team 2",
+        "series": "CSW2026",
+        "date": "2026-04-13 17:18"
+    }
+]

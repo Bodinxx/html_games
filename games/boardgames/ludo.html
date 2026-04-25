@@ -1,0 +1,1016 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Ludo - Race to Home is a digital adaptation of the classic strategy board game where up to four players compete to navigate their pieces clockwise around the board and into the home center. You can challenge friends or play against a smart AI with adjustable difficulty levels, featuring smooth animations, safe zones, and an automatic save system that lets you resume your game anytime.
+TAGS: Board, Strategy, Dice, Multiplayer, Classic
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo - Race to Home</title>
+    <style>
+        :root {
+            --red: #ef4444;
+            --green: #22c55e;
+            --yellow: #eab308;
+            --blue: #3b82f6;
+            --board-bg: #f8fafc;
+            --border: #334155;
+            --cell-size: min(4.5vh, 6vw);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #cbd5e1;
+            overflow-y: auto;
+            padding: 0.5rem 0;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            max-width: 95vw;
+            position: relative;
+        }
+
+        /* Setup & Help Modal */
+        .setup-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.98);
+            z-index: 200;
+            border-radius: 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        .setup-title { font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; color: #1e293b; }
+        
+        .setup-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 2rem;
+        }
+
+        .player-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+
+        .player-label { font-weight: bold; display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; }
+        .dot { width: 1.2rem; height: 1.2rem; border-radius: 50%; display: inline-block; border: 2px solid rgba(0,0,0,0.1); }
+        
+        /* Toggle Button Styles */
+        .toggle-btn {
+            padding: 0.4rem 1rem;
+            border-radius: 2rem;
+            border: 1px solid #cbd5e1;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            min-width: 130px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toggle-btn.human { background-color: white; color: #334155; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .toggle-btn.computer { background-color: #f1f5f9; color: #64748b; border-style: dashed; }
+        .toggle-btn:hover { transform: translateY(-1px); }
+
+        /* Header & Info */
+        .info-panel {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            background: #f1f5f9;
+            border-radius: 0.5rem;
+        }
+
+        .current-turn {
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .turn-indicator {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            border: 2px solid rgba(0,0,0,0.2);
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* The Board */
+        .board {
+            display: grid;
+            grid-template-columns: repeat(15, var(--cell-size));
+            grid-template-rows: repeat(15, var(--cell-size));
+            background-color: white;
+            border: 2px solid var(--border);
+            position: relative;
+            user-select: none;
+        }
+
+        .cell {
+            border: 1px solid rgba(0,0,0,0.1);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Zones */
+        .base { grid-row: span 6; grid-column: span 6; border: 2px solid var(--border); padding: 10%; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10%; }
+        .base-red { background-color: var(--red); grid-area: 1 / 1 / 7 / 7; }
+        .base-green { background-color: var(--green); grid-area: 1 / 10 / 7 / 16; }
+        .base-blue { background-color: var(--blue); grid-area: 10 / 1 / 16 / 7; }
+        .base-yellow { background-color: var(--yellow); grid-area: 10 / 10 / 16 / 16; }
+        
+        .base-slot { background: white; border-radius: 50%; width: 100%; height: 100%; position: relative; }
+
+        .home-center {
+            grid-area: 7 / 7 / 10 / 10;
+            background: conic-gradient(
+                from 45deg,
+                var(--yellow) 0deg 90deg,
+                var(--blue) 90deg 180deg,
+                var(--red) 180deg 270deg,
+                var(--green) 270deg 360deg
+            );
+            border: 2px solid var(--border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Colored Paths */
+        .path-red { background-color: rgba(239, 68, 68, 0.3); }
+        .path-green { background-color: rgba(34, 197, 94, 0.3); }
+        .path-yellow { background-color: rgba(234, 179, 8, 0.3); }
+        .path-blue { background-color: rgba(59, 130, 246, 0.3); }
+        
+        .start-red { background-color: var(--red); }
+        .start-green { background-color: var(--green); }
+        .start-yellow { background-color: var(--yellow); }
+        .start-blue { background-color: var(--blue); }
+
+        /* Pieces */
+        .piece {
+            width: 70%;
+            height: 70%;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            position: absolute;
+            z-index: 10;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .piece::after {
+            content: '';
+            width: 60%;
+            height: 60%;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.1);
+            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%);
+        }
+
+        .piece.red { background-color: var(--red); }
+        .piece.green { background-color: var(--green); }
+        .piece.yellow { background-color: var(--yellow); }
+        .piece.blue { background-color: var(--blue); }
+
+        /* Multiple pieces on same cell logic */
+        .piece-stack-container {
+            width: 100%; height: 100%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .piece.stacked:nth-child(1) { transform: translate(-3px, -3px); }
+        .piece.stacked:nth-child(2) { transform: translate(3px, -3px); }
+        .piece.stacked:nth-child(3) { transform: translate(-3px, 3px); }
+        .piece.stacked:nth-child(4) { transform: translate(3px, 3px); }
+
+        /* Animations & Interaction */
+        .piece.playable {
+            animation: pulse 1.5s infinite;
+            border: 2px solid white;
+            box-shadow: 0 0 10px 2px rgba(0,0,0,0.5);
+            z-index: 20;
+            cursor: pointer;
+        }
+        
+        .piece.computer-piece { cursor: default; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        /* Controls */
+        .controls {
+            margin-top: 0.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            position: relative;
+            z-index: 100;
+        }
+
+        .dice-area {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .dice {
+            width: 3.5rem;
+            height: 3.5rem;
+            background: white;
+            border: 3px solid #cbd5e1;
+            border-radius: 0.8rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            box-shadow: 0 6px 10px -1px rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+            flex-shrink: 0;
+        }
+
+        .dice:hover { background-color: #f8fafc; transform: translateY(-2px); }
+        .dice:active { transform: scale(0.95); }
+        .dice.rolling { animation: roll 0.5s linear infinite; }
+        .dice.disabled { opacity: 0.7; cursor: default; pointer-events: none; }
+
+        @keyframes roll {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        button { font-family: inherit; }
+
+        button.btn-primary {
+            padding: 0.75rem 2rem;
+            font-size: 1.1rem;
+            background-color: #0f172a;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        button.btn-secondary {
+            padding: 0.75rem 2rem;
+            font-size: 1.1rem;
+            background-color: white;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        button.btn-sm {
+            padding: 0.4rem 0.8rem;
+            background-color: #334155;
+            color: white;
+            border: none;
+            border-radius: 0.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        
+        button.btn-sm:hover { background-color: #475569; }
+
+        .message {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #475569;
+            text-align: left;
+            min-width: 150px;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .safe-zone::before {
+            content: '★';
+            color: rgba(0,0,0,0.15);
+            font-size: 1.5rem;
+            position: absolute;
+            z-index: 1;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    
+    <!-- SETUP OVERLAY (Initially hidden via CSS/JS logic) -->
+    <div class="setup-overlay" id="setupOverlay" style="display:none;">
+        <div class="setup-title">Ludo Setup</div>
+        
+        <div class="setup-group">
+            <div style="font-weight:bold; margin-bottom:0.5rem; text-align:center;">Players</div>
+            
+            <!-- Red -->
+            <div class="player-row">
+                <div class="player-label"><span class="dot" style="background:var(--red)"></span> Red</div>
+                <button id="btn-red" class="toggle-btn human" onclick="game.togglePlayer('red')">👤 Human</button>
+            </div>
+            <!-- Green -->
+            <div class="player-row">
+                <div class="player-label"><span class="dot" style="background:var(--green)"></span> Green</div>
+                <button id="btn-green" class="toggle-btn computer" onclick="game.togglePlayer('green')">🤖 CPU</button>
+            </div>
+            <!-- Yellow -->
+            <div class="player-row">
+                <div class="player-label"><span class="dot" style="background:var(--yellow)"></span> Yellow</div>
+                <button id="btn-yellow" class="toggle-btn computer" onclick="game.togglePlayer('yellow')">🤖 CPU</button>
+            </div>
+            <!-- Blue -->
+            <div class="player-row">
+                <div class="player-label"><span class="dot" style="background:var(--blue)"></span> Blue</div>
+                <button id="btn-blue" class="toggle-btn computer" onclick="game.togglePlayer('blue')">🤖 CPU</button>
+            </div>
+        </div>
+
+        <div class="setup-group">
+            <div style="font-weight:bold; margin-bottom:0.5rem; text-align:center;">Difficulty (AI)</div>
+            <select id="sel-difficulty" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:0.5rem;">
+                <option value="easy">Easy (Random)</option>
+                <option value="normal" selected>Normal (Balanced)</option>
+                <option value="hard">Hard (Aggressive)</option>
+            </select>
+        </div>
+
+        <button class="btn-primary" onclick="game.startGame()">Start Game</button>
+    </div>
+
+    <!-- RESUME OVERLAY -->
+    <div class="setup-overlay" id="resumeOverlay" style="display:none;">
+        <div class="setup-title">Welcome Back!</div>
+        <p style="margin-bottom: 2rem; color: #475569; font-size: 1.1rem;">A saved game was found.</p>
+        <div style="display:flex; gap:1rem; flex-direction: column; width: 100%; max-width: 250px;">
+            <button class="btn-primary" onclick="game.loadSavedGame()">Continue</button>
+            <button class="btn-secondary" onclick="game.showSetup(true)">New Game</button>
+        </div>
+    </div>
+
+    <!-- HELP OVERLAY -->
+    <div class="setup-overlay" id="helpOverlay" style="display:none;">
+        <div class="setup-title">How to Play</div>
+        <div style="text-align: left; max-width: 320px; line-height: 1.6; margin-bottom: 2rem; color: #334155;">
+            <ul style="padding-left: 1.2rem; margin: 0;">
+                <li style="margin-bottom: 0.5rem;"><strong>Start:</strong> Roll a <strong>6</strong> to move a piece out of your base.</li>
+                <li style="margin-bottom: 0.5rem;"><strong>Move:</strong> Pieces move clockwise. Roll a <strong>6</strong> for an extra turn!</li>
+                <li style="margin-bottom: 0.5rem;"><strong>Capture:</strong> Land on an opponent to send them back to base. ★ Stars are Safe Zones.</li>
+                <li><strong>Win:</strong> Move all 4 pieces to Home. You must roll the <strong>exact number</strong> to enter Home.</li>
+            </ul>
+        </div>
+        <button class="btn-primary" onclick="game.hideHelp()">Close</button>
+    </div>
+
+    <div class="info-panel">
+        <div class="current-turn">
+            Turn: <div id="turnIndicator" class="turn-indicator" style="background-color: var(--red);"></div>
+            <span id="turnText">Red</span>
+        </div>
+        <div class="header-controls">
+            <button class="btn-sm" id="btn-sound-toggle" onclick="game.toggleSound()" title="Toggle Sound">🔊</button>
+            <button class="btn-sm" onclick="game.showHelp()" title="Help">❓</button>
+            <button class="btn-sm" onclick="game.showSetup(false)" title="Reset Game">Reset</button>
+        </div>
+    </div>
+
+    <!-- The 15x15 Grid -->
+    <div class="board" id="board">
+        <!-- Bases -->
+        <div class="base base-red"><div class="base-slot" id="base-red-0"></div><div class="base-slot" id="base-red-1"></div><div class="base-slot" id="base-red-2"></div><div class="base-slot" id="base-red-3"></div></div>
+        <div class="base base-green"><div class="base-slot" id="base-green-0"></div><div class="base-slot" id="base-green-1"></div><div class="base-slot" id="base-green-2"></div><div class="base-slot" id="base-green-3"></div></div>
+        <div class="base base-blue"><div class="base-slot" id="base-blue-0"></div><div class="base-slot" id="base-blue-1"></div><div class="base-slot" id="base-blue-2"></div><div class="base-slot" id="base-blue-3"></div></div>
+        <div class="base base-yellow"><div class="base-slot" id="base-yellow-0"></div><div class="base-slot" id="base-yellow-1"></div><div class="base-slot" id="base-yellow-2"></div><div class="base-slot" id="base-yellow-3"></div></div>
+        
+        <!-- Center -->
+        <div class="home-center">
+            <span style="font-weight:bold; color:white; text-shadow: 0 1px 2px black;">HOME</span>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="dice-area">
+            <div id="dice" class="dice" onclick="game.handleDiceClick()">🎲</div>
+            <div class="message" id="message">Setup game to start</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const COLORS = { red: '#ef4444', green: '#22c55e', yellow: '#eab308', blue: '#3b82f6' };
+    const ALL_COLORS = ['red', 'green', 'yellow', 'blue'];
+
+    const OUTER_PATH = [
+        [7,2], [7,3], [7,4], [7,5], [7,6], [6,7], [5,7], [4,7], [3,7], [2,7], [1,7], [1,8], [1,9], 
+        [2,9], [3,9], [4,9], [5,9], [6,9], [7,10], [7,11], [7,12], [7,13], [7,14], [7,15], [8,15], [9,15], 
+        [9,14], [9,13], [9,12], [9,11], [9,10], [10,9], [11,9], [12,9], [13,9], [14,9], [15,9], [15,8], [15,7], 
+        [14,7], [13,7], [12,7], [11,7], [10,7], [9,6], [9,5], [9,4], [9,3], [9,2], [9,1], [8,1], [7,1] 
+    ];
+    
+    const START_INDICES = { red: 0, green: 13, yellow: 26, blue: 39 };
+    
+    // Updated to 5 squares per path (removed the 6th overlapping one)
+    const HOME_PATHS = {
+        red:    [[8,2], [8,3], [8,4], [8,5], [8,6]], 
+        green:  [[2,8], [3,8], [4,8], [5,8], [6,8]], 
+        yellow: [[8,14], [8,13], [8,12], [8,11], [8,10]], 
+        blue:   [[14,8], [13,8], [12,8], [11,8], [10,8]]
+    };
+
+    class LudoGame {
+        constructor() {
+            this.board = document.getElementById('board');
+            this.pieces = {};
+            this.activePlayers = [];
+            this.playerConfigs = { red: 'human', green: 'computer', yellow: 'computer', blue: 'computer' };
+            this.turnIndex = 0;
+            this.diceValue = null;
+            this.state = 'setup'; 
+            this.difficulty = 'normal';
+            this.soundEnabled = true;
+            this.audioCtx = null;
+            
+            this.initBoard();
+            this.checkSavedGame();
+        }
+
+        initBoard() {
+            for(let r=1; r<=15; r++) {
+                for(let c=1; c<=15; c++) {
+                    const inBase = (r<=6 && c<=6) || (r<=6 && c>=10) || (r>=10 && c<=6) || (r>=10 && c>=10);
+                    const inCenter = (r>=7 && r<=9 && c>=7 && c<=9);
+                    
+                    if(!inBase && !inCenter) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.style.gridArea = `${r} / ${c} / ${r+1} / ${c+1}`;
+                        
+                        if(r===7 && c===2) cell.classList.add('start-red', 'safe-zone');
+                        if(r===2 && c===9) cell.classList.add('start-green', 'safe-zone');
+                        if(r===9 && c===14) cell.classList.add('start-yellow', 'safe-zone');
+                        if(r===14 && c===7) cell.classList.add('start-blue', 'safe-zone');
+                        
+                        if(r===8 && c>=2 && c<=6) cell.classList.add('path-red');
+                        if(c===8 && r>=2 && r<=6) cell.classList.add('path-green');
+                        if(r===8 && c>=10 && c<=14) cell.classList.add('path-yellow');
+                        if(c===8 && r>=10 && r<=14) cell.classList.add('path-blue');
+
+                        this.board.appendChild(cell);
+                    }
+                }
+            }
+        }
+
+        // --- SAVE/LOAD SYSTEM ---
+        checkSavedGame() {
+            const save = localStorage.getItem('ludo-game-save');
+            if (save) {
+                document.getElementById('setupOverlay').style.display = 'none';
+                document.getElementById('resumeOverlay').style.display = 'flex';
+            } else {
+                document.getElementById('setupOverlay').style.display = 'flex';
+            }
+        }
+
+        loadSavedGame() {
+            try {
+                const save = JSON.parse(localStorage.getItem('ludo-game-save'));
+                if (!save) {
+                    this.showSetup(true);
+                    return;
+                }
+
+                this.pieces = save.pieces;
+                this.activePlayers = save.activePlayers;
+                this.playerConfigs = save.playerConfigs;
+                this.turnIndex = save.turnIndex;
+                this.difficulty = save.difficulty;
+                this.soundEnabled = save.soundEnabled;
+
+                document.getElementById('resumeOverlay').style.display = 'none';
+                document.getElementById('setupOverlay').style.display = 'none';
+                
+                // Init Audio (user interaction has happened)
+                this.initAudio();
+
+                // Restore UI state
+                const btnSound = document.getElementById('btn-sound-toggle');
+                if(btnSound) btnSound.innerText = this.soundEnabled ? '🔊' : '🔇';
+
+                this.startTurn(); 
+                this.render();
+            } catch (e) {
+                console.error("Save file corrupt", e);
+                localStorage.removeItem('ludo-game-save');
+                this.showSetup(true);
+            }
+        }
+
+        saveGameState() {
+            const state = {
+                pieces: this.pieces,
+                activePlayers: this.activePlayers,
+                playerConfigs: this.playerConfigs,
+                turnIndex: this.turnIndex,
+                difficulty: this.difficulty,
+                soundEnabled: this.soundEnabled
+            };
+            localStorage.setItem('ludo-game-save', JSON.stringify(state));
+        }
+
+        // --- SETUP UI HANDLERS ---
+        togglePlayer(color) {
+            const btn = document.getElementById(`btn-${color}`);
+            const current = this.playerConfigs[color];
+            
+            if (current === 'human') {
+                this.playerConfigs[color] = 'computer';
+                btn.className = 'toggle-btn computer';
+                btn.innerText = '🤖 CPU';
+            } else {
+                this.playerConfigs[color] = 'human';
+                btn.className = 'toggle-btn human';
+                btn.innerText = '👤 Human';
+            }
+        }
+
+        showSetup(clearSave = false) {
+            if (clearSave) {
+                localStorage.removeItem('ludo-game-save');
+            }
+            document.getElementById('resumeOverlay').style.display = 'none';
+            document.getElementById('setupOverlay').style.display = 'flex';
+        }
+
+        showHelp() {
+            document.getElementById('helpOverlay').style.display = 'flex';
+        }
+
+        hideHelp() {
+            document.getElementById('helpOverlay').style.display = 'none';
+        }
+
+        // --- SOUND SYSTEM ---
+        toggleSound() {
+            this.soundEnabled = !this.soundEnabled;
+            const btn = document.getElementById('btn-sound-toggle');
+            btn.innerText = this.soundEnabled ? '🔊' : '🔇';
+            this.saveGameState(); // Save preference
+        }
+
+        initAudio() {
+            if (!this.audioCtx) {
+                this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (this.audioCtx.state === 'suspended') {
+                this.audioCtx.resume();
+            }
+        }
+
+        playSound(type) {
+            if (!this.soundEnabled || !this.audioCtx) return;
+
+            const osc = this.audioCtx.createOscillator();
+            const gain = this.audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(this.audioCtx.destination);
+
+            const now = this.audioCtx.currentTime;
+
+            if (type === 'roll') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'move') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'capture') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'win') {
+                this.playTone(523.25, now, 0.1);
+                this.playTone(659.25, now + 0.1, 0.1);
+                this.playTone(783.99, now + 0.2, 0.2);
+                this.playTone(1046.50, now + 0.4, 0.4);
+            }
+        }
+
+        playTone(freq, time, duration) {
+            const osc = this.audioCtx.createOscillator();
+            const gain = this.audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(this.audioCtx.destination);
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.1, time);
+            gain.gain.linearRampToValueAtTime(0, time + duration);
+            osc.start(time);
+            osc.stop(time + duration);
+        }
+
+        // --- GAME LOGIC ---
+
+        startGame() {
+            this.initAudio();
+
+            // Setup players - always all 4
+            this.activePlayers = ALL_COLORS;
+            this.difficulty = document.getElementById('sel-difficulty').value;
+            
+            document.getElementById('setupOverlay').style.display = 'none';
+            
+            // Init Pieces
+            this.pieces = {};
+            ALL_COLORS.forEach(color => {
+                this.pieces[color] = [];
+                for(let i=0; i<4; i++) {
+                    this.pieces[color].push({
+                        id: i,
+                        color: color,
+                        pos: -1, 
+                        stepsTaken: 0 
+                    });
+                }
+            });
+
+            this.turnIndex = 0;
+            this.saveGameState(); // Initial Save
+            this.startTurn();
+            this.render();
+        }
+
+        get currentPlayer() { return this.activePlayers[this.turnIndex]; }
+        get isComputer() { return this.playerConfigs[this.currentPlayer] === 'computer'; }
+
+        // Helper to generate a colored dot for messages
+        getPlayerBadge(color) {
+            const c = color || this.currentPlayer;
+            return `<span class="dot" style="background:var(--${c}); display:inline-block; margin-right:4px; border:1px solid rgba(0,0,0,0.1);"></span>`;
+        }
+
+        startTurn() {
+            this.diceValue = null;
+            this.state = 'dice';
+            this.saveGameState(); // Auto-save at start of turn
+            
+            const turnText = this.currentPlayer.charAt(0).toUpperCase() + this.currentPlayer.slice(1);
+            const typeText = this.isComputer ? "(CPU)" : "";
+            document.getElementById('turnText').innerText = `${turnText} ${typeText}`;
+            document.getElementById('turnIndicator').style.backgroundColor = COLORS[this.currentPlayer];
+            document.getElementById('dice').innerText = "🎲";
+            document.getElementById('dice').classList.remove('disabled');
+
+            const badge = this.getPlayerBadge();
+
+            if (this.isComputer) {
+                document.getElementById('message').innerHTML = `${badge} is thinking...`;
+                document.getElementById('dice').classList.add('disabled');
+                setTimeout(() => this.rollDice(), 1000);
+            } else {
+                document.getElementById('message').innerHTML = `${badge}'s turn. Roll!`;
+            }
+        }
+
+        handleDiceClick() {
+            if (this.state !== 'dice' || this.isComputer) return;
+            this.rollDice();
+        }
+
+        rollDice() {
+            this.state = 'animating';
+            this.playSound('roll');
+            const diceElem = document.getElementById('dice');
+            diceElem.classList.add('rolling');
+
+            setTimeout(() => {
+                diceElem.classList.remove('rolling');
+                this.diceValue = Math.floor(Math.random() * 6) + 1;
+                diceElem.innerText = this.diceValue;
+                
+                this.checkMoves();
+            }, 600);
+        }
+
+        checkMoves() {
+            const playerPieces = this.pieces[this.currentPlayer];
+            let possibleMoves = [];
+
+            playerPieces.forEach(p => {
+                p.canMove = false;
+                
+                // Rule 1: Pieces in Home (99) cannot move.
+                if (p.pos === 99) return;
+
+                if (p.pos === -1) {
+                    // Rule 2: Need 6 to leave base
+                    if (this.diceValue === 6) {
+                        p.canMove = true;
+                    }
+                } else {
+                    // Rule 3: Exact landing required. Cannot move past 56.
+                    // 51 outer steps + 5 home path steps = 56 (Home)
+                    if (p.stepsTaken + this.diceValue <= 56) {
+                        p.canMove = true;
+                    }
+                }
+
+                if (p.canMove) possibleMoves.push(p);
+            });
+
+            if (possibleMoves.length === 0) {
+                document.getElementById('message').innerHTML = `No moves for ${this.getPlayerBadge()}`;
+                setTimeout(() => this.nextTurn(), 1500);
+            } else {
+                this.state = 'move';
+                if (this.isComputer) {
+                    document.getElementById('message').innerHTML = `${this.getPlayerBadge()} rolled ${this.diceValue}. Moving...`;
+                    setTimeout(() => this.computerMove(possibleMoves), 1000);
+                } else {
+                    document.getElementById('message').innerHTML = `${this.getPlayerBadge()} Rolled ${this.diceValue}. Select a piece.`;
+                }
+            }
+            this.render();
+        }
+
+        computerMove(validPieces) {
+            let selectedPiece = null;
+
+            if (this.difficulty === 'easy') {
+                selectedPiece = validPieces[Math.floor(Math.random() * validPieces.length)];
+            } else if (this.difficulty === 'normal') {
+                const captures = validPieces.filter(p => this.simCapture(p, this.diceValue));
+                const unlocks = validPieces.filter(p => p.pos === -1);
+                
+                if (captures.length > 0) selectedPiece = captures[0];
+                else if (unlocks.length > 0) selectedPiece = unlocks[0];
+                else selectedPiece = validPieces[Math.floor(Math.random() * validPieces.length)];
+            } else {
+                // Hard Logic
+                let bestScore = -9999;
+                validPieces.forEach(p => {
+                    let score = 0;
+                    let newSteps = p.stepsTaken + this.diceValue;
+                    
+                    if (p.pos === -1) score += 50; 
+                    else {
+                        if (this.simCapture(p, this.diceValue)) score += 100;
+                        // Win condition is now 56
+                        if (newSteps === 56) score += 150; 
+                        if (newSteps > 51 && p.stepsTaken <= 51) score += 60; 
+                        
+                        const newPosIndex = (START_INDICES[p.color] + newSteps) % 52;
+                        const isSafe = Object.values(START_INDICES).includes(newPosIndex);
+                        if (isSafe && newSteps <= 51) score += 30;
+                        score += (newSteps); 
+                    }
+                    if (score > bestScore) {
+                        bestScore = score;
+                        selectedPiece = p;
+                    }
+                });
+            }
+
+            this.executeMove(selectedPiece);
+        }
+
+        simCapture(piece, steps) {
+            if (piece.pos === -1) return false; 
+            let targetSteps = piece.stepsTaken + steps;
+            if (targetSteps > 51) return false; 
+            let targetGlobalPos = (START_INDICES[piece.color] + targetSteps) % 52;
+            if (Object.values(START_INDICES).includes(targetGlobalPos)) return false;
+
+            let captureFound = false;
+            this.activePlayers.forEach(oppColor => {
+                if (oppColor === piece.color) return;
+                this.pieces[oppColor].forEach(opp => {
+                    if (opp.pos === targetGlobalPos && opp.pos < 100 && opp.pos !== -1) {
+                        captureFound = true;
+                    }
+                });
+            });
+            return captureFound;
+        }
+
+        handlePieceClick(color, id) {
+            if (this.state !== 'move' || this.isComputer) return;
+            if (color !== this.currentPlayer) return;
+
+            const piece = this.pieces[color][id];
+            if (!piece.canMove) return;
+
+            this.executeMove(piece);
+        }
+
+        executeMove(piece) {
+            this.state = 'animating';
+            this.playSound('move');
+
+            if (piece.pos === -1) {
+                piece.pos = START_INDICES[piece.color];
+                piece.stepsTaken = 0;
+            } else {
+                piece.stepsTaken += this.diceValue;
+                if (piece.stepsTaken < 51) {
+                     piece.pos = (START_INDICES[piece.color] + piece.stepsTaken) % 52;
+                } else if (piece.stepsTaken >= 56) {
+                    piece.pos = 99; // Home
+                } else {
+                     piece.pos = 100 + (piece.stepsTaken - 51); 
+                }
+            }
+
+            // Check Capture
+            if (piece.pos !== 99 && piece.pos < 100) {
+                 this.resolveCapture(piece);
+            }
+
+            this.render();
+
+            // Win Check
+            if (this.pieces[piece.color].every(p => p.pos === 99)) {
+                this.playSound('win');
+                localStorage.removeItem('ludo-game-save'); // Clear save on win
+                setTimeout(() => {
+                    alert(`${piece.color.toUpperCase()} WINS!`);
+                    this.showSetup(true);
+                }, 500);
+                return;
+            }
+
+            // Next Turn / Roll Again
+            if (this.diceValue === 6) {
+                document.getElementById('message').innerHTML = `${this.getPlayerBadge()} rolled a 6! Roll again.`;
+                this.saveGameState(); // Save state mid-turn
+                setTimeout(() => this.startTurn(), 1000);
+            } else {
+                setTimeout(() => this.nextTurn(), 1000);
+            }
+        }
+
+        resolveCapture(activePiece) {
+            const isSafe = Object.values(START_INDICES).includes(activePiece.pos);
+            if(isSafe) return;
+
+            this.activePlayers.forEach(oppColor => {
+                if (oppColor === activePiece.color) return;
+                this.pieces[oppColor].forEach(oppPiece => {
+                    if (oppPiece.pos === activePiece.pos && oppPiece.pos < 100 && oppPiece.pos !== -1) {
+                        this.playSound('capture');
+                        oppPiece.pos = -1;
+                        oppPiece.stepsTaken = 0;
+                    }
+                });
+            });
+        }
+
+        nextTurn() {
+            this.turnIndex = (this.turnIndex + 1) % this.activePlayers.length;
+            this.startTurn();
+        }
+
+        render() {
+            document.querySelectorAll('.piece').forEach(e => e.remove());
+            document.querySelectorAll('.piece-stack-container').forEach(e => e.remove());
+
+            ALL_COLORS.forEach(color => {
+                if(!this.pieces[color]) return;
+
+                this.pieces[color].forEach(piece => {
+                    const el = document.createElement('div');
+                    el.className = `piece ${color}`;
+                    if (this.playerConfigs[color] === 'computer') el.classList.add('computer-piece');
+                    if (piece.canMove && !this.isComputer) el.classList.add('playable');
+                    
+                    el.onclick = (e) => {
+                        e.stopPropagation();
+                        this.handlePieceClick(color, piece.id);
+                    };
+
+                    let r, c;
+                    if (piece.pos === -1) {
+                        const slot = document.getElementById(`base-${color}-${piece.id}`);
+                        if (slot) {
+                            slot.appendChild(el);
+                            el.style.position = 'relative'; el.style.width = '80%'; el.style.height = '80%'; el.style.left = '0'; el.style.top = '0';
+                        }
+                        return;
+                    } else if (piece.pos === 99) {
+                        const center = document.querySelector('.home-center');
+                        el.style.width = '15px'; el.style.height = '15px';
+                        el.style.position = 'relative'; el.style.display = 'inline-block'; el.style.margin = '2px';
+                        center.appendChild(el);
+                        return;
+                    } else if (piece.pos >= 100) {
+                        const index = piece.pos - 100; 
+                        const coord = HOME_PATHS[color][index];
+                        r = coord[0]; c = coord[1];
+                    } else {
+                        const coord = OUTER_PATH[piece.pos];
+                        r = coord[0]; c = coord[1];
+                    }
+
+                    this.placePieceOnBoard(el, r, c);
+                });
+            });
+        }
+        
+        placePieceOnBoard(pieceEl, r, c) {
+            const areaStyle = `${r} / ${c} / ${r+1} / ${c+1}`;
+            let container = Array.from(document.querySelectorAll('.piece-stack-container')).find(
+                div => div.style.gridArea.replace(/ /g,'') === areaStyle.replace(/ /g,'')
+            );
+            
+            if (!container) {
+                container = document.createElement('div');
+                container.className = 'piece-stack-container';
+                container.style.gridArea = areaStyle;
+                this.board.appendChild(container);
+            }
+            
+            pieceEl.classList.add('stacked');
+            pieceEl.style.position = 'static';
+            pieceEl.style.width = '60%'; pieceEl.style.height = '60%';
+            container.appendChild(pieceEl);
+        }
+    }
+
+    const game = new LudoGame();
+
+</script>
+</body>
+</html>

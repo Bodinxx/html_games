@@ -1,0 +1,16 @@
+{
+  "turn": 1,
+  "cash": 2200,
+  "fuel": 35,
+  "maxFuel": 35,
+  "fuelPrice": 9,
+  "cargoCapacity": 28,
+  "location": "terra",
+  "cargo": {},
+  "hull": 100,
+  "maxHull": 100,
+  "weaponLevel": 1,
+  "shieldLevel": 1,
+  "combat": null,
+  "lastEvent": ""
+}

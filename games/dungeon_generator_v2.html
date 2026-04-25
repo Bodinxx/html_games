@@ -122,6 +122,7 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
           <option value="14" selected>14</option>
           <option value="18">18</option>
           <option value="24">24</option>
+          <option value="70">70 (Roll20)</option>
         </select>
       </div>
     </div>
@@ -271,6 +272,13 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
 
     <h2>Display</h2>
     <div class="cg">
+      <label>Wall Style</label>
+      <select id="wall-style">
+        <option value="solid" selected>Solid (filled)</option>
+        <option value="void">Void (= background)</option>
+      </select>
+    </div>
+    <div class="cg">
       <label>Color Scheme</label>
       <select id="color-scheme">
         <option value="parchment">Parchment (classic)</option>
@@ -301,8 +309,16 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
     <button class="btn btn-primary" id="btn-generate">⚙ Generate Dungeon</button>
 
     <h2>Export</h2>
+    <div class="cg">
+      <label>Image Format</label>
+      <select id="img-format">
+        <option value="image/png">PNG (lossless)</option>
+        <option value="image/jpeg">JPG (compressed)</option>
+        <option value="image/webp">WebP (modern)</option>
+      </select>
+    </div>
     <div class="btn-group">
-      <button class="btn btn-secondary" id="btn-png">PNG Map</button>
+      <button class="btn btn-secondary" id="btn-png">Save Map</button>
       <button class="btn btn-secondary" id="btn-pdf">PDF</button>
       <button class="btn btn-secondary" id="btn-txt">TXT Key</button>
       <button class="btn btn-secondary" id="btn-json-save">Save JSON</button>
@@ -697,11 +713,14 @@ class DungeonGen {
     }
   }
 
-  // ── Widen corridors (post-process) ──────────────────────
+  // ── Widen corridors + doorways (post-process) ───────────
   _widen_corridors(width) {
     if (width < 2) return;
     const extra = width - 1;
+    // Snapshot of original state (pre-widening)
     const snapshot = this.cell.map(row => new Int32Array(row));
+
+    // Pass 1: widen plain corridor cells
     for (let r = 1; r < this.n_rows - 1; r++)
       for (let c = 1; c < this.n_cols - 1; c++) {
         if (!(snapshot[r][c] & CORRIDOR)) continue;
@@ -715,6 +734,35 @@ class DungeonGen {
             this.cell[nr][nc] = (v & ~PERIMETER) | CORRIDOR;
           }
       }
+
+    // Pass 2: widen doorways to match corridor width
+    // For each original entrance cell, spread it perpendicular to the corridor direction
+    for (let r = 1; r < this.n_rows - 1; r++) {
+      for (let c = 1; c < this.n_cols - 1; c++) {
+        if (!(snapshot[r][c] & ENTRANCE)) continue;
+        // Determine corridor orientation using corrected logic (N-S = spread E-W)
+        const nOpen = r > 0 && (snapshot[r-1][c] & (OPEN_SPACE|ENTRANCE));
+        const sOpen = r < this.n_rows-1 && (snapshot[r+1][c] & (OPEN_SPACE|ENTRANCE));
+        const nsDir = !!(nOpen || sOpen); // true = N-S corridor → spread E-W
+
+        const doorType  = snapshot[r][c] & (ARCH|DOOR|LOCKED|SECRET|PORTC|TRAPPED);
+        const roomId    = (snapshot[r][c] & ROOM_ID_MASK) >> ROOM_ID_SHIFT;
+        const roomEncoded = (roomId << ROOM_ID_SHIFT) & ROOM_ID_MASK;
+
+        for (let step = 1; step <= extra; step++) {
+          const nr = nsDir ? r        : r + step;
+          const nc = nsDir ? c + step : c;
+          if (nr >= this.n_rows-1 || nc >= this.n_cols-1) break;
+          const cv2 = this.cell[nr][nc];
+          if (cv2 & (ROOM|BLOCKED))  break; // hit solid wall
+          if (!(cv2 & CORRIDOR))      break; // not a corridor cell (gap in widening)
+          if (cv2 & ENTRANCE)         break; // already a door cell
+          // Convert widened corridor cell to a matching entrance
+          this.cell[nr][nc] = (cv2 & ~PERIMETER) | ENTRANCE | doorType | roomEncoded;
+          this.doors.push({ r:nr, c:nc, type:doorType, room_id:roomId });
+        }
+      }
+    }
   }
 }
 
@@ -985,6 +1033,8 @@ class DungeonRenderer {
     }
 
     // Wall faces (cells adjacent to open space, not open themselves)
+    // wallStyle='void' → walls are same as the void/background (no fill)
+    const wallFaceColor = this.cfg.wallStyle === 'void' ? C.void : C.wallFace;
     for (let r = 0; r < n_rows; r++)
       for (let c = 0; c < n_cols; c++) {
         const v = cell[r][c];
@@ -995,7 +1045,7 @@ class DungeonRenderer {
           if (nr<0||nr>=n_rows||nc<0||nc>=n_cols) continue;
           if (cell[nr][nc] & (OPEN_SPACE|ENTRANCE)) { hasOpen = true; break; }
         }
-        if (hasOpen) { ctx.fillStyle = C.wallFace; ctx.fillRect(c*T, r*T, T, T); }
+        if (hasOpen) { ctx.fillStyle = wallFaceColor; ctx.fillRect(c*T, r*T, T, T); }
       }
 
     // Wall outlines
@@ -1055,9 +1105,11 @@ class DungeonRenderer {
 
     // Standard / locked door
     const cell = this.dungeon.cell;
+    // horiz=true → horizontal bar = door blocking N↕S travel (corridor runs N-S)
+    // horiz=false → vertical bar = door blocking E↔W travel (corridor runs E-W)
     const nOpen = r>0 && (cell[r-1][c] & (OPEN_SPACE|ENTRANCE));
     const sOpen = r<this.dungeon.n_rows-1 && (cell[r+1][c] & (OPEN_SPACE|ENTRANCE));
-    const horiz = !(nOpen || sOpen);
+    const horiz = !!(nOpen || sOpen); // FIXED: was !(nOpen||sOpen) — logic was inverted
     const pad = Math.max(2, T*0.12);
 
     ctx.fillStyle = C.doorFill;
@@ -1239,6 +1291,7 @@ function buildConfig() {
     difficulty:     document.getElementById('difficulty').value,
     motif:          document.getElementById('motif').value,
     specialRooms:   document.getElementById('special-rooms').value,
+    wallStyle:      document.getElementById('wall-style').value,
     colorScheme:    document.getElementById('color-scheme').value,
     gridStyle:      document.getElementById('grid-style').value,
     tileSize:       parseInt(document.getElementById('tile-size').value),
@@ -1296,12 +1349,15 @@ document.getElementById('dungeon-canvas').addEventListener('click', (e) => {
 document.getElementById('zoom').addEventListener('input', e => applyZoom(parseInt(e.target.value)));
 document.getElementById('btn-generate').addEventListener('click', generateDungeon);
 
-// ── PNG Export ──────────────────────────────────────────
+// ── Map Image Export (PNG / JPG / WebP) ─────────────────
 document.getElementById('btn-png').addEventListener('click', () => {
   if (!_dungeon) return alert('Generate a dungeon first.');
+  const fmt = document.getElementById('img-format').value;
+  const ext = { 'image/png':'png', 'image/jpeg':'jpg', 'image/webp':'webp' }[fmt] || 'png';
+  const quality = fmt === 'image/png' ? undefined : 0.93; // PNG ignores quality param
   const a = document.createElement('a');
-  a.href = document.getElementById('dungeon-canvas').toDataURL('image/png');
-  a.download = `dungeon_${_dungeon.rng.seed}.png`;
+  a.href = document.getElementById('dungeon-canvas').toDataURL(fmt, quality);
+  a.download = `dungeon_${_dungeon.rng.seed}.${ext}`;
   a.click();
 });
 
