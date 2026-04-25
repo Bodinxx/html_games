@@ -108,6 +108,8 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
       <div class="cg">
         <label>Size</label>
         <select id="dungeon-size">
+          <option value="fine">Fine (10×10)</option>
+          <option value="diminutive">Diminutive (20×20)</option>
           <option value="tiny">Tiny (40×40)</option>
           <option value="small">Small (60×60)</option>
           <option value="medium" selected>Medium (80×80)</option>
@@ -205,19 +207,31 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
       </div>
       <div class="cg">
         <label>Doors</label>
-        <select id="add-stairs">
-          <option value="yes" selected>Yes</option>
-          <option value="no">None</option>
+        <select id="door-density">
+          <option value="none">None (arches only)</option>
+          <option value="sparse">Sparse</option>
+          <option value="normal" selected>Normal</option>
+          <option value="many">Many</option>
         </select>
       </div>
     </div>
-    <div class="cg">
-      <label>Egress (Exits)</label>
-      <select id="egress">
-        <option value="normal" selected>Normal</option>
-        <option value="none">None (closed)</option>
-        <option value="many">Many</option>
-      </select>
+    <div class="row2">
+      <div class="cg">
+        <label>Room Exits</label>
+        <select id="room-exits">
+          <option value="minimal">Minimal (1)</option>
+          <option value="normal" selected>Normal (1–3)</option>
+          <option value="many">Many (2–5)</option>
+        </select>
+      </div>
+      <div class="cg">
+        <label>Exterior Egress</label>
+        <select id="egress">
+          <option value="none" selected>None</option>
+          <option value="some">Some</option>
+          <option value="many">Many</option>
+        </select>
+      </div>
     </div>
 
     <h2>D&D Content</h2>
@@ -281,6 +295,7 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
     <div class="cg">
       <label>Color Scheme</label>
       <select id="color-scheme">
+        <option value="bw">Black &amp; White</option>
         <option value="parchment">Parchment (classic)</option>
         <option value="dark" selected>Dark (dungeon)</option>
         <option value="blueprint">Blueprint</option>
@@ -299,7 +314,7 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
     </div>
     <div class="cg">
       <label>Zoom: <span id="zoom-label">100%</span></label>
-      <input type="range" id="zoom" min="25" max="300" value="100" step="5">
+      <input type="range" id="zoom" min="1" max="300" value="100" step="1">
     </div>
     <div class="cg">
       <label>Seed (blank = random)</label>
@@ -426,10 +441,11 @@ class DungeonGen {
     else if (lay === 'bsp') this._bsp_corridors();
     else this._bsp_corridors(); // rooms-only
     this._open_rooms();
-    this._label_rooms();
+    this._ensure_connectivity();
     if (this.cfg.removeDeadEnds > 0) this._remove_deadends();
     this._fix_doors();
     this._emplace_stairs();
+    this._add_egress();
     if (parseInt(this.cfg.corridorWidth) > 1) this._widen_corridors(parseInt(this.cfg.corridorWidth));
     return this;
   }
@@ -452,7 +468,7 @@ class DungeonGen {
   _init_cells() {
     for (let r = 0; r <= this.n_rows; r++)
       for (let c = 0; c <= this.n_cols; c++)
-        if (r === 0 || r === this.n_rows || c === 0 || c === this.n_cols)
+        if (r === 0 || r === this.n_rows || c === 0 || c === this.n_cols || !this._inShape(r, c))
           this.cell[r][c] = BLOCKED;
   }
 
@@ -582,7 +598,7 @@ class DungeonGen {
     const lo = Math.min(c1,c2), hi = Math.max(c1,c2);
     for (let c = lo; c <= hi; c++) {
       const v = this.cell[row][c];
-      if (v & (ROOM | PERIMETER)) continue; // respect room walls
+      if (v & (ROOM | PERIMETER | BLOCKED)) continue; // respect room walls & shape
       this.cell[row][c] = (v & ~PERIMETER) | CORRIDOR;
     }
   }
@@ -591,7 +607,7 @@ class DungeonGen {
     const lo = Math.min(r1,r2), hi = Math.max(r1,r2);
     for (let r = lo; r <= hi; r++) {
       const v = this.cell[r][col];
-      if (v & (ROOM | PERIMETER)) continue;
+      if (v & (ROOM | PERIMETER | BLOCKED)) continue;
       this.cell[r][col] = (v & ~PERIMETER) | CORRIDOR;
     }
   }
@@ -603,28 +619,55 @@ class DungeonGen {
     const sills = this._door_sills(room);
     if (!sills.length) return;
     const shuffle = this.rng.shuffle(sills);
-    const egress = this.cfg.egress || 'normal';
-    let n_opens = egress === 'none' ? 0 : egress === 'many'
-      ? this.rng.int(2, Math.min(6, sills.length))
-      : this.rng.int(1, Math.min(4, Math.ceil(sills.length / 2)));
+    const doorSetting = this.cfg.doorDensity || 'normal';
+    const roomExits = this.cfg.roomExits || 'normal';
+    let n_opens;
+    switch (roomExits) {
+      case 'minimal': n_opens = Math.min(1, sills.length); break;
+      case 'many':    n_opens = this.rng.int(2, Math.min(5, sills.length)); break;
+      default:        n_opens = this.rng.int(1, Math.min(3, Math.ceil(sills.length / 2))); break;
+    }
+    if (doorSetting === 'none') n_opens = Math.max(1, n_opens); // still need 1 exit (arch)
     const used = new Set();
     for (let i = 0; i < shuffle.length && room.doors.length < n_opens; i++) {
       const sill = shuffle[i];
       const key = sill.door_r + ',' + sill.door_c;
       if (used.has(key)) continue;
+      // Skip if any adjacent cell already has a door (no doors next to doors)
+      let adjDoor = false;
+      for (const dd of DIRS) {
+        const adjR = sill.door_r + DIR[dd].r, adjC = sill.door_c + DIR[dd].c;
+        if (adjR >= 0 && adjR <= this.n_rows && adjC >= 0 && adjC <= this.n_cols)
+          if (this.cell[adjR][adjC] & ENTRANCE) { adjDoor = true; break; }
+      }
+      if (adjDoor) continue;
       used.add(key);
       let door_type = ARCH;
       const rr = this.rng.next();
-      if (rr < 0.04) door_type = SECRET;
-      else if (rr < 0.07) door_type = PORTC;
-      else if (rr < 0.22) door_type = LOCKED | DOOR;
-      else if (rr < 0.55) door_type = DOOR;
+      if (doorSetting === 'none') {
+        door_type = ARCH;
+      } else if (doorSetting === 'sparse') {
+        if (rr < 0.02) door_type = SECRET;
+        else if (rr < 0.04) door_type = PORTC;
+        else if (rr < 0.12) door_type = LOCKED | DOOR;
+        else if (rr < 0.28) door_type = DOOR;
+      } else if (doorSetting === 'many') {
+        if (rr < 0.05) door_type = SECRET;
+        else if (rr < 0.09) door_type = PORTC;
+        else if (rr < 0.28) door_type = LOCKED | DOOR;
+        else if (rr < 0.80) door_type = DOOR;
+      } else { // normal
+        if (rr < 0.04) door_type = SECRET;
+        else if (rr < 0.07) door_type = PORTC;
+        else if (rr < 0.22) door_type = LOCKED | DOOR;
+        else if (rr < 0.55) door_type = DOOR;
+      }
       const encoded = (room.id << ROOM_ID_SHIFT) & ROOM_ID_MASK;
       this.cell[sill.door_r][sill.door_c] =
         (this.cell[sill.door_r][sill.door_c] & ~PERIMETER) |
         CORRIDOR | ENTRANCE | door_type | encoded;
       room.doors.push({ r:sill.door_r, c:sill.door_c, type:door_type, dir:sill.dir });
-      this.doors.push({ r:sill.door_r, c:sill.door_c, type:door_type, room_id:room.id });
+      this.doors.push({ r:sill.door_r, c:sill.door_c, type:door_type, room_id:room.id, dir:sill.dir });
     }
   }
 
@@ -669,6 +712,87 @@ class DungeonGen {
     }
   }
 
+  // ── Ensure all rooms are reachable ──────────────────────
+  _ensure_connectivity() {
+    this._label_rooms();
+    if (this.rooms.length < 2) return;
+
+    const isOpen = v => !!(v & (OPEN_SPACE | ENTRANCE));
+    const floodFrom = (startR, startC) => {
+      const visited = new Set();
+      const queue = [[startR, startC]];
+      visited.add(`${startR},${startC}`);
+      while (queue.length) {
+        const [r, c] = queue.shift();
+        for (const d of DIRS) {
+          const nr = r+DIR[d].r, nc = c+DIR[d].c;
+          if (nr<0||nr>this.n_rows||nc<0||nc>this.n_cols) continue;
+          const key = `${nr},${nc}`;
+          if (visited.has(key)) continue;
+          if (isOpen(this.cell[nr][nc])) { visited.add(key); queue.push([nr,nc]); }
+        }
+      }
+      return visited;
+    };
+
+    let visited = floodFrom(this.rooms[0].center_r, this.rooms[0].center_c);
+
+    for (const room of this.rooms) {
+      const key = `${room.center_r},${room.center_c}`;
+      if (visited.has(key)) continue;
+      // Room is isolated — connect it to the nearest already-connected room
+      let bestDist = Infinity, bestRoom = null;
+      for (const other of this.rooms) {
+        if (!visited.has(`${other.center_r},${other.center_c}`)) continue;
+        const d = Math.abs(room.center_r-other.center_r)+Math.abs(room.center_c-other.center_c);
+        if (d < bestDist) { bestDist=d; bestRoom=other; }
+      }
+      if (!bestRoom) continue;
+      // Carve an L-shaped corridor
+      if (this.rng.chance(50)) { this._carve_h(room.center_r, room.center_c, bestRoom.center_c); this._carve_v(bestRoom.center_c, room.center_r, bestRoom.center_r); }
+      else                     { this._carve_v(room.center_c, room.center_r, bestRoom.center_r); this._carve_h(bestRoom.center_r, room.center_c, bestRoom.center_c); }
+      // Re-open this room now that it has nearby corridors
+      this._open_room(room);
+      // Expand the visited set
+      visited = floodFrom(this.rooms[0].center_r, this.rooms[0].center_c);
+    }
+  }
+
+  // ── Exterior egress (edge exits) ────────────────────────
+  _add_egress() {
+    const egress = this.cfg.egress || 'none';
+    if (egress === 'none') return;
+    const count = egress === 'many' ? this.rng.int(3, 5) : this.rng.int(1, 2);
+    let placed = 0;
+    const attempts = count * 20;
+    for (let i = 0; i < attempts && placed < count; i++) {
+      const side = this.rng.int(0, 3); // 0=N, 1=S, 2=E, 3=W
+      let r, c;
+      if (side === 0) { r = 1; c = this.rng.int(1, this.n_cols-2); }
+      else if (side === 1) { r = this.n_rows-2; c = this.rng.int(1, this.n_cols-2); }
+      else if (side === 2) { r = this.rng.int(1, this.n_rows-2); c = this.n_cols-2; }
+      else                 { r = this.rng.int(1, this.n_rows-2); c = 1; }
+      // Find nearest corridor cell in the interior
+      let found = false;
+      for (let step = 1; step < 8 && !found; step++) {
+        let tr = r, tc = c;
+        if (side === 0) tr = r + step;
+        else if (side === 1) tr = r - step;
+        else if (side === 2) tc = c - step;
+        else tc = c + step;
+        if (tr < 1||tr>=this.n_rows-1||tc < 1||tc>=this.n_cols-1) break;
+        if (this.cell[tr][tc] & CORRIDOR) {
+          // Carve from that cell to the edge
+          if (side === 0) for (let rr=tr; rr >= 1; rr--) { const v=this.cell[rr][tc]; if (!(v&(ROOM|BLOCKED))) this.cell[rr][tc]=(v&~PERIMETER)|CORRIDOR; }
+          else if (side === 1) for (let rr=tr; rr<=this.n_rows-2; rr++) { const v=this.cell[rr][tc]; if (!(v&(ROOM|BLOCKED))) this.cell[rr][tc]=(v&~PERIMETER)|CORRIDOR; }
+          else if (side === 2) for (let cc=tc; cc<=this.n_cols-2; cc++) { const v=this.cell[tr][cc]; if (!(v&(ROOM|BLOCKED))) this.cell[tr][cc]=(v&~PERIMETER)|CORRIDOR; }
+          else for (let cc=tc; cc >= 1; cc--) { const v=this.cell[tr][cc]; if (!(v&(ROOM|BLOCKED))) this.cell[tr][cc]=(v&~PERIMETER)|CORRIDOR; }
+          found = true; placed++;
+        }
+      }
+    }
+  }
+
   // ── Remove dead ends ────────────────────────────────────
   _remove_deadends() {
     const pct = this.cfg.removeDeadEnds;
@@ -697,9 +821,8 @@ class DungeonGen {
     }
   }
 
-  // ── Stairs / Egress ─────────────────────────────────────
+  // ── Stairs ──────────────────────────────────────────────
   _emplace_stairs() {
-    if (this.cfg.addStairs === 'no') return;
     const shuffled = this.rng.shuffle(this.rooms.slice());
     if (shuffled.length >= 1) {
       const rm = shuffled[0];
@@ -759,7 +882,8 @@ class DungeonGen {
           if (cv2 & ENTRANCE)         break; // already a door cell
           // Convert widened corridor cell to a matching entrance
           this.cell[nr][nc] = (cv2 & ~PERIMETER) | ENTRANCE | doorType | roomEncoded;
-          this.doors.push({ r:nr, c:nc, type:doorType, room_id:roomId });
+          // nsDir=true = N-S passage → horizontal door (dir 'n'), else E-W (dir 'e')
+          this.doors.push({ r:nr, c:nc, type:doorType, room_id:roomId, dir: nsDir ? 'n' : 'e' });
         }
       }
     }
@@ -816,6 +940,18 @@ class ContentGen {
     const sorted = rooms.slice().sort((a, b) => b.area - a.area);
     const bossRoom = sorted[0];
 
+    // Ceiling height tables by motif
+    const ceilingByMotif = {
+      standard: ['8 ft','10 ft','10 ft','12 ft','15 ft','20 ft'],
+      undead:   ['8 ft','8 ft','10 ft','12 ft','15 ft','30 ft (great vault)'],
+      giant:    ['20 ft','25 ft','30 ft','40 ft','50 ft'],
+      draconic: ['15 ft','20 ft','30 ft','40 ft','60 ft (great hall)'],
+      cavern:   ['5 ft (low)','8 ft','10 ft','15 ft','20 ft','variable'],
+      aquatic:  ['6 ft','8 ft','10 ft','flooded to ceiling'],
+      fey:      ['12 ft','15 ft','20 ft','open sky (illusion)'],
+      arcane:   ['10 ft','12 ft','15 ft','20 ft (vaulted)'],
+    };
+
     for (const room of rooms) {
       let content;
       if (room === bossRoom && rooms.length > 2) content = this._genBoss(room);
@@ -828,13 +964,28 @@ class ContentGen {
         else content = this._genEmpty(room);
       }
       room.content = content;
+      // Ceiling height
+      const cTable = ceilingByMotif[this.motif] || ceilingByMotif.standard;
+      room.ceilingHeight = this.rng.pick(cTable);
       // Generate door details for each door
       for (const door of room.doors) {
         door.detail = this._genDoorDetail(door.type);
       }
     }
+    // Corridor notes
+    this.corridorNotes = this._genCorridorNotes();
     this.wandering = this._genWanderingTable();
     return rooms;
+  }
+
+  _genCorridorNotes() {
+    const features = DATA.corridorFeatures || INLINE_CORRIDOR_FEATURES;
+    const notes = [];
+    // Sample ~30% of features to sprinkle as corridor observations
+    const count = Math.max(2, Math.floor(features.length * 0.3));
+    const pool = this.rng.shuffle(features.slice()).slice(0, count);
+    pool.forEach((f, i) => notes.push({ id: i+1, text: f }));
+    return notes;
   }
 
   _budget() {
@@ -971,12 +1122,13 @@ class ContentGen {
 // COLOR SCHEMES
 // ═══════════════════════════════════════════════════════════
 const COLOR_SCHEMES = {
-  dark:      { void:'#0a0a0f', wall:'#1a1a2e', wallFace:'#2a2a4a', floor:'#2d2d3d', corridor:'#252535', grid:'rgba(100,100,150,0.12)', outline:'#111', door:'#8b6914', doorFill:'#c8960c', secret:'#2a4a2a', portc:'#555', stairUp:'#4a90d9', stairDn:'#e94560', roomNum:'rgba(200,200,255,0.7)', entrance:'rgba(255,220,100,0.6)' },
-  parchment: { void:'#c4a882', wall:'#8b6914', wallFace:'#6b4f0e', floor:'#f5e8c0', corridor:'#e8d8a0', grid:'rgba(100,70,20,0.15)', outline:'#4a3000', door:'#6b4f0e', doorFill:'#8b6914', secret:'#5a7a2a', portc:'#666', stairUp:'#2255aa', stairDn:'#aa2222', roomNum:'rgba(60,30,0,0.8)', entrance:'rgba(200,150,50,0.7)' },
-  blueprint: { void:'#0a1628', wall:'#0e2244', wallFace:'#1a3a6a', floor:'#132850', corridor:'#0e2040', grid:'rgba(100,150,255,0.12)', outline:'#4488ff', door:'#6699ff', doorFill:'#88aaff', secret:'#336633', portc:'#4466aa', stairUp:'#aaccff', stairDn:'#ff9966', roomNum:'rgba(150,200,255,0.9)', entrance:'rgba(100,180,255,0.7)' },
-  sepia:     { void:'#3d2b1f', wall:'#5c3d2e', wallFace:'#4a2e1f', floor:'#d4b896', corridor:'#c4a882', grid:'rgba(80,50,20,0.15)', outline:'#3d2b1f', door:'#7a4f28', doorFill:'#9e6633', secret:'#3a5a2a', portc:'#666', stairUp:'#4455aa', stairDn:'#994422', roomNum:'rgba(50,20,0,0.8)', entrance:'rgba(180,120,40,0.7)' },
-  cave:      { void:'#111214', wall:'#1e1e22', wallFace:'#2e2e35', floor:'#3a3842', corridor:'#2f2d38', grid:'rgba(120,110,140,0.1)', outline:'#0a0a0d', door:'#7a6030', doorFill:'#a88040', secret:'#1a3a1a', portc:'#444', stairUp:'#5577cc', stairDn:'#cc4455', roomNum:'rgba(180,180,220,0.65)', entrance:'rgba(220,180,80,0.5)' },
-  vellum:    { void:'#b8a070', wall:'#8a6820', wallFace:'#6a4e10', floor:'#f8f0d0', corridor:'#eee0b0', grid:'rgba(80,50,10,0.18)', outline:'#5a3800', door:'#7a5020', doorFill:'#aa7030', secret:'#4a6a1a', portc:'#777', stairUp:'#336699', stairDn:'#993333', roomNum:'rgba(40,20,0,0.85)', entrance:'rgba(180,130,40,0.75)' },
+  bw:        { void:'#1a1a1a', wall:'#1a1a1a', wallFace:'#1a1a1a', floor:'#f8f8f8', corridor:'#f0f0f0', grid:'rgba(0,0,0,0.15)', outline:'#000000', door:'#000000', doorFill:'#ffffff', secret:'#444', portc:'#111', stairUp:'#000000', stairDn:'#555555', roomNum:'rgba(0,0,0,0.85)', entrance:'rgba(0,0,0,0.4)' },
+  dark:      { void:'#2a2a4a', wall:'#1a1a2e', wallFace:'#2a2a4a', floor:'#2d2d3d', corridor:'#252535', grid:'rgba(100,100,150,0.12)', outline:'#111', door:'#8b6914', doorFill:'#c8960c', secret:'#2a4a2a', portc:'#555', stairUp:'#4a90d9', stairDn:'#e94560', roomNum:'rgba(200,200,255,0.7)', entrance:'rgba(255,220,100,0.6)' },
+  parchment: { void:'#6b4f0e', wall:'#8b6914', wallFace:'#6b4f0e', floor:'#f5e8c0', corridor:'#e8d8a0', grid:'rgba(100,70,20,0.15)', outline:'#4a3000', door:'#6b4f0e', doorFill:'#8b6914', secret:'#5a7a2a', portc:'#666', stairUp:'#2255aa', stairDn:'#aa2222', roomNum:'rgba(60,30,0,0.8)', entrance:'rgba(200,150,50,0.7)' },
+  blueprint: { void:'#1a3a6a', wall:'#0e2244', wallFace:'#1a3a6a', floor:'#132850', corridor:'#0e2040', grid:'rgba(100,150,255,0.12)', outline:'#4488ff', door:'#6699ff', doorFill:'#88aaff', secret:'#336633', portc:'#4466aa', stairUp:'#aaccff', stairDn:'#ff9966', roomNum:'rgba(150,200,255,0.9)', entrance:'rgba(100,180,255,0.7)' },
+  sepia:     { void:'#4a2e1f', wall:'#5c3d2e', wallFace:'#4a2e1f', floor:'#d4b896', corridor:'#c4a882', grid:'rgba(80,50,20,0.15)', outline:'#3d2b1f', door:'#7a4f28', doorFill:'#9e6633', secret:'#3a5a2a', portc:'#666', stairUp:'#4455aa', stairDn:'#994422', roomNum:'rgba(50,20,0,0.8)', entrance:'rgba(180,120,40,0.7)' },
+  cave:      { void:'#2e2e35', wall:'#1e1e22', wallFace:'#2e2e35', floor:'#3a3842', corridor:'#2f2d38', grid:'rgba(120,110,140,0.1)', outline:'#0a0a0d', door:'#7a6030', doorFill:'#a88040', secret:'#1a3a1a', portc:'#444', stairUp:'#5577cc', stairDn:'#cc4455', roomNum:'rgba(180,180,220,0.65)', entrance:'rgba(220,180,80,0.5)' },
+  vellum:    { void:'#6a4e10', wall:'#8a6820', wallFace:'#6a4e10', floor:'#f8f0d0', corridor:'#eee0b0', grid:'rgba(80,50,10,0.18)', outline:'#5a3800', door:'#7a5020', doorFill:'#aa7030', secret:'#4a6a1a', portc:'#777', stairUp:'#336699', stairDn:'#993333', roomNum:'rgba(40,20,0,0.85)', entrance:'rgba(180,130,40,0.75)' },
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -1083,50 +1235,123 @@ class DungeonRenderer {
     const T = this.T, C = this.colors, ctx = this.ctx;
     const x = c*T, y = r*T, cx2 = x+T/2, cy2 = y+T/2;
 
+    // Determine passage orientation from stored dir (n/s = N-S passage = horizontal doorway)
+    // Fall back to adjacency check if dir not stored
+    let horiz;
+    if (door.dir === 'n' || door.dir === 's') horiz = true;
+    else if (door.dir === 'e' || door.dir === 'w') horiz = false;
+    else {
+      const cell = this.dungeon.cell;
+      const nOpen = r>0 && (cell[r-1][c] & (OPEN_SPACE|ENTRANCE));
+      const sOpen = r<this.dungeon.n_rows-1 && (cell[r+1][c] & (OPEN_SPACE|ENTRANCE));
+      horiz = !!(nOpen || sOpen);
+    }
+
+    const jambW = Math.max(2, Math.round(T * 0.22)); // wall-jamb thickness
+    const wallC = C.wallFace || C.wall;
+
     if (type & SECRET) {
-      ctx.strokeStyle = C.secret; ctx.lineWidth = 1;
+      // Secret door: looks like a wall but has a faint dashed outline + 'S'
+      ctx.fillStyle = wallC;
+      ctx.fillRect(x, y, T, T);
+      ctx.strokeStyle = C.secret; ctx.lineWidth = 0.8;
       ctx.setLineDash([2,2]); ctx.strokeRect(x+1,y+1,T-2,T-2); ctx.setLineDash([]);
-      ctx.fillStyle = C.secret; ctx.font = `bold ${Math.max(8,T*0.5)}px monospace`;
+      ctx.fillStyle = C.secret; ctx.font = `bold ${Math.max(7, T*0.38)}px monospace`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('S', cx2, cy2); return;
     }
 
     if (type & PORTC) {
-      ctx.strokeStyle = C.portc; ctx.lineWidth = 1;
-      for (let i = 1; i < 4; i++) { const bx = x+(T*i/4); ctx.beginPath(); ctx.moveTo(bx,y+2); ctx.lineTo(bx,y+T-2); ctx.stroke(); }
-      ctx.beginPath(); ctx.moveTo(x+2,cy2); ctx.lineTo(x+T-2,cy2); ctx.stroke(); return;
+      // Portcullis: wall jambs + parallel bars across the opening
+      ctx.fillStyle = wallC;
+      if (horiz) {
+        ctx.fillRect(x, y, jambW, T);
+        ctx.fillRect(x+T-jambW, y, jambW, T);
+        // Horizontal bars spanning the gap
+        ctx.strokeStyle = C.portc; ctx.lineWidth = Math.max(1, T*0.07);
+        const openW = T - jambW*2, openX = x+jambW;
+        for (let i = 1; i <= 3; i++) {
+          const by = y + (T * i / 4);
+          ctx.beginPath(); ctx.moveTo(openX, by); ctx.lineTo(openX+openW, by); ctx.stroke();
+        }
+        ctx.lineWidth = Math.max(1, T*0.05);
+        ctx.beginPath(); ctx.moveTo(openX, y+2); ctx.lineTo(openX, y+T-2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(openX+openW, y+2); ctx.lineTo(openX+openW, y+T-2); ctx.stroke();
+      } else {
+        ctx.fillRect(x, y, T, jambW);
+        ctx.fillRect(x, y+T-jambW, T, jambW);
+        ctx.strokeStyle = C.portc; ctx.lineWidth = Math.max(1, T*0.07);
+        const openH = T - jambW*2, openY = y+jambW;
+        for (let i = 1; i <= 3; i++) {
+          const bx = x + (T * i / 4);
+          ctx.beginPath(); ctx.moveTo(bx, openY); ctx.lineTo(bx, openY+openH); ctx.stroke();
+        }
+        ctx.lineWidth = Math.max(1, T*0.05);
+        ctx.beginPath(); ctx.moveTo(x+2, openY); ctx.lineTo(x+T-2, openY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x+2, openY+openH); ctx.lineTo(x+T-2, openY+openH); ctx.stroke();
+      }
+      return;
     }
 
     if (type & ARCH) {
-      // Open arch — subtle highlight
-      ctx.fillStyle = 'rgba(255,220,100,0.12)';
-      ctx.fillRect(x,y,T,T); return;
+      // Archway: wall jambs with open gap; small arc to indicate arch
+      ctx.fillStyle = wallC;
+      if (horiz) {
+        ctx.fillRect(x, y, jambW, T);
+        ctx.fillRect(x+T-jambW, y, jambW, T);
+        // Arch arc
+        ctx.strokeStyle = C.entrance || C.doorFill; ctx.lineWidth = Math.max(1, T*0.06);
+        ctx.beginPath(); ctx.arc(cx2, cy2, (T-jambW*2)*0.45, Math.PI, 0); ctx.stroke();
+      } else {
+        ctx.fillRect(x, y, T, jambW);
+        ctx.fillRect(x, y+T-jambW, T, jambW);
+        ctx.strokeStyle = C.entrance || C.doorFill; ctx.lineWidth = Math.max(1, T*0.06);
+        ctx.beginPath(); ctx.arc(cx2, cy2, (T-jambW*2)*0.45, -Math.PI/2, Math.PI/2); ctx.stroke();
+      }
+      return;
     }
 
-    // Standard / locked door
-    const cell = this.dungeon.cell;
-    // horiz=true → horizontal bar = door blocking N↕S travel (corridor runs N-S)
-    // horiz=false → vertical bar = door blocking E↔W travel (corridor runs E-W)
-    const nOpen = r>0 && (cell[r-1][c] & (OPEN_SPACE|ENTRANCE));
-    const sOpen = r<this.dungeon.n_rows-1 && (cell[r+1][c] & (OPEN_SPACE|ENTRANCE));
-    const horiz = !!(nOpen || sOpen); // FIXED: was !(nOpen||sOpen) — logic was inverted
-    const pad = Math.max(2, T*0.12);
+    // ── Standard / Locked / Trapped door ──
+    // Draw wall jambs on both sides of the opening
+    ctx.fillStyle = wallC;
+    if (horiz) {
+      ctx.fillRect(x, y, jambW, T);
+      ctx.fillRect(x+T-jambW, y, jambW, T);
+    } else {
+      ctx.fillRect(x, y, T, jambW);
+      ctx.fillRect(x, y+T-jambW, T, jambW);
+    }
 
+    // Door slab (thin filled rectangle across the opening)
+    const slabThick = Math.max(2, Math.round(T * 0.12));
     ctx.fillStyle = C.doorFill;
-    if (horiz) ctx.fillRect(x+pad, cy2-T*0.12, T-pad*2, T*0.24);
-    else        ctx.fillRect(cx2-T*0.12, y+pad, T*0.24, T-pad*2);
+    ctx.strokeStyle = C.door; ctx.lineWidth = 0.8;
+    if (horiz) {
+      const sx = x+jambW, sw = T-jambW*2;
+      ctx.fillRect(sx, cy2-slabThick/2, sw, slabThick);
+      ctx.strokeRect(sx, cy2-slabThick/2, sw, slabThick);
+    } else {
+      const sy = y+jambW, sh = T-jambW*2;
+      ctx.fillRect(cx2-slabThick/2, sy, slabThick, sh);
+      ctx.strokeRect(cx2-slabThick/2, sy, slabThick, sh);
+    }
 
-    // Door border lines
-    ctx.strokeStyle = C.door; ctx.lineWidth = 1;
-    if (horiz) { ctx.strokeRect(x+pad, cy2-T*0.12, T-pad*2, T*0.24); }
-    else       { ctx.strokeRect(cx2-T*0.12, y+pad, T*0.24, T-pad*2); }
-
+    // Lock mark: small red X
     if (type & LOCKED) {
-      ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 1.5;
+      const s = T*0.12;
+      ctx.strokeStyle = '#ff3333'; ctx.lineWidth = Math.max(1, T*0.06);
       ctx.beginPath();
-      ctx.moveTo(cx2-T*0.13,cy2-T*0.13); ctx.lineTo(cx2+T*0.13,cy2+T*0.13);
-      ctx.moveTo(cx2+T*0.13,cy2-T*0.13); ctx.lineTo(cx2-T*0.13,cy2+T*0.13);
+      ctx.moveTo(cx2-s,cy2-s); ctx.lineTo(cx2+s,cy2+s);
+      ctx.moveTo(cx2+s,cy2-s); ctx.lineTo(cx2-s,cy2+s);
       ctx.stroke();
+    }
+
+    // Trap mark: small orange 'T'
+    if (type & TRAPPED) {
+      ctx.fillStyle = '#ff8800';
+      ctx.font = `bold ${Math.max(5, T*0.28)}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('T', cx2, cy2);
     }
   }
 
@@ -1146,7 +1371,8 @@ class DungeonRenderer {
   _drawRoomLabel(room) {
     const T=this.T, ctx=this.ctx;
     const cx2 = room.center_c*T+T/2, cy2 = room.center_r*T+T/2;
-    const fs = Math.max(6, Math.min(T*0.6, 12));
+    // Scale font with tile size; allow large sizes for big tiles
+    const fs = Math.max(6, Math.min(T*0.55, 32));
     ctx.fillStyle = this.colors.roomNum; ctx.font = `bold ${fs}px sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(room.id.toString(), cx2, cy2);
@@ -1156,23 +1382,31 @@ class DungeonRenderer {
 // ═══════════════════════════════════════════════════════════
 // LEGEND RENDERER
 // ═══════════════════════════════════════════════════════════
-function renderLegend(rooms, wandering, highlightId, cfg) {
+function renderLegend(rooms, wandering, highlightId, cfg, corridorNotes) {
   const body = document.getElementById('legend-body');
 
   // ── Symbol Key ──────────────────────────────────────────
   let html = `<div class="sym-legend">
     <div class="sym-legend-title">Map Symbol Key</div>
-    <div class="sym-row"><span class="sym sym-door">█</span><span>Door (wooden/standard)</span></div>
-    <div class="sym-row"><span class="sym sym-locked">✕</span><span>Locked door (red X)</span></div>
-    <div class="sym-row"><span class="sym sym-arch">▭</span><span>Open arch (no door)</span></div>
-    <div class="sym-row"><span class="sym sym-secret">S</span><span>Secret door (dashed outline)</span></div>
-    <div class="sym-row"><span class="sym sym-portc">⊞</span><span>Portcullis (vertical bars)</span></div>
+    <div class="sym-row"><span class="sym sym-door">█</span><span>Door — wall jambs + slab</span></div>
+    <div class="sym-row"><span class="sym sym-locked">✕</span><span>Locked door (red X on slab)</span></div>
+    <div class="sym-row"><span class="sym" style="color:#ff8800;font-weight:700;font-size:0.65rem">T</span><span>Trapped door (orange T)</span></div>
+    <div class="sym-row"><span class="sym sym-arch">▭</span><span>Archway — open passage (arc)</span></div>
+    <div class="sym-row"><span class="sym sym-secret">S</span><span>Secret door (dashed wall + S)</span></div>
+    <div class="sym-row"><span class="sym sym-portc">⊞</span><span>Portcullis (barred grate)</span></div>
     <div class="sym-row"><span class="sym sym-stair-up">▲</span><span>Stairs up / entrance</span></div>
     <div class="sym-row"><span class="sym sym-stair-dn">▼</span><span>Stairs down / exit</span></div>
     <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#2d2d3d;border:1px solid #555;flex-shrink:0"></span><span>Room floor</span></div>
     <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#252535;border:1px solid #333;flex-shrink:0"></span><span>Corridor</span></div>
     <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#2a2a4a;flex-shrink:0"></span><span>Wall</span></div>
   </div>`;
+
+  // ── Corridor Features ────────────────────────────────────
+  if (corridorNotes && corridorNotes.length) {
+    html += '<div class="wmt"><div class="wmt-header">Corridor Features (d' + corridorNotes.length + ')</div><table>';
+    for (const n of corridorNotes) html += `<tr><td>${n.id}</td><td>${n.text}</td></tr>`;
+    html += '</table></div>';
+  }
 
   // ── Wandering Monsters ──────────────────────────────────
   html += '<div class="wmt"><div class="wmt-header">Wandering Monsters (d20)</div><table>';
@@ -1203,6 +1437,7 @@ function renderLegend(rooms, wandering, highlightId, cfg) {
 
     const w = room.c2-room.c1+1, h = room.r2-room.r1+1;
     html += `<li>${w}×${h} tiles (${w*5}×${h*5} ft)</li>`;
+    if (room.ceilingHeight) html += `<li>Ceiling: ${room.ceilingHeight}</li>`;
 
     if (c.type === 'monster') {
       html += `<li>${c.desc}</li>`;
@@ -1265,11 +1500,11 @@ function highlightRoomOnMap(roomId) {
   if (!_renderer) return;
   _renderer.highlightRoom = _renderer.highlightRoom === roomId ? null : roomId;
   _renderer.render();
-  renderLegend(_dungeon.rooms, _content.wandering, _renderer.highlightRoom, _lastCfg);
+  renderLegend(_dungeon.rooms, _content.wandering, _renderer.highlightRoom, _lastCfg, _content.corridorNotes);
 }
 
 function buildConfig() {
-  const sizes = { tiny:[39,39], small:[59,59], medium:[79,79], large:[99,99], huge:[119,119] };
+  const sizes = { fine:[9,9], diminutive:[19,19], tiny:[39,39], small:[59,59], medium:[79,79], large:[99,99], huge:[119,119] };
   const [rows, cols] = sizes[document.getElementById('dungeon-size').value] || [79,79];
   const seedInput = document.getElementById('seed').value.trim();
   const seed = seedInput || String(Math.floor(Math.random() * 9999999));
@@ -1284,7 +1519,8 @@ function buildConfig() {
     corridorWidth:  document.getElementById('corridor-width').value,
     corridorStyle:  document.getElementById('corridor-style').value,
     removeDeadEnds: parseInt(document.getElementById('remove-deadends').value),
-    addStairs:      document.getElementById('add-stairs').value,
+    doorDensity:    document.getElementById('door-density').value,
+    roomExits:      document.getElementById('room-exits').value,
     egress:         document.getElementById('egress').value,
     level:          parseInt(document.getElementById('dungeon-level').value),
     partySize:      parseInt(document.getElementById('party-size').value),
@@ -1315,7 +1551,7 @@ function generateDungeon() {
       _renderer = new DungeonRenderer(canvas, dungeon, cfg);
       _renderer.render();
       applyZoom(parseInt(document.getElementById('zoom').value));
-      renderLegend(dungeon.rooms, cgen.wandering, null, cfg);
+      renderLegend(dungeon.rooms, cgen.wandering, null, cfg, cgen.corridorNotes);
       document.getElementById('stats-display').textContent = `${dungeon.rooms.length} rooms · ${dungeon.doors.length} doors · seed: ${cfg.seed}`;
     } catch(e) { console.error(e); alert('Generation error: ' + e.message); }
     loading.classList.remove('show');
@@ -1647,6 +1883,29 @@ const INLINE_ROOM_FEATURES = {
 };
 ['aberrant'].forEach(m => { if (!INLINE_ROOM_FEATURES[m]) INLINE_ROOM_FEATURES[m] = INLINE_ROOM_FEATURES.standard; });
 
+const INLINE_CORRIDOR_FEATURES = [
+  'Dripping water echoes from the walls',
+  'A scorch mark on the floor — something burned here recently',
+  'Scratch marks on the stone as if something was dragged through',
+  'A discarded torch stub, still faintly warm',
+  'An arrow embedded in the wall at knee height',
+  'The floor is unusually slick with algae',
+  'A rotting rope hangs from the ceiling',
+  'A faint sweet smell, possibly poisonous gas (DC 12 CON or disadvantage on Perception for 10 min)',
+  'Lichen glows faintly blue along the base of the walls',
+  'Shallow puddle reflects torchlight oddly — the ceiling above has a concealed arrow slit',
+  'A tripwire strung ankle-height — already been triggered',
+  'Fresh boot prints in the dust heading away from the party',
+  'A small shrine alcove with a half-melted candle',
+  'Graffiti in Thieves\' Cant: "Watch the third door"',
+  'A rusted iron bracket on the wall once held a torch; the smoke-stained ceiling above it',
+  'Bones of a small animal — rat or bat — recently cracked open',
+  'The walls narrow here; Medium creatures must squeeze',
+  'A cool breeze flows from a tiny gap in the masonry',
+  'The sound of distant chanting — impossible to pinpoint direction',
+  'A smear of dark ichor leads around the next corner then stops',
+];
+
 const INLINE_DOORS = {
   materials:[
     { id:'iron_oak',name:'Iron-bound Oak',hp:27,ac:17,notes:'' },
@@ -1696,12 +1955,13 @@ const INLINE_DOORS = {
 
 // Active data object (loaded from JSON or inline)
 let DATA = {
-  monsters:     INLINE_MONSTERS,
-  traps:        INLINE_TRAPS,
-  treasures:    INLINE_TREASURES,
-  specialRooms: INLINE_SPECIAL_ROOMS,
-  roomFeatures: INLINE_ROOM_FEATURES,
-  doors:        INLINE_DOORS,
+  monsters:         INLINE_MONSTERS,
+  traps:            INLINE_TRAPS,
+  treasures:        INLINE_TREASURES,
+  specialRooms:     INLINE_SPECIAL_ROOMS,
+  roomFeatures:     INLINE_ROOM_FEATURES,
+  corridorFeatures: INLINE_CORRIDOR_FEATURES,
+  doors:            INLINE_DOORS,
 };
 
 // ── Async JSON loader ───────────────────────────────────
