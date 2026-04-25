@@ -2203,7 +2203,7 @@ function attachSettingsListeners() {
   for (const id of SETTINGS_IDS) {
     const el = document.getElementById(id);
     if (!el) continue;
-    const evt = (el.tagName === 'SELECT' || el.type === 'checkbox') ? 'change' : 'input';
+    const evt = (el.tagName === 'SELECT' || el.tagName === 'INPUT' && el.type === 'checkbox') ? 'change' : 'input';
     el.addEventListener(evt, saveSettings);
   }
 }
