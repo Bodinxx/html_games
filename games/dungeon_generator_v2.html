@@ -44,6 +44,8 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
 #dungeon-canvas{image-rendering:pixelated;display:block;cursor:crosshair}
 .canvas-area.pan-mode{cursor:grab}
 .canvas-area.pan-mode:active{cursor:grabbing}
+.canvas-area.pan-mode #dungeon-canvas{cursor:grab}
+.canvas-area.pan-mode:active #dungeon-canvas{cursor:grabbing}
 .legend{width:330px;min-width:330px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
 .legend-header{background:var(--panel2);padding:0.45rem 0.8rem;font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--accent2);border-bottom:1px solid var(--border);flex-shrink:0}
 .legend-body{flex:1;overflow-y:auto;padding:0.5rem}
@@ -783,10 +785,10 @@ class DungeonGen {
         if (tr < 1||tr>=this.n_rows-1||tc < 1||tc>=this.n_cols-1) break;
         if (this.cell[tr][tc] & CORRIDOR) {
           // Carve from that cell to the edge
-          if (side === 0) for (let rr=tr; rr >= 1; rr--) { const v=this.cell[rr][tc]; if (!(v&(ROOM|BLOCKED))) this.cell[rr][tc]=(v&~PERIMETER)|CORRIDOR; }
-          else if (side === 1) for (let rr=tr; rr<=this.n_rows-2; rr++) { const v=this.cell[rr][tc]; if (!(v&(ROOM|BLOCKED))) this.cell[rr][tc]=(v&~PERIMETER)|CORRIDOR; }
-          else if (side === 2) for (let cc=tc; cc<=this.n_cols-2; cc++) { const v=this.cell[tr][cc]; if (!(v&(ROOM|BLOCKED))) this.cell[tr][cc]=(v&~PERIMETER)|CORRIDOR; }
-          else for (let cc=tc; cc >= 1; cc--) { const v=this.cell[tr][cc]; if (!(v&(ROOM|BLOCKED))) this.cell[tr][cc]=(v&~PERIMETER)|CORRIDOR; }
+          if (side === 0) for (let rr=tr; rr >= 0; rr--) { const v=this.cell[rr][tc]; if (!(v&ROOM)) this.cell[rr][tc]=(v&~(PERIMETER|BLOCKED))|CORRIDOR; }
+          else if (side === 1) for (let rr=tr; rr<=this.n_rows-1; rr++) { const v=this.cell[rr][tc]; if (!(v&ROOM)) this.cell[rr][tc]=(v&~(PERIMETER|BLOCKED))|CORRIDOR; }
+          else if (side === 2) for (let cc=tc; cc<=this.n_cols-1; cc++) { const v=this.cell[tr][cc]; if (!(v&ROOM)) this.cell[tr][cc]=(v&~(PERIMETER|BLOCKED))|CORRIDOR; }
+          else for (let cc=tc; cc >= 0; cc--) { const v=this.cell[tr][cc]; if (!(v&ROOM)) this.cell[tr][cc]=(v&~(PERIMETER|BLOCKED))|CORRIDOR; }
           found = true; placed++;
         }
       }
@@ -1217,7 +1219,14 @@ class DungeonRenderer {
         for (const e of edges) {
           const nr = r+e.dr, nc = c+e.dc;
           const nv = (nr>=0&&nr<n_rows&&nc>=0&&nc<n_cols) ? cell[nr][nc] : NOTHING;
-          if (nv & (OPEN_SPACE|ENTRANCE)) continue;
+          if (nv & (OPEN_SPACE|ENTRANCE)) {
+            // Draw a wall at the boundary between a corridor cell and a room cell
+            // (only when neither side has an ENTRANCE/door)
+            const corridorRoomBoundary =
+              ((v & CORRIDOR) && !(v & ENTRANCE) && (nv & ROOM) && !(nv & ENTRANCE)) ||
+              ((v & ROOM)     && !(v & ENTRANCE) && (nv & CORRIDOR) && !(nv & ENTRANCE));
+            if (!corridorRoomBoundary) continue;
+          }
           ctx.beginPath(); ctx.moveTo(e.x1,e.y1); ctx.lineTo(e.x2,e.y2); ctx.stroke();
         }
       }
@@ -1370,7 +1379,14 @@ class DungeonRenderer {
 
   _drawRoomLabel(room) {
     const T=this.T, ctx=this.ctx;
-    const cx2 = room.center_c*T+T/2, cy2 = room.center_r*T+T/2;
+    let labelR = room.center_r, labelC = room.center_c;
+    // Offset label away from center if a stair is placed there
+    const cv = this.dungeon.cell[room.center_r][room.center_c];
+    if (cv & (STAIR_UP | STAIR_DN)) {
+      const roomH = room.r2 - room.r1 + 1, roomW = room.c2 - room.c1 + 1;
+      if (roomH > 1 || roomW > 1) { labelR = room.r1; labelC = room.c1; }
+    }
+    const cx2 = labelC*T+T/2, cy2 = labelR*T+T/2;
     // Scale font with tile size; allow large sizes for big tiles
     const fs = Math.max(6, Math.min(T*0.55, 32));
     ctx.fillStyle = this.colors.roomNum; ctx.font = `bold ${fs}px sans-serif`;
@@ -1384,21 +1400,23 @@ class DungeonRenderer {
 // ═══════════════════════════════════════════════════════════
 function renderLegend(rooms, wandering, highlightId, cfg, corridorNotes) {
   const body = document.getElementById('legend-body');
+  const C = COLOR_SCHEMES[cfg?.colorScheme] || COLOR_SCHEMES.dark;
+  const wallC = C.wallFace || C.wall;
 
   // ── Symbol Key ──────────────────────────────────────────
   let html = `<div class="sym-legend">
     <div class="sym-legend-title">Map Symbol Key</div>
-    <div class="sym-row"><span class="sym sym-door">█</span><span>Door — wall jambs + slab</span></div>
-    <div class="sym-row"><span class="sym sym-locked">✕</span><span>Locked door (red X on slab)</span></div>
+    <div class="sym-row"><span class="sym" style="background:${C.doorFill};color:${C.door};border-radius:2px">█</span><span>Door — wall jambs + slab</span></div>
+    <div class="sym-row"><span class="sym" style="background:${C.doorFill};color:#f44;border-radius:2px;font-size:0.6rem">✕</span><span>Locked door (red X on slab)</span></div>
     <div class="sym-row"><span class="sym" style="color:#ff8800;font-weight:700;font-size:0.65rem">T</span><span>Trapped door (orange T)</span></div>
-    <div class="sym-row"><span class="sym sym-arch">▭</span><span>Archway — open passage (arc)</span></div>
-    <div class="sym-row"><span class="sym sym-secret">S</span><span>Secret door (dashed wall + S)</span></div>
-    <div class="sym-row"><span class="sym sym-portc">⊞</span><span>Portcullis (barred grate)</span></div>
-    <div class="sym-row"><span class="sym sym-stair-up">▲</span><span>Stairs up / entrance</span></div>
-    <div class="sym-row"><span class="sym sym-stair-dn">▼</span><span>Stairs down / exit</span></div>
-    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#2d2d3d;border:1px solid #555;flex-shrink:0"></span><span>Room floor</span></div>
-    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#252535;border:1px solid #333;flex-shrink:0"></span><span>Corridor</span></div>
-    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#2a2a4a;flex-shrink:0"></span><span>Wall</span></div>
+    <div class="sym-row"><span class="sym" style="background:${C.corridor};border:1px solid ${C.entrance||C.doorFill};border-radius:2px;font-size:0.55rem">▭</span><span>Archway — open passage (arc)</span></div>
+    <div class="sym-row"><span class="sym" style="background:${wallC};border:1px dashed ${C.secret};border-radius:2px;color:${C.secret}">S</span><span>Secret door (dashed wall + S)</span></div>
+    <div class="sym-row"><span class="sym" style="background:${wallC};border-radius:2px;color:${C.portc}">⊞</span><span>Portcullis (barred grate)</span></div>
+    <div class="sym-row"><span class="sym" style="background:${C.stairUp}44;border:1px solid ${C.stairUp};border-radius:50%;color:${C.stairUp};font-size:0.6rem">▲</span><span>Stairs up / entrance</span></div>
+    <div class="sym-row"><span class="sym" style="background:${C.stairDn}44;border:1px solid ${C.stairDn};border-radius:50%;color:${C.stairDn};font-size:0.6rem">▼</span><span>Stairs down / exit</span></div>
+    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:${C.floor};border:1px solid ${C.outline};flex-shrink:0"></span><span>Room floor</span></div>
+    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:${C.corridor};border:1px solid ${C.outline};flex-shrink:0"></span><span>Corridor</span></div>
+    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:${wallC};flex-shrink:0"></span><span>Wall</span></div>
   </div>`;
 
   // ── Corridor Features ────────────────────────────────────
@@ -1565,8 +1583,14 @@ function applyZoom(pct) {
   document.getElementById('zoom-label').textContent = pct + '%';
 }
 
+// ── Pan state (shared between click guard and drag handlers) ──
+const PAN_THRESHOLD = 3; // pixels of movement before treating as a drag
+const ZOOM_STEP = 5, ZOOM_MIN = 1, ZOOM_MAX = 300;
+const _panState = { active: false, moved: false, x: 0, y: 0, scrollX: 0, scrollY: 0 };
+
 // Canvas click
 document.getElementById('dungeon-canvas').addEventListener('click', (e) => {
+  if (_panState.moved) return; // was a drag, not a click
   if (!_dungeon || !_renderer) return;
   const canvas = document.getElementById('dungeon-canvas');
   const scale = parseInt(document.getElementById('zoom').value) / 100;
@@ -1584,6 +1608,43 @@ document.getElementById('dungeon-canvas').addEventListener('click', (e) => {
 
 document.getElementById('zoom').addEventListener('input', e => applyZoom(parseInt(e.target.value)));
 document.getElementById('btn-generate').addEventListener('click', generateDungeon);
+
+// ── Mouse wheel zoom ─────────────────────────────────────
+document.getElementById('canvas-area').addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const slider = document.getElementById('zoom');
+  let pct = parseInt(slider.value);
+  pct = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pct + (e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP)));
+  slider.value = pct;
+  applyZoom(pct);
+}, { passive: false });
+
+// ── Click-and-drag to pan the map ────────────────────────
+{
+  const canvasArea = document.getElementById('canvas-area');
+  canvasArea.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    _panState.active = true;
+    _panState.moved = false;
+    _panState.x = e.clientX; _panState.y = e.clientY;
+    _panState.scrollX = canvasArea.scrollLeft;
+    _panState.scrollY = canvasArea.scrollTop;
+    canvasArea.classList.add('pan-mode');
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!_panState.active) return;
+    const dx = e.clientX - _panState.x, dy = e.clientY - _panState.y;
+    if (Math.abs(dx) > PAN_THRESHOLD || Math.abs(dy) > PAN_THRESHOLD) _panState.moved = true;
+    if (_panState.moved) {
+      canvasArea.scrollLeft = _panState.scrollX - dx;
+      canvasArea.scrollTop  = _panState.scrollY - dy;
+    }
+  });
+  window.addEventListener('mouseup', () => {
+    _panState.active = false;
+    canvasArea.classList.remove('pan-mode');
+  });
+}
 
 // ── Map Image Export (PNG / JPG / WebP) ─────────────────
 document.getElementById('btn-png').addEventListener('click', () => {
