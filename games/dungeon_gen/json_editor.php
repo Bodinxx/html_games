@@ -735,11 +735,11 @@ function flushSection() {
 function deserRow(tr, schema) {
   const cells = tr.querySelectorAll('.ci');
   if (schema.length === 1 && schema[0].key === 'value') {
-    return parseVal(cells[0] ? cells[0].textContent : '', schema[0]);
+    return parseVal(cells[0] ? cells[0].innerText : '', schema[0]);
   }
   const obj = {};
   schema.forEach((col, i) => {
-    if (cells[i]) obj[col.key] = parseVal(cells[i].textContent, col);
+    if (cells[i]) obj[col.key] = parseVal(cells[i].innerText, col);
   });
   return obj;
 }
