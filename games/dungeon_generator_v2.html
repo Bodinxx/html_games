@@ -44,6 +44,8 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
 #dungeon-canvas{image-rendering:pixelated;display:block;cursor:crosshair}
 .canvas-area.pan-mode{cursor:grab}
 .canvas-area.pan-mode:active{cursor:grabbing}
+.canvas-area.pan-mode #dungeon-canvas{cursor:grab}
+.canvas-area.pan-mode:active #dungeon-canvas{cursor:grabbing}
 .legend{width:330px;min-width:330px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
 .legend-header{background:var(--panel2);padding:0.45rem 0.8rem;font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--accent2);border-bottom:1px solid var(--border);flex-shrink:0}
 .legend-body{flex:1;overflow-y:auto;padding:0.5rem}
@@ -92,6 +94,10 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--panel)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.corridor-note{cursor:pointer;transition:background 0.15s}
+.corridor-note:hover td{background:rgba(233,69,96,0.12)}
+.corridor-note.highlighted td{background:rgba(233,69,96,0.22)}
+.corridor-label-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--accent);color:#fff;font-size:0.6rem;font-weight:700;margin-right:0.3rem;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -111,8 +117,8 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
           <option value="fine">Fine (10×10)</option>
           <option value="diminutive">Diminutive (20×20)</option>
           <option value="tiny">Tiny (40×40)</option>
-          <option value="small">Small (60×60)</option>
-          <option value="medium" selected>Medium (80×80)</option>
+          <option value="small" selected>Small (60×60)</option>
+          <option value="medium">Medium (80×80)</option>
           <option value="large">Large (100×100)</option>
           <option value="huge">Huge (120×120)</option>
         </select>
@@ -121,10 +127,10 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
         <label>Tile px</label>
         <select id="tile-size">
           <option value="10">10</option>
-          <option value="14" selected>14</option>
+          <option value="14">14</option>
           <option value="18">18</option>
           <option value="24">24</option>
-          <option value="70">70 (Roll20)</option>
+          <option value="70" selected>70 (Roll20)</option>
         </select>
       </div>
     </div>
@@ -162,8 +168,8 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
         <label>Room Count</label>
         <select id="room-count">
           <option value="few">Few</option>
-          <option value="some" selected>Some</option>
-          <option value="many">Many</option>
+          <option value="some">Some</option>
+          <option value="many" selected>Many</option>
           <option value="packed">Packed</option>
         </select>
       </div>
@@ -178,20 +184,12 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
           <option value="symmetric">Symmetric</option>
         </select>
       </div>
-      <div class="cg">
-        <label>Corridor Width</label>
-        <select id="corridor-width">
-          <option value="1" selected>5 ft (1 tile)</option>
-          <option value="2">10 ft (2 tiles)</option>
-          <option value="3">15 ft (3 tiles)</option>
-        </select>
-      </div>
     </div>
     <div class="cg">
       <label>Corridor Style</label>
       <select id="corridor-style">
         <option value="labyrinthine">Labyrinthine (maze-filled)</option>
-        <option value="errant">Errant (wandering)</option>
+        <option value="errant" selected>Errant (wandering)</option>
         <option value="straight">Straight</option>
       </select>
     </div>
@@ -238,11 +236,11 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
     <div class="row2">
       <div class="cg">
         <label>Level</label>
-        <input type="number" id="dungeon-level" value="3" min="1" max="20">
+        <input type="number" id="dungeon-level" value="1" min="1" max="20">
       </div>
       <div class="cg">
         <label>Party Size</label>
-        <input type="number" id="party-size" value="4" min="1" max="10">
+        <input type="number" id="party-size" value="5" min="1" max="10">
       </div>
     </div>
     <div class="cg">
@@ -286,6 +284,15 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
 
     <h2>Display</h2>
     <div class="cg">
+      <label>UI Theme</label>
+      <select id="ui-theme">
+        <option value="dark">Dark (default)</option>
+        <option value="light">Light</option>
+        <option value="light-blue">Light Blue</option>
+        <option value="dark-green">Dark Green</option>
+      </select>
+    </div>
+    <div class="cg">
       <label>Wall Style</label>
       <select id="wall-style">
         <option value="solid" selected>Solid (filled)</option>
@@ -295,9 +302,9 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
     <div class="cg">
       <label>Color Scheme</label>
       <select id="color-scheme">
-        <option value="bw">Black &amp; White</option>
+        <option value="bw" selected>Black &amp; White</option>
         <option value="parchment">Parchment (classic)</option>
-        <option value="dark" selected>Dark (dungeon)</option>
+        <option value="dark">Dark (dungeon)</option>
         <option value="blueprint">Blueprint</option>
         <option value="sepia">Sepia</option>
         <option value="cave">Cave (stone)</option>
@@ -307,7 +314,7 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
     <div class="cg">
       <label>Grid</label>
       <select id="grid-style">
-        <option value="full">Full grid</option>
+        <option value="full" selected>Full grid</option>
         <option value="dot">Dot grid</option>
         <option value="none">None</option>
       </select>
@@ -329,7 +336,7 @@ input[type=range]{width:100%;accent-color:var(--accent2)}
       <select id="img-format">
         <option value="image/png">PNG (lossless)</option>
         <option value="image/jpeg">JPG (compressed)</option>
-        <option value="image/webp">WebP (modern)</option>
+        <option value="image/webp" selected>WebP (modern)</option>
       </select>
     </div>
     <div class="btn-group">
@@ -446,7 +453,6 @@ class DungeonGen {
     this._fix_doors();
     this._emplace_stairs();
     this._add_egress();
-    if (parseInt(this.cfg.corridorWidth) > 1) this._widen_corridors(parseInt(this.cfg.corridorWidth));
     return this;
   }
 
@@ -783,10 +789,10 @@ class DungeonGen {
         if (tr < 1||tr>=this.n_rows-1||tc < 1||tc>=this.n_cols-1) break;
         if (this.cell[tr][tc] & CORRIDOR) {
           // Carve from that cell to the edge
-          if (side === 0) for (let rr=tr; rr >= 1; rr--) { const v=this.cell[rr][tc]; if (!(v&(ROOM|BLOCKED))) this.cell[rr][tc]=(v&~PERIMETER)|CORRIDOR; }
-          else if (side === 1) for (let rr=tr; rr<=this.n_rows-2; rr++) { const v=this.cell[rr][tc]; if (!(v&(ROOM|BLOCKED))) this.cell[rr][tc]=(v&~PERIMETER)|CORRIDOR; }
-          else if (side === 2) for (let cc=tc; cc<=this.n_cols-2; cc++) { const v=this.cell[tr][cc]; if (!(v&(ROOM|BLOCKED))) this.cell[tr][cc]=(v&~PERIMETER)|CORRIDOR; }
-          else for (let cc=tc; cc >= 1; cc--) { const v=this.cell[tr][cc]; if (!(v&(ROOM|BLOCKED))) this.cell[tr][cc]=(v&~PERIMETER)|CORRIDOR; }
+          if (side === 0) for (let rr=tr; rr >= 0; rr--) { const v=this.cell[rr][tc]; if (!(v&ROOM)) this.cell[rr][tc]=(v&~(PERIMETER|BLOCKED))|CORRIDOR; }
+          else if (side === 1) for (let rr=tr; rr<=this.n_rows-1; rr++) { const v=this.cell[rr][tc]; if (!(v&ROOM)) this.cell[rr][tc]=(v&~(PERIMETER|BLOCKED))|CORRIDOR; }
+          else if (side === 2) for (let cc=tc; cc<=this.n_cols-1; cc++) { const v=this.cell[tr][cc]; if (!(v&ROOM)) this.cell[tr][cc]=(v&~(PERIMETER|BLOCKED))|CORRIDOR; }
+          else for (let cc=tc; cc >= 0; cc--) { const v=this.cell[tr][cc]; if (!(v&ROOM)) this.cell[tr][cc]=(v&~(PERIMETER|BLOCKED))|CORRIDOR; }
           found = true; placed++;
         }
       }
@@ -980,11 +986,29 @@ class ContentGen {
 
   _genCorridorNotes() {
     const features = DATA.corridorFeatures || INLINE_CORRIDOR_FEATURES;
-    const notes = [];
-    // Sample ~30% of features to sprinkle as corridor observations
-    const count = Math.max(2, Math.floor(features.length * 0.3));
+    const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    // Find valid corridor cells for placement (not entrance/room/stair)
+    const { cell, n_rows, n_cols } = this.dungeon;
+    const corridorCells = [];
+    for (let r = 1; r < n_rows - 1; r++)
+      for (let c = 1; c < n_cols - 1; c++) {
+        const v = cell[r][c];
+        if ((v & CORRIDOR) && !(v & (ENTRANCE | ROOM | STAIR_UP | STAIR_DN)))
+          corridorCells.push({ r, c });
+      }
+    const shuffledCells = this.rng.shuffle(corridorCells);
+
+    // Sample ~30% of features; cap at 26 (one letter per note) and available cells
+    const maxCount = Math.min(LABELS.length, shuffledCells.length);
+    const count = Math.min(maxCount, Math.max(2, Math.floor(features.length * 0.3)));
     const pool = this.rng.shuffle(features.slice()).slice(0, count);
-    pool.forEach((f, i) => notes.push({ id: i+1, text: f }));
+
+    const notes = [];
+    pool.forEach((f, i) => {
+      const pos = shuffledCells[i];
+      notes.push({ id: i + 1, label: LABELS[i], text: f, r: pos.r, c: pos.c });
+    });
     return notes;
   }
 
@@ -1119,6 +1143,42 @@ class ContentGen {
 }
 
 // ═══════════════════════════════════════════════════════════
+// UI THEMES
+// ═══════════════════════════════════════════════════════════
+const UI_THEMES = {
+  dark: {
+    '--bg':'#1a1a2e','--panel':'#16213e','--panel2':'#0f3460',
+    '--accent':'#e94560','--accent2':'#4a90d9',
+    '--text':'#e0e0e0','--text-dim':'#888','--border':'#2a2a4a',
+    '--input-bg':'#0d1b2a',
+  },
+  light: {
+    '--bg':'#f0f0f5','--panel':'#ffffff','--panel2':'#e2e6ee',
+    '--accent':'#c0392b','--accent2':'#2471a3',
+    '--text':'#1a1a2e','--text-dim':'#555','--border':'#c8ccd8',
+    '--input-bg':'#f8f8fb',
+  },
+  'light-blue': {
+    '--bg':'#dbeaf5','--panel':'#eaf4fb','--panel2':'#b0d4ee',
+    '--accent':'#1a5276','--accent2':'#1f618d',
+    '--text':'#0d2a3d','--text-dim':'#456','--border':'#85c1e9',
+    '--input-bg':'#f0f8ff',
+  },
+  'dark-green': {
+    '--bg':'#0d1f0d','--panel':'#122112','--panel2':'#1a3a1a',
+    '--accent':'#4caf50','--accent2':'#81c784',
+    '--text':'#d0f0d0','--text-dim':'#6a8c6a','--border':'#2a4a2a',
+    '--input-bg':'#0a160a',
+  },
+};
+
+function applyUITheme(name) {
+  const t = UI_THEMES[name] || UI_THEMES.dark;
+  const root = document.documentElement;
+  Object.entries(t).forEach(([k, v]) => root.style.setProperty(k, v));
+}
+
+// ═══════════════════════════════════════════════════════════
 // COLOR SCHEMES
 // ═══════════════════════════════════════════════════════════
 const COLOR_SCHEMES = {
@@ -1143,6 +1203,7 @@ class DungeonRenderer {
     this.T = cfg.tileSize;
     this.colors = COLOR_SCHEMES[cfg.colorScheme] || COLOR_SCHEMES.dark;
     this.highlightRoom = null;
+    this.corridorNotes = [];
   }
 
   render() {
@@ -1217,7 +1278,14 @@ class DungeonRenderer {
         for (const e of edges) {
           const nr = r+e.dr, nc = c+e.dc;
           const nv = (nr>=0&&nr<n_rows&&nc>=0&&nc<n_cols) ? cell[nr][nc] : NOTHING;
-          if (nv & (OPEN_SPACE|ENTRANCE)) continue;
+          if (nv & (OPEN_SPACE|ENTRANCE)) {
+            // Draw a wall at the boundary between a corridor cell and a room cell
+            // (only when neither side has an ENTRANCE/door)
+            const corridorRoomBoundary =
+              ((v & CORRIDOR) && !(v & ENTRANCE) && (nv & ROOM) && !(nv & ENTRANCE)) ||
+              ((v & ROOM)     && !(v & ENTRANCE) && (nv & CORRIDOR) && !(nv & ENTRANCE));
+            if (!corridorRoomBoundary) continue;
+          }
           ctx.beginPath(); ctx.moveTo(e.x1,e.y1); ctx.lineTo(e.x2,e.y2); ctx.stroke();
         }
       }
@@ -1228,6 +1296,8 @@ class DungeonRenderer {
     for (const stair of this.dungeon.stairs) this._drawStair(stair);
     // Room numbers
     for (const room of this.dungeon.rooms) this._drawRoomLabel(room);
+    // Corridor feature letters
+    this._drawCorridorLabels();
   }
 
   _drawDoor(door) {
@@ -1370,12 +1440,39 @@ class DungeonRenderer {
 
   _drawRoomLabel(room) {
     const T=this.T, ctx=this.ctx;
-    const cx2 = room.center_c*T+T/2, cy2 = room.center_r*T+T/2;
+    let labelR = room.center_r, labelC = room.center_c;
+    // Offset label away from center if a stair is placed there
+    const cv = this.dungeon.cell[room.center_r][room.center_c];
+    if (cv & (STAIR_UP | STAIR_DN)) {
+      const roomH = room.r2 - room.r1 + 1, roomW = room.c2 - room.c1 + 1;
+      if (roomH > 1 || roomW > 1) { labelR = room.r1; labelC = room.c1; }
+    }
+    const cx2 = labelC*T+T/2, cy2 = labelR*T+T/2;
     // Scale font with tile size; allow large sizes for big tiles
     const fs = Math.max(6, Math.min(T*0.55, 32));
     ctx.fillStyle = this.colors.roomNum; ctx.font = `bold ${fs}px sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(room.id.toString(), cx2, cy2);
+  }
+
+  _drawCorridorLabels() {
+    if (!this.corridorNotes || !this.corridorNotes.length) return;
+    const T = this.T, ctx = this.ctx;
+    const radius = Math.max(4, T * 0.38);
+    const fs = Math.max(5, Math.min(T * 0.48, 22));
+    for (const note of this.corridorNotes) {
+      const cx2 = note.c * T + T / 2, cy2 = note.r * T + T / 2;
+      // Circle background
+      ctx.fillStyle = 'rgba(233,69,96,0.88)';
+      ctx.beginPath(); ctx.arc(cx2, cy2, radius, 0, Math.PI * 2); ctx.fill();
+      // Border
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx2, cy2, radius, 0, Math.PI * 2); ctx.stroke();
+      // Letter
+      ctx.fillStyle = '#fff'; ctx.font = `bold ${fs}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(note.label, cx2, cy2);
+    }
   }
 }
 
@@ -1384,27 +1481,31 @@ class DungeonRenderer {
 // ═══════════════════════════════════════════════════════════
 function renderLegend(rooms, wandering, highlightId, cfg, corridorNotes) {
   const body = document.getElementById('legend-body');
+  const C = COLOR_SCHEMES[cfg?.colorScheme] || COLOR_SCHEMES.dark;
+  const wallC = C.wallFace || C.wall;
 
   // ── Symbol Key ──────────────────────────────────────────
   let html = `<div class="sym-legend">
     <div class="sym-legend-title">Map Symbol Key</div>
-    <div class="sym-row"><span class="sym sym-door">█</span><span>Door — wall jambs + slab</span></div>
-    <div class="sym-row"><span class="sym sym-locked">✕</span><span>Locked door (red X on slab)</span></div>
+    <div class="sym-row"><span class="sym" style="background:${C.doorFill};color:${C.door};border-radius:2px">█</span><span>Door — wall jambs + slab</span></div>
+    <div class="sym-row"><span class="sym" style="background:${C.doorFill};color:#f44;border-radius:2px;font-size:0.6rem">✕</span><span>Locked door (red X on slab)</span></div>
     <div class="sym-row"><span class="sym" style="color:#ff8800;font-weight:700;font-size:0.65rem">T</span><span>Trapped door (orange T)</span></div>
-    <div class="sym-row"><span class="sym sym-arch">▭</span><span>Archway — open passage (arc)</span></div>
-    <div class="sym-row"><span class="sym sym-secret">S</span><span>Secret door (dashed wall + S)</span></div>
-    <div class="sym-row"><span class="sym sym-portc">⊞</span><span>Portcullis (barred grate)</span></div>
-    <div class="sym-row"><span class="sym sym-stair-up">▲</span><span>Stairs up / entrance</span></div>
-    <div class="sym-row"><span class="sym sym-stair-dn">▼</span><span>Stairs down / exit</span></div>
-    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#2d2d3d;border:1px solid #555;flex-shrink:0"></span><span>Room floor</span></div>
-    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#252535;border:1px solid #333;flex-shrink:0"></span><span>Corridor</span></div>
-    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:#2a2a4a;flex-shrink:0"></span><span>Wall</span></div>
+    <div class="sym-row"><span class="sym" style="background:${C.corridor};border:1px solid ${C.entrance||C.doorFill};border-radius:2px;font-size:0.55rem">▭</span><span>Archway — open passage (arc)</span></div>
+    <div class="sym-row"><span class="sym" style="background:${wallC};border:1px dashed ${C.secret};border-radius:2px;color:${C.secret}">S</span><span>Secret door (dashed wall + S)</span></div>
+    <div class="sym-row"><span class="sym" style="background:${wallC};border-radius:2px;color:${C.portc}">⊞</span><span>Portcullis (barred grate)</span></div>
+    <div class="sym-row"><span class="sym" style="background:${C.stairUp}44;border:1px solid ${C.stairUp};border-radius:50%;color:${C.stairUp};font-size:0.6rem">▲</span><span>Stairs up / entrance</span></div>
+    <div class="sym-row"><span class="sym" style="background:${C.stairDn}44;border:1px solid ${C.stairDn};border-radius:50%;color:${C.stairDn};font-size:0.6rem">▼</span><span>Stairs down / exit</span></div>
+    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:${C.floor};border:1px solid ${C.outline};flex-shrink:0"></span><span>Room floor</span></div>
+    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:${C.corridor};border:1px solid ${C.outline};flex-shrink:0"></span><span>Corridor</span></div>
+    <div class="sym-row"><span style="width:18px;height:18px;display:inline-block;background:${wallC};flex-shrink:0"></span><span>Wall</span></div>
   </div>`;
 
   // ── Corridor Features ────────────────────────────────────
   if (corridorNotes && corridorNotes.length) {
-    html += '<div class="wmt"><div class="wmt-header">Corridor Features (d' + corridorNotes.length + ')</div><table>';
-    for (const n of corridorNotes) html += `<tr><td>${n.id}</td><td>${n.text}</td></tr>`;
+    html += '<div class="wmt"><div class="wmt-header">Corridor Features</div><table>';
+    for (const n of corridorNotes) {
+      html += `<tr class="corridor-note" data-note="${n.label}" title="Click to highlight on map" style="cursor:pointer"><td><span class="corridor-label-badge">${n.label}</span></td><td>${n.text}</td></tr>`;
+    }
     html += '</table></div>';
   }
 
@@ -1489,6 +1590,24 @@ function renderLegend(rooms, wandering, highlightId, cfg, corridorNotes) {
       if (window._currentDungeon) highlightRoomOnMap(id);
     });
   });
+  body.querySelectorAll('.corridor-note').forEach(el => {
+    el.addEventListener('click', () => {
+      const label = el.dataset.note;
+      const note = _content?.corridorNotes?.find(n => n.label === label);
+      if (note && note.r !== undefined && _renderer) {
+        // Pan canvas area to the corridor cell
+        const scale = parseInt(document.getElementById('zoom').value) / 100;
+        const T = _renderer.T;
+        const canvasArea = document.getElementById('canvas-area');
+        const targetX = note.c * T * scale + 20 - canvasArea.clientWidth / 2;
+        const targetY = note.r * T * scale + 20 - canvasArea.clientHeight / 2;
+        canvasArea.scrollTo({ left: Math.max(0, targetX), top: Math.max(0, targetY), behavior: 'smooth' });
+      }
+      // Highlight this row briefly
+      body.querySelectorAll('.corridor-note').forEach(r => r.classList.remove('highlighted'));
+      el.classList.add('highlighted');
+    });
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1516,7 +1635,6 @@ function buildConfig() {
     roomSize:       document.getElementById('room-size').value,
     roomCount:      document.getElementById('room-count').value,
     roomLayout:     document.getElementById('room-layout').value,
-    corridorWidth:  document.getElementById('corridor-width').value,
     corridorStyle:  document.getElementById('corridor-style').value,
     removeDeadEnds: parseInt(document.getElementById('remove-deadends').value),
     doorDensity:    document.getElementById('door-density').value,
@@ -1549,6 +1667,7 @@ function generateDungeon() {
       _content = cgen;
       const canvas = document.getElementById('dungeon-canvas');
       _renderer = new DungeonRenderer(canvas, dungeon, cfg);
+      _renderer.corridorNotes = cgen.corridorNotes;
       _renderer.render();
       applyZoom(parseInt(document.getElementById('zoom').value));
       renderLegend(dungeon.rooms, cgen.wandering, null, cfg, cgen.corridorNotes);
@@ -1565,8 +1684,14 @@ function applyZoom(pct) {
   document.getElementById('zoom-label').textContent = pct + '%';
 }
 
+// ── Pan state (shared between click guard and drag handlers) ──
+const PAN_THRESHOLD = 3; // pixels of movement before treating as a drag
+const ZOOM_STEP = 5, ZOOM_MIN = 1, ZOOM_MAX = 300;
+const _panState = { active: false, moved: false, x: 0, y: 0, scrollX: 0, scrollY: 0 };
+
 // Canvas click
 document.getElementById('dungeon-canvas').addEventListener('click', (e) => {
+  if (_panState.moved) return; // was a drag, not a click
   if (!_dungeon || !_renderer) return;
   const canvas = document.getElementById('dungeon-canvas');
   const scale = parseInt(document.getElementById('zoom').value) / 100;
@@ -1579,11 +1704,61 @@ document.getElementById('dungeon-canvas').addEventListener('click', (e) => {
     const id = (cv & ROOM_ID_MASK) >> ROOM_ID_SHIFT;
     highlightRoomOnMap(id);
     document.querySelector(`[data-room="${id}"]`)?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  } else {
+    // Check if clicking on a corridor feature label
+    const note = _content?.corridorNotes?.find(n => n.r === row && n.c === col);
+    if (note) {
+      const legendBody = document.getElementById('legend-body');
+      const noteEl = legendBody.querySelector(`[data-note="${note.label}"]`);
+      if (noteEl) {
+        legendBody.querySelectorAll('.corridor-note').forEach(r => r.classList.remove('highlighted'));
+        noteEl.classList.add('highlighted');
+        noteEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
+      }
+    }
   }
 });
 
 document.getElementById('zoom').addEventListener('input', e => applyZoom(parseInt(e.target.value)));
 document.getElementById('btn-generate').addEventListener('click', generateDungeon);
+document.getElementById('ui-theme').addEventListener('change', e => applyUITheme(e.target.value));
+
+// ── Mouse wheel zoom ─────────────────────────────────────
+document.getElementById('canvas-area').addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const slider = document.getElementById('zoom');
+  let pct = parseInt(slider.value);
+  pct = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pct + (e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP)));
+  slider.value = pct;
+  applyZoom(pct);
+}, { passive: false });
+
+// ── Click-and-drag to pan the map ────────────────────────
+{
+  const canvasArea = document.getElementById('canvas-area');
+  canvasArea.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    _panState.active = true;
+    _panState.moved = false;
+    _panState.x = e.clientX; _panState.y = e.clientY;
+    _panState.scrollX = canvasArea.scrollLeft;
+    _panState.scrollY = canvasArea.scrollTop;
+    canvasArea.classList.add('pan-mode');
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!_panState.active) return;
+    const dx = e.clientX - _panState.x, dy = e.clientY - _panState.y;
+    if (Math.abs(dx) > PAN_THRESHOLD || Math.abs(dy) > PAN_THRESHOLD) _panState.moved = true;
+    if (_panState.moved) {
+      canvasArea.scrollLeft = _panState.scrollX - dx;
+      canvasArea.scrollTop  = _panState.scrollY - dy;
+    }
+  });
+  window.addEventListener('mouseup', () => {
+    _panState.active = false;
+    canvasArea.classList.remove('pan-mode');
+  });
+}
 
 // ── Map Image Export (PNG / JPG / WebP) ─────────────────
 document.getElementById('btn-png').addEventListener('click', () => {
@@ -1990,12 +2165,57 @@ async function loadExternalData() {
   }
 }
 
+// ── LocalStorage Settings ───────────────────────────────
+const SETTINGS_STORAGE_KEY = 'dg2_settings';
+const SETTINGS_IDS = [
+  'dungeon-size', 'tile-size', 'layout', 'dungeon-shape',
+  'room-size', 'room-count', 'room-layout', 'corridor-style',
+  'remove-deadends', 'door-density', 'room-exits', 'egress',
+  'dungeon-level', 'party-size', 'difficulty', 'motif',
+  'special-rooms', 'wall-style', 'color-scheme', 'grid-style',
+  'img-format', 'ui-theme', 'zoom',
+];
+
+function saveSettings() {
+  const settings = {};
+  for (const id of SETTINGS_IDS) {
+    const el = document.getElementById(id);
+    if (el) settings[id] = el.value;
+  }
+  try { localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings)); } catch(e) {}
+}
+
+function loadSettings() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || 'null'); } catch(e) {}
+  if (!saved) return;
+  for (const id of SETTINGS_IDS) {
+    const el = document.getElementById(id);
+    if (el && saved[id] !== undefined) el.value = saved[id];
+  }
+  const theme = document.getElementById('ui-theme')?.value;
+  if (theme) applyUITheme(theme);
+  const zoom = document.getElementById('zoom')?.value;
+  if (zoom) applyZoom(parseInt(zoom));
+}
+
+function attachSettingsListeners() {
+  for (const id of SETTINGS_IDS) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const evt = (el.tagName === 'SELECT' || el.tagName === 'INPUT' && el.type === 'checkbox') ? 'change' : 'input';
+    el.addEventListener(evt, saveSettings);
+  }
+}
+
 // ── Init ─────────────────────────────────────────────────
 const CR_XP_INLINE = {'0':10,'1/8':25,'1/4':50,'1/2':100,'1':200,'2':450,'3':700,'4':1100,'5':1800,'6':2300,'7':2900,'8':3900,'9':5000,'10':5900,'11':7200,'12':8400,'13':10000,'14':11500,'15':13000,'16':15000,'17':18000,'18':20000,'19':22000,'20':25000,'21':33000,'24':62000,'26':90000};
 for (const m of INLINE_MONSTERS) if (!m.xp || m.xp === 0) m.xp = CR_XP_INLINE[m.cr] || 50;
 
 window.addEventListener('load', async () => {
   await loadExternalData();
+  loadSettings();
+  attachSettingsListeners();
   generateDungeon();
 });
 </script>
