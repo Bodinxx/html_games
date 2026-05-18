@@ -560,7 +560,7 @@ function renderMarkdown(markdown) {
     return '';
   });
 
-  text = text.replace(/\[var:([a-zA-Z0-9_\-]+)\]/g, (_, key) => variables[key] ?? `[var:${key}]`);
+  text = text.replace(/\[var:([a-zA-Z0-9_\-]+)\]/g, (_, key) => sanitizeVariableValue(variables[key] ?? `[var:${key}]`));
 
   text = text.replace(/\{\{([a-zA-Z0-9_\-]+)(?:,([^\n]*?))?\n([\s\S]*?)\n\}\}/g, (_, klass, style, inner) => {
     const safeStyle = sanitizeStyle(style || '');
@@ -659,12 +659,64 @@ function stripHtml(value) {
 }
 
 function sanitizeStyle(styleText) {
+  const allowedProperties = new Set([
+    'background',
+    'background-color',
+    'border',
+    'border-color',
+    'border-radius',
+    'box-shadow',
+    'color',
+    'display',
+    'float',
+    'font-size',
+    'font-style',
+    'font-weight',
+    'height',
+    'line-height',
+    'margin',
+    'margin-top',
+    'margin-right',
+    'margin-bottom',
+    'margin-left',
+    'max-height',
+    'max-width',
+    'min-height',
+    'min-width',
+    'opacity',
+    'padding',
+    'padding-top',
+    'padding-right',
+    'padding-bottom',
+    'padding-left',
+    'text-align',
+    'width',
+  ]);
+
   return styleText
     .split(',')
     .map((token) => token.trim())
     .filter(Boolean)
-    .filter((token) => /^[-a-zA-Z]+\s*:\s*[-#(),.%\sa-zA-Z0-9]+$/.test(token))
+    .filter((token) => {
+      const [rawProperty, ...valueParts] = token.split(':');
+      if (!rawProperty || valueParts.length === 0) {
+        return false;
+      }
+      const property = rawProperty.trim().toLowerCase();
+      const value = valueParts.join(':').trim();
+      if (!allowedProperties.has(property)) {
+        return false;
+      }
+      if (!value || /url\s*\(|expression\s*\(/i.test(value)) {
+        return false;
+      }
+      return /^[-#(),.%\sa-zA-Z0-9]+$/.test(value);
+    })
     .join('; ');
+}
+
+function sanitizeVariableValue(value) {
+  return String(value).replace(/[<>]/g, '');
 }
 
 function sanitizeHref(value) {

@@ -8,6 +8,10 @@ const ASSETS_DIR = STORAGE_DIR . '/assets';
 const PROJECT_FILE = STORAGE_DIR . '/project.json';
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'];
+const STORAGE_DIR_PERMISSIONS = 0755;
+const JPEG_QUALITY = 82;
+const PNG_COMPRESSION = 6;
+const WEBP_QUALITY = 80;
 
 ensureStorage();
 
@@ -128,10 +132,10 @@ respond(['error' => 'Unknown action.'], 404);
 function ensureStorage(): void
 {
     if (!is_dir(STORAGE_DIR)) {
-        mkdir(STORAGE_DIR, 0775, true);
+        mkdir(STORAGE_DIR, STORAGE_DIR_PERMISSIONS, true);
     }
     if (!is_dir(ASSETS_DIR)) {
-        mkdir(ASSETS_DIR, 0775, true);
+        mkdir(ASSETS_DIR, STORAGE_DIR_PERMISSIONS, true);
     }
     if (!is_file(PROJECT_FILE)) {
         writeProject(defaultProject());
@@ -301,7 +305,7 @@ function optimizeAsset(string $path, string $extension): void
         if ($image === false) {
             return;
         }
-        imagejpeg($image, $path, 82);
+        imagejpeg($image, $path, JPEG_QUALITY);
         imagedestroy($image);
         return;
     }
@@ -313,7 +317,7 @@ function optimizeAsset(string $path, string $extension): void
         }
         imagealphablending($image, false);
         imagesavealpha($image, true);
-        imagepng($image, $path, 6);
+        imagepng($image, $path, PNG_COMPRESSION);
         imagedestroy($image);
         return;
     }
@@ -323,7 +327,7 @@ function optimizeAsset(string $path, string $extension): void
         if ($image === false) {
             return;
         }
-        imagewebp($image, $path, 80);
+        imagewebp($image, $path, WEBP_QUALITY);
         imagedestroy($image);
     }
 }
