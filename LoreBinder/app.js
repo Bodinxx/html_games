@@ -1048,7 +1048,7 @@ function renderAssetsTreeNode() {
       label.className = 'name';
       label.textContent = `${asset.name} (${formatBytes(asset.size)})`;
 
-      const copy = createAssetActionButton('🔗', 'Copy link', async () => {
+      const copyButton = createAssetActionButton('🔗', 'Copy link', async () => {
         const altText = generateAltTextFromFilename(asset.name);
         const markdown = `![${altText}](${getAssetUrl(asset)})`;
         try {
@@ -1059,7 +1059,7 @@ function renderAssetsTreeNode() {
         }
       });
 
-      const rename = createAssetActionButton('✏️', 'Rename', async () => {
+      const renameButton = createAssetActionButton('✏️', 'Rename', async () => {
         const nextName = prompt('New asset filename', asset.name);
         if (!nextName) {
           return;
@@ -1067,15 +1067,15 @@ function renderAssetsTreeNode() {
         await postAssetAction('rename_asset', { oldName: asset.name, newName: nextName });
       });
 
-      const remove = createAssetActionButton('🚫', 'Delete', async () => {
+      const removeButton = createAssetActionButton('🚫', 'Delete', async () => {
         if (!confirm(`Delete ${asset.name}?`)) {
           return;
         }
         await postAssetAction('delete_asset', { filename: asset.name });
       });
-      remove.classList.add('danger');
+      removeButton.classList.add('danger');
 
-      rowItem.append(assetIcon, label, copy, rename, remove);
+      rowItem.append(assetIcon, label, copyButton, renameButton, removeButton);
       item.appendChild(rowItem);
       list.appendChild(item);
     });

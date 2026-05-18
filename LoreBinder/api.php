@@ -1315,7 +1315,8 @@ function syncProjectDocumentFiles(array $project): void
                 continue;
             }
             $type = (string) ($node['type'] ?? 'document');
-            $name = sanitizePathSegment((string) ($node['name'] ?? ''), $type === 'folder' ? 'folder' : 'document.md');
+            $nameFallback = $type === 'folder' ? 'folder' : 'document.md';
+            $name = sanitizePathSegment((string) ($node['name'] ?? ''), $nameFallback);
             if ($type === 'folder') {
                 $walk((array) ($node['children'] ?? []), [...$segments, $name]);
                 continue;
