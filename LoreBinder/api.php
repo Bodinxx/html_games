@@ -1284,7 +1284,10 @@ function ensureProjectDocumentsDir(string $projectId): string
 function sanitizePathSegment(string $value, string $fallback = 'item'): string
 {
     $segment = trim(str_replace(['\\', '/'], '_', $value));
-    $segment = preg_replace('/[^a-zA-Z0-9._ -]/', '_', $segment) ?? '';
+    $segment = preg_replace('/[^a-zA-Z0-9._ -]/', '_', $segment);
+    if ($segment === null) {
+        $segment = '';
+    }
     $segment = str_replace('..', '_', $segment);
     $segment = trim($segment, " ._\t\n\r\0\x0B");
     if ($segment === '.' || $segment === '..') {
@@ -1372,7 +1375,9 @@ function syncProjectDocumentFiles(array $project): void
         if (!is_dir($directory)) {
             mkdir($directory, STORAGE_DIR_PERMISSIONS, true);
         }
-        file_put_contents($target, $content);
+        if (file_put_contents($target, $content) === false) {
+            error_log('LoreBinder could not write document file: ' . $target);
+        }
     }
 }
 
