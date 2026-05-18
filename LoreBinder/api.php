@@ -1285,7 +1285,11 @@ function sanitizePathSegment(string $value, string $fallback = 'item'): string
 {
     $segment = trim(str_replace(['\\', '/'], '_', $value));
     $segment = preg_replace('/[^a-zA-Z0-9._ -]/', '_', $segment) ?? '';
+    $segment = str_replace('..', '_', $segment);
     $segment = trim($segment, " ._\t\n\r\0\x0B");
+    if ($segment === '.' || $segment === '..') {
+        $segment = '';
+    }
     return $segment !== '' ? $segment : $fallback;
 }
 
@@ -1355,11 +1359,11 @@ function syncProjectDocumentFiles(array $project): void
         $relative = ltrim(str_replace('\\', '/', substr($fullPath, strlen($baseDir))), '/');
         if ($entry->isFile()) {
             if (!array_key_exists($relative, $desiredFiles)) {
-                @unlink($fullPath);
+                safeUnlinkPath($fullPath);
             }
             continue;
         }
-        @rmdir($fullPath);
+        safeRemoveDirectory($fullPath);
     }
 
     foreach ($desiredFiles as $relative => $content) {
@@ -1387,11 +1391,11 @@ function deleteProjectAssets(string $projectId): void
             }
             $filePath = $path . '/' . $item;
             if (is_file($filePath)) {
-                @unlink($filePath);
+                safeUnlinkPath($filePath);
             }
         }
     }
-    @rmdir($path);
+    safeRemoveDirectory($path);
 }
 
 function deleteProjectDocuments(string $projectId): void
@@ -1411,13 +1415,33 @@ function deleteProjectDocuments(string $projectId): void
             continue;
         }
         if ($entry->isDir()) {
-            @rmdir($entry->getPathname());
+            safeRemoveDirectory($entry->getPathname());
         } else {
-            @unlink($entry->getPathname());
+            safeUnlinkPath($entry->getPathname());
         }
     }
 
-    @rmdir($path);
+    safeRemoveDirectory($path);
+}
+
+function safeUnlinkPath(string $path): void
+{
+    if ($path === '' || !is_file($path)) {
+        return;
+    }
+    if (!unlink($path)) {
+        error_log('LoreBinder could not remove file: ' . $path);
+    }
+}
+
+function safeRemoveDirectory(string $path): void
+{
+    if ($path === '' || !is_dir($path)) {
+        return;
+    }
+    if (!rmdir($path)) {
+        error_log('LoreBinder could not remove directory: ' . $path);
+    }
 }
 
 function sanitizeFilename(string $filename): string
