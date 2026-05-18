@@ -27,7 +27,7 @@ const USER_ROLE_REVIEWER = 'reviewer';
 const USER_STATUS_ACTIVE = 'active';
 const USER_STATUS_BANNED = 'banned';
 const REQUEST_STATUS_PENDING = 'pending';
-const SESSION_COOKIE_EXPIRE_PAST_SECONDS = 42000;
+const SESSION_COOKIE_EXPIRE_OFFSET_SECONDS = 42000;
 
 ensureStorage();
 
@@ -79,7 +79,7 @@ if ($action === 'logout') {
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $params = session_get_cookie_params();
-        setcookie(session_name(), '', time() - SESSION_COOKIE_EXPIRE_PAST_SECONDS,
+        setcookie(session_name(), '', time() - SESSION_COOKIE_EXPIRE_OFFSET_SECONDS,
             $params['path'], $params['domain'], $params['secure'], $params['httponly']);
     }
     session_destroy();
@@ -793,13 +793,15 @@ function usersEncryptionKey(): string
     if (!is_file(USERS_KEY_FILE)) {
         $generated = base64_encode(random_bytes(32));
         file_put_contents(USERS_KEY_FILE, $generated, LOCK_EX);
-        @chmod(USERS_KEY_FILE, 0600);
+        if (!chmod(USERS_KEY_FILE, 0600)) {
+            error_log('LoreBinder: unable to set permissions on users key file.');
+        }
     }
 
     $stored = trim((string) file_get_contents(USERS_KEY_FILE));
     $decoded = base64_decode($stored, true);
     if ($decoded === false || strlen($decoded) < 32) {
-        throw new RuntimeException('User encryption key is missing or invalid. Set ' . USERS_KEY_ENV . ' or regenerate ' . USERS_KEY_FILE . '.');
+        throw new RuntimeException('User encryption key is unavailable.');
     }
 
     return substr($decoded, 0, 32);
