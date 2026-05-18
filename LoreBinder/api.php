@@ -79,8 +79,17 @@ if ($action === 'logout') {
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $params = session_get_cookie_params();
-        setcookie(session_name(), '', time() - SESSION_COOKIE_PAST_EXPIRY_SECONDS,
-            $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+        $cookieOptions = [
+            'expires' => time() - SESSION_COOKIE_PAST_EXPIRY_SECONDS,
+            'path' => $params['path'] ?? '/',
+            'domain' => $params['domain'] ?? '',
+            'secure' => (bool) ($params['secure'] ?? false),
+            'httponly' => (bool) ($params['httponly'] ?? true),
+        ];
+        if (isset($params['samesite']) && is_string($params['samesite']) && $params['samesite'] !== '') {
+            $cookieOptions['samesite'] = $params['samesite'];
+        }
+        setcookie(session_name(), '', $cookieOptions);
     }
     session_destroy();
 
@@ -741,6 +750,9 @@ function encryptUserPayload(array $payload): string
 
     $cipher = 'aes-256-cbc';
     $ivLength = openssl_cipher_iv_length($cipher);
+    if (!is_int($ivLength) || $ivLength <= 0) {
+        throw new RuntimeException('Unable to initialize user encryption cipher.');
+    }
     $iv = random_bytes($ivLength);
 
     $encrypted = openssl_encrypt($json, $cipher, usersEncryptionKey(), OPENSSL_RAW_DATA, $iv);

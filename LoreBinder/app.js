@@ -1140,26 +1140,26 @@ function showAuthOverlay() {
     `
       <form id="login-form" class="overlay-block">
         <h3>Login</h3>
-        <label>Username</label>
-        <input name="username" required autocomplete="username" />
-        <label>Password</label>
-        <input name="password" type="password" required autocomplete="current-password" />
+        <label for="login-username">Username</label>
+        <input id="login-username" name="username" required autocomplete="username" />
+        <label for="login-password">Password</label>
+        <input id="login-password" name="password" type="password" required autocomplete="current-password" />
         <div class="overlay-actions">
           <button type="submit">Login</button>
         </div>
       </form>
       <form id="request-account-form" class="overlay-block">
         <h3>Request Account</h3>
-        <label>User Name</label>
-        <input name="username" required minlength="3" maxlength="40" />
-        <label>Real Name</label>
-        <input name="realName" required minlength="2" maxlength="80" />
-        <label>Real Email Address</label>
-        <input name="email" type="email" required maxlength="160" />
-        <label>Password</label>
-        <input name="password" type="password" required minlength="8" maxlength="120" />
-        <label>Requested Role</label>
-        <select name="role">
+        <label for="request-username">User Name</label>
+        <input id="request-username" name="username" required minlength="3" maxlength="40" />
+        <label for="request-real-name">Real Name</label>
+        <input id="request-real-name" name="realName" required minlength="2" maxlength="80" />
+        <label for="request-email">Real Email Address</label>
+        <input id="request-email" name="email" type="email" required maxlength="160" />
+        <label for="request-password">Password</label>
+        <input id="request-password" name="password" type="password" required minlength="8" maxlength="120" />
+        <label for="request-role">Requested Role</label>
+        <select id="request-role" name="role">
           <option value="sub_author">Sub-Author</option>
           <option value="primary_author">Primary Author</option>
           <option value="reviewer">Reviewer</option>
