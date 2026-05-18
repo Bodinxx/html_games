@@ -653,9 +653,9 @@ function escapeHtml(value) {
 }
 
 function stripHtml(value) {
-  const div = document.createElement('div');
-  div.innerHTML = value;
-  return div.textContent || '';
+  const parser = new DOMParser();
+  const parsed = parser.parseFromString(String(value), 'text/html');
+  return parsed.body.textContent || '';
 }
 
 function sanitizeStyle(styleText) {
