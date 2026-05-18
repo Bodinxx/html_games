@@ -1,33 +1,46 @@
 {
-  "title": "LoreBinder Project",
-  "tree": [
-    {
-      "id": "folder-chapter-1",
-      "type": "folder",
-      "name": "Chapter 1",
-      "includeInCompile": true,
-      "children": [
+    "projects": [
         {
-          "id": "node-doc-welcome",
-          "type": "document",
-          "name": "Welcome.md",
-          "docId": "doc-welcome",
-          "includeInCompile": true
+            "id": "project-welcome",
+            "ownerUserId": "user-admin",
+            "title": "LoreBinder Project",
+            "status": "active",
+            "themeKey": "dnd",
+            "tree": [
+                {
+                    "id": "folder-welcome",
+                    "type": "folder",
+                    "name": "Chapter 1",
+                    "includeInCompile": true,
+                    "children": [
+                        {
+                            "id": "node-welcome",
+                            "type": "document",
+                            "name": "Welcome.md",
+                            "includeInCompile": true,
+                            "docId": "doc-welcome"
+                        }
+                    ]
+                }
+            ],
+            "documents": {
+                "doc-welcome": {
+                    "id": "doc-welcome",
+                    "name": "Welcome.md",
+                    "content": "# LoreBinder\n\nWelcome to LoreBinder. Use the project toolbar to create multiple projects, assign a primary theme, and archive older work.\n\n## Next Steps\n- Update your shareable profile from the Profile button.\n- Adjust interface font size and colours in Preferences.\n- Build out your setting with docs, folders, and assets.\n",
+                    "updatedAt": "2026-05-18T00:00:00+00:00"
+                }
+            },
+            "openTabs": [
+                "doc-welcome"
+            ],
+            "activeDocumentId": "doc-welcome",
+            "styleCss": ".rendered-preview,\n#visual-editor {\n  background: #faf1e2;\n  color: #251913;\n  border-radius: 10px;\n  padding: 1rem;\n  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);\n}\n\n.rendered-preview h1,\n.rendered-preview h2,\n.rendered-preview h3,\n.rendered-preview h4,\n.rendered-preview h5,\n.rendered-preview h6,\n#visual-editor h1,\n#visual-editor h2,\n#visual-editor h3,\n#visual-editor h4,\n#visual-editor h5,\n#visual-editor h6 {\n  color: #8c2f1f;\n}\n\n.rendered-preview a,\n#visual-editor a,\n.rendered-preview strong,\n#visual-editor strong {\n  color: #d9b46b;\n}\n\n.rendered-preview code,\n#visual-editor code {\n  background: rgba(0, 0, 0, 0.08);\n  padding: 0.1rem 0.3rem;\n  border-radius: 4px;\n}\n\n.rendered-preview blockquote,\n#visual-editor blockquote,\n.rendered-preview .monster-stat-block,\n#visual-editor .monster-stat-block {\n  border-left: 4px solid #d9b46b;\n  background: rgba(255, 255, 255, 0.6);\n  padding: 0.75rem 1rem;\n  margin: 0.75rem 0;\n}\n\n.rendered-preview img,\n#visual-editor img {\n  max-width: 100%;\n  border-radius: 8px;\n}\n\n.rendered-preview .wrap-left img,\n#visual-editor .wrap-left img {\n  float: left;\n  max-width: 38%;\n  margin: 0 1rem 0.75rem 0;\n}",
+            "createdAt": "2026-05-18T00:00:00+00:00",
+            "updatedAt": "2026-05-18T00:00:00+00:00"
         }
-      ]
+    ],
+    "activeProjectIdByUser": {
+        "user-admin": "project-welcome"
     }
-  ],
-  "documents": {
-    "doc-welcome": {
-      "id": "doc-welcome",
-      "name": "Welcome.md",
-      "content": "[var:campaign_setting=\"The Iron Domains\"]\n\n# LoreBinder\n\nWelcome to [var:campaign_setting].\n\n::: wrap-left\n![Concept Art](assets/sample-art.webp)\n:::\n\n{{monster-stat-block,border-color:crimson\n### Fire Drake\n*Medium dragon, chaotic evil*\n}}\n",
-      "updatedAt": "2026-05-18T00:00:00+00:00"
-    }
-  },
-  "openTabs": [
-    "doc-welcome"
-  ],
-  "activeDocumentId": "doc-welcome",
-  "styleCss": ".monster-stat-block {\n  border: 2px solid #8b0000;\n  border-radius: 8px;\n  padding: 0.75rem;\n  background: rgba(255, 255, 255, 0.75);\n}\n\n.wrap-left img {\n  float: left;\n  max-width: 40%;\n  margin: 0 1rem 0.75rem 0;\n}\n"
 }
