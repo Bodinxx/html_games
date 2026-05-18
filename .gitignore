@@ -1,2 +1,5 @@
 smartftp.json
 .vscode/sftp.json
+LoreBinder/storage/users.enc
+LoreBinder/storage/users.key
+LoreBinder/storage/mail.outbox.json

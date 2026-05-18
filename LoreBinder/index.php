@@ -33,13 +33,34 @@
 
     <section class="workspace">
       <header class="topbar">
-        <input id="project-title" class="project-title" type="text" placeholder="Project title" />
-        <button id="compile-btn" type="button">Compile Book</button>
-        <button id="validate-links-btn" type="button">Check Links</button>
-        <button id="help-btn" type="button">Help</button>
-        <span id="current-user-label" class="current-user hidden"></span>
-        <button id="admin-btn" type="button" class="hidden">Admin</button>
-        <button id="logout-btn" type="button" class="hidden">Logout</button>
+        <div class="topbar-row">
+          <label class="stack-field toolbar-field">
+            <span>Projects</span>
+            <select id="project-select" class="toolbar-select"></select>
+          </label>
+          <div class="project-actions">
+            <button id="new-project-btn" type="button">+ Project</button>
+            <button id="archive-project-btn" type="button">Archive</button>
+            <button id="delete-project-btn" type="button" class="danger">Remove</button>
+          </div>
+          <label class="stack-field toolbar-field grow">
+            <span>Project Name</span>
+            <input id="project-title" class="project-title" type="text" placeholder="Project title" />
+          </label>
+          <label class="stack-field toolbar-field">
+            <span>Primary Theme</span>
+            <select id="theme-preset" class="toolbar-select"></select>
+          </label>
+        </div>
+        <div class="topbar-row secondary">
+          <button id="compile-btn" type="button">Compile Book</button>
+          <button id="validate-links-btn" type="button">Check Links</button>
+          <button id="help-btn" type="button">Help</button>
+          <span id="current-user-label" class="current-user hidden"></span>
+          <button id="profile-btn" type="button" class="hidden">Profile</button>
+          <button id="admin-btn" type="button" class="hidden">Admin</button>
+          <button id="logout-btn" type="button" class="hidden">Logout</button>
+        </div>
       </header>
 
       <nav id="doc-tabs" class="doc-tabs" aria-label="Open documents"></nav>
@@ -49,9 +70,9 @@
         <button id="mode-code" type="button">Plain Text</button>
       </div>
 
-      <section id="editor-grid" class="editor-grid">
+      <section id="editor-grid" class="editor-grid visual-mode">
         <article id="visual-editor" class="editor-pane" contenteditable="true"></article>
-        <textarea id="code-editor" class="editor-pane" spellcheck="false"></textarea>
+        <textarea id="code-editor" class="editor-pane hidden" spellcheck="false"></textarea>
         <section class="preview-pane">
           <h2>Preview</h2>
           <div id="rendered-preview" class="rendered-preview"></div>

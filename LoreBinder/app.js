@@ -1,5 +1,59 @@
+const COMMON_GAMES = [
+  'Dungeons & Dragons',
+  'Pathfinder',
+  'Call of Cthulhu',
+  'Cyberpunk RED',
+  'Star Trek Adventures',
+  'Star Wars RPG',
+  'Shadowrun',
+  'Vampire: The Masquerade',
+];
+
+const INTERFACE_THEME_STYLES = {
+  midnight: {
+    '--app-bg': '#131419',
+    '--app-panel': '#1a1d29',
+    '--app-panel-alt': '#161d31',
+    '--app-surface': '#121829',
+    '--app-border': '#33415f',
+    '--app-text': '#eff2ff',
+    '--app-text-soft': '#aebce0',
+    '--app-accent': '#5f7cc4',
+    '--app-accent-strong': '#7b97dd',
+    '--app-danger': '#5a2631',
+    '--app-danger-border': '#8e4452',
+  },
+  forest: {
+    '--app-bg': '#121711',
+    '--app-panel': '#182319',
+    '--app-panel-alt': '#1d2b20',
+    '--app-surface': '#111a13',
+    '--app-border': '#35553c',
+    '--app-text': '#edf6ef',
+    '--app-text-soft': '#adc4b2',
+    '--app-accent': '#5da46d',
+    '--app-accent-strong': '#7dc48b',
+    '--app-danger': '#5e2f2d',
+    '--app-danger-border': '#93524e',
+  },
+  ember: {
+    '--app-bg': '#1a1411',
+    '--app-panel': '#241a16',
+    '--app-panel-alt': '#2d211b',
+    '--app-surface': '#18110d',
+    '--app-border': '#5a4335',
+    '--app-text': '#fff0e8',
+    '--app-text-soft': '#d3b8aa',
+    '--app-accent': '#d97e43',
+    '--app-accent-strong': '#ef9b66',
+    '--app-danger': '#6a2c22',
+    '--app-danger-border': '#a15444',
+  },
+};
+
 const state = {
   project: null,
+  projects: [],
   assets: [],
   selectedNodeId: null,
   mode: 'visual',
@@ -8,12 +62,19 @@ const state = {
   authUser: null,
   helpHtml: '',
   overlayClosable: true,
+  themePresets: [],
+  interfaceThemes: {},
 };
 
 const ui = {
   fileTree: document.getElementById('file-tree'),
   assetList: document.getElementById('asset-list'),
   assetUpload: document.getElementById('asset-upload'),
+  projectSelect: document.getElementById('project-select'),
+  newProjectBtn: document.getElementById('new-project-btn'),
+  archiveProjectBtn: document.getElementById('archive-project-btn'),
+  deleteProjectBtn: document.getElementById('delete-project-btn'),
+  themePreset: document.getElementById('theme-preset'),
   projectTitle: document.getElementById('project-title'),
   docTabs: document.getElementById('doc-tabs'),
   editorGrid: document.getElementById('editor-grid'),
@@ -33,6 +94,7 @@ const ui = {
   deleteNodeBtn: document.getElementById('delete-node-btn'),
   helpBtn: document.getElementById('help-btn'),
   currentUserLabel: document.getElementById('current-user-label'),
+  profileBtn: document.getElementById('profile-btn'),
   adminBtn: document.getElementById('admin-btn'),
   logoutBtn: document.getElementById('logout-btn'),
   overlay: document.getElementById('overlay'),
@@ -50,13 +112,31 @@ async function bootstrap() {
   bindEvents();
   await refreshAuthState();
 
+  const params = new URLSearchParams(window.location.search);
+  const resetToken = params.get('reset');
+  const sharedProfile = params.get('profile');
+
+  if (resetToken) {
+    setWorkspaceEnabled(false);
+    showPasswordResetOverlay(resetToken);
+    return;
+  }
+
   if (!state.authUser) {
     setWorkspaceEnabled(false);
+    if (sharedProfile) {
+      await showPublicProfileOverlay(sharedProfile, false);
+      return;
+    }
     showAuthOverlay();
     return;
   }
 
   await loadProjectState();
+
+  if (sharedProfile) {
+    await showPublicProfileOverlay(sharedProfile, true);
+  }
 }
 
 function bindEvents() {
@@ -65,6 +145,46 @@ function bindEvents() {
       return;
     }
     state.project.title = ui.projectTitle.value;
+    markDirty();
+  });
+
+  ui.projectSelect.addEventListener('change', async () => {
+    const nextProjectId = ui.projectSelect.value;
+    if (!nextProjectId || nextProjectId === state.project?.id) {
+      return;
+    }
+    await switchProject(nextProjectId);
+  });
+
+  ui.newProjectBtn.addEventListener('click', () => showCreateProjectOverlay());
+  ui.archiveProjectBtn.addEventListener('click', () => toggleArchiveProject());
+  ui.deleteProjectBtn.addEventListener('click', () => removeCurrentProject());
+
+  ui.themePreset.addEventListener('change', () => {
+    if (!state.project) {
+      return;
+    }
+
+    const selectedPreset = getThemePreset(ui.themePreset.value);
+    if (!selectedPreset || selectedPreset.key === state.project.themeKey) {
+      return;
+    }
+
+    const currentPreset = getThemePreset(state.project.themeKey);
+    const currentCss = (state.project.styleCss || '').trim();
+    const defaultCss = (currentPreset?.css || '').trim();
+    const hasCustomCss = currentCss !== '' && currentCss !== defaultCss;
+    const shouldReplace = !hasCustomCss || window.confirm('Applying a new primary theme replaces the current project CSS overrides. Continue?');
+    if (!shouldReplace) {
+      ui.themePreset.value = state.project.themeKey || '';
+      return;
+    }
+
+    state.project.themeKey = selectedPreset.key;
+    state.project.styleCss = selectedPreset.css;
+    ui.cssEditor.value = state.project.styleCss;
+    applyProjectCss();
+    refreshPreview();
     markDirty();
   });
 
@@ -90,6 +210,7 @@ function bindEvents() {
     }
     state.project.styleCss = ui.cssEditor.value;
     applyProjectCss();
+    refreshPreview();
     markDirty();
   });
 
@@ -117,11 +238,17 @@ function bindEvents() {
   ui.deleteNodeBtn.addEventListener('click', deleteSelectedNode);
 
   ui.assetUpload.addEventListener('change', uploadAsset);
-
   ui.helpBtn.addEventListener('click', () => {
     showHelpOverlay().catch((error) => {
       console.error(error);
       alert(error.message || 'Unable to open help.');
+    });
+  });
+
+  ui.profileBtn.addEventListener('click', () => {
+    showProfileOverlay().catch((error) => {
+      console.error(error);
+      alert(error.message || 'Unable to open profile settings.');
     });
   });
 
@@ -158,37 +285,45 @@ function bindEvents() {
 
 async function refreshAuthState() {
   try {
-    const payload = await apiRequest('auth_state');
+    const payload = await apiRequest('auth_state', {}, false);
     state.authUser = payload.user || null;
+    state.themePresets = payload.themePresets || [];
+    state.interfaceThemes = payload.interfaceThemes || {};
   } catch (error) {
     state.authUser = null;
   }
   renderAuthControls();
+  applyInterfacePreferences();
 }
 
 async function loadProjectState() {
   const payload = await apiRequest('state');
-  state.project = payload.project;
+  applyStatePayload(payload);
+  state.selectedNodeId = null;
+  renderAll();
+  setWorkspaceEnabled(Boolean(state.project));
+}
+
+function applyStatePayload(payload) {
+  state.project = payload.project || null;
+  state.projects = payload.projects || [];
   state.assets = payload.assets || [];
   state.authUser = payload.user || state.authUser;
-
-  if (!state.project.activeDocumentId) {
-    const firstDoc = collectDocumentNodes(state.project.tree)[0];
-    if (firstDoc) {
-      state.project.activeDocumentId = firstDoc.docId;
-      state.project.openTabs = [firstDoc.docId];
-    }
-  }
-
+  state.themePresets = payload.themePresets || state.themePresets;
+  state.interfaceThemes = payload.interfaceThemes || state.interfaceThemes;
   renderAuthControls();
-  renderAll();
-  setWorkspaceEnabled(true);
+  applyInterfacePreferences();
 }
 
 function setWorkspaceEnabled(enabled) {
   const controls = [
     ui.fileTree,
     ui.assetUpload,
+    ui.projectSelect,
+    ui.newProjectBtn,
+    ui.archiveProjectBtn,
+    ui.deleteProjectBtn,
+    ui.themePreset,
     ui.projectTitle,
     ui.docTabs,
     ui.visualEditor,
@@ -217,8 +352,10 @@ function setWorkspaceEnabled(enabled) {
   ui.codeEditor.readOnly = !enabled;
   ui.cssEditor.readOnly = !enabled;
 
-  if (!enabled) {
+  if (!enabled && !state.authUser) {
     ui.saveStatus.textContent = 'Login required.';
+  } else if (!enabled) {
+    ui.saveStatus.textContent = 'Create a project to begin.';
   }
 }
 
@@ -226,18 +363,27 @@ function renderAuthControls() {
   if (!state.authUser) {
     ui.currentUserLabel.classList.add('hidden');
     ui.currentUserLabel.textContent = '';
+    ui.profileBtn.classList.add('hidden');
     ui.adminBtn.classList.add('hidden');
     ui.logoutBtn.classList.add('hidden');
     return;
   }
 
+  const displayName = state.authUser.realName ? `${state.authUser.username} • ${state.authUser.realName}` : state.authUser.username;
   ui.currentUserLabel.classList.remove('hidden');
-  ui.currentUserLabel.textContent = `${state.authUser.username} (${state.authUser.role})`;
+  ui.currentUserLabel.textContent = `${displayName} (${state.authUser.role})`;
+  ui.profileBtn.classList.remove('hidden');
   ui.logoutBtn.classList.remove('hidden');
   ui.adminBtn.classList.toggle('hidden', state.authUser.role !== 'admin');
 }
 
 function renderAll() {
+  renderProjectControls();
+  if (!state.project) {
+    clearWorkspace();
+    return;
+  }
+
   ui.projectTitle.value = state.project.title || '';
   ui.cssEditor.value = state.project.styleCss || '';
   applyProjectCss();
@@ -247,6 +393,69 @@ function renderAll() {
   syncEditorFromActiveDocument();
   setMode(state.mode);
   refreshPreview();
+  ui.saveStatus.textContent = state.isDirty ? '○ Editing...' : '● Saved';
+}
+
+function clearWorkspace() {
+  ui.projectTitle.value = '';
+  ui.cssEditor.value = '';
+  ui.fileTree.innerHTML = '<li class="empty-state">No project selected.</li>';
+  ui.docTabs.innerHTML = '';
+  ui.assetList.innerHTML = '<li class="empty-state">No project assets yet.</li>';
+  ui.codeEditor.value = '';
+  ui.visualEditor.textContent = '';
+  ui.renderedPreview.innerHTML = '<p class="empty-state">Create a project to start writing.</p>';
+  ui.compileOutput.textContent = 'Create or switch to a project to compile.';
+  const styleTag = document.getElementById('project-style-overrides');
+  if (styleTag) {
+    styleTag.textContent = '';
+  }
+}
+
+function renderProjectControls() {
+  ui.projectSelect.innerHTML = '';
+  const activeProjects = state.projects.filter((project) => project.status !== 'archived');
+  const archivedProjects = state.projects.filter((project) => project.status === 'archived');
+
+  const appendProjectOptions = (label, projects) => {
+    if (!projects.length) {
+      return;
+    }
+    const group = document.createElement('optgroup');
+    group.label = label;
+    projects.forEach((project) => {
+      const option = document.createElement('option');
+      option.value = project.id;
+      option.textContent = `${project.title} • ${themeLabel(project.themeKey)}`;
+      group.appendChild(option);
+    });
+    ui.projectSelect.appendChild(group);
+  };
+
+  appendProjectOptions('Active Projects', activeProjects);
+  appendProjectOptions('Archived Projects', archivedProjects);
+
+  if (state.project) {
+    ui.projectSelect.value = state.project.id;
+    ui.archiveProjectBtn.textContent = state.project.status === 'archived' ? 'Restore' : 'Archive';
+    ui.themePreset.innerHTML = state.themePresets
+      .map((preset) => `<option value="${escapeHtml(preset.key)}">${escapeHtml(preset.label)}</option>`)
+      .join('');
+    ui.themePreset.value = state.project.themeKey || '';
+  } else {
+    ui.archiveProjectBtn.textContent = 'Archive';
+    ui.themePreset.innerHTML = state.themePresets
+      .map((preset) => `<option value="${escapeHtml(preset.key)}">${escapeHtml(preset.label)}</option>`)
+      .join('');
+  }
+}
+
+function themeLabel(key) {
+  return getThemePreset(key)?.label || key || 'Theme';
+}
+
+function getThemePreset(key) {
+  return state.themePresets.find((preset) => preset.key === key) || null;
 }
 
 function setMode(mode) {
@@ -344,7 +553,6 @@ function deleteSelectedNode() {
   }
 
   hit.container.splice(hit.index, 1);
-
   if (hit.node.type === 'document' && hit.node.docId) {
     delete state.project.documents[hit.node.docId];
     state.project.openTabs = state.project.openTabs.filter((id) => id !== hit.node.docId);
@@ -363,6 +571,10 @@ function deleteSelectedNode() {
 
 function renderTree() {
   ui.fileTree.innerHTML = '';
+  if (!state.project?.tree?.length) {
+    ui.fileTree.innerHTML = '<li class="empty-state">No documents yet.</li>';
+    return;
+  }
 
   state.project.tree.forEach((node) => {
     ui.fileTree.appendChild(renderTreeNode(node));
@@ -446,7 +658,6 @@ function moveNode(draggedId, targetId) {
   }
 
   dragged.container.splice(dragged.index, 1);
-
   if (target.node.type === 'folder') {
     target.node.children = target.node.children || [];
     target.node.children.push(dragged.node);
@@ -460,6 +671,10 @@ function moveNode(draggedId, targetId) {
 
 function renderDocTabs() {
   ui.docTabs.innerHTML = '';
+  if (!state.project) {
+    return;
+  }
+
   state.project.openTabs.forEach((docId) => {
     const doc = state.project.documents[docId];
     if (!doc) {
@@ -537,27 +752,11 @@ function syncEditorFromActiveDocument() {
 }
 
 function getActiveDocument() {
-  const docId = state.project.activeDocumentId;
+  const docId = state.project?.activeDocumentId;
   if (!docId) {
     return null;
   }
   return state.project.documents[docId] || null;
-}
-
-function collectDocumentNodes(tree) {
-  const result = [];
-  const walk = (nodes) => {
-    nodes.forEach((node) => {
-      if (node.type === 'document' && node.docId) {
-        result.push(node);
-      }
-      if (node.type === 'folder' && Array.isArray(node.children)) {
-        walk(node.children);
-      }
-    });
-  };
-  walk(tree || []);
-  return result;
 }
 
 function containsNodeId(rootNode, targetId) {
@@ -581,7 +780,7 @@ function findNodeAndParent(nodes, targetId, container = null) {
   for (let index = 0; index < nodes.length; index += 1) {
     const node = nodes[index];
     if (node.id === targetId) {
-      return { node, parent: null, container: container || nodes, index };
+      return { node, container: container || nodes, index };
     }
     if (node.type === 'folder' && Array.isArray(node.children)) {
       const found = findNodeAndParent(node.children, targetId, node.children);
@@ -602,9 +801,7 @@ function refreshPreview() {
 
 function compileProject() {
   const chunks = [];
-  const docs = orderedIncludedDocuments();
-
-  docs.forEach((doc) => {
+  orderedIncludedDocuments().forEach((doc) => {
     const rendered = renderMarkdown(doc.content || '');
     chunks.push(`# ${doc.name}\n\n${stripHtml(rendered.html)}`);
   });
@@ -635,7 +832,7 @@ function orderedIncludedDocuments() {
     });
   };
 
-  walk(state.project.tree, true);
+  walk(state.project?.tree || [], true);
   return list;
 }
 
@@ -649,10 +846,8 @@ function validateProjectLinks() {
   });
 
   const issues = [];
-
   docs.forEach((doc) => {
-    const links = extractMarkdownLinks(doc.content || '');
-    links.forEach((href) => {
+    extractMarkdownLinks(doc.content || '').forEach((href) => {
       if (href.startsWith('#')) {
         const localAnchor = href.slice(1);
         if (localAnchor && !anchorsByDoc.get(doc.id)?.has(localAnchor)) {
@@ -704,7 +899,6 @@ function extractAnchors(markdown) {
 
 function renderMarkdown(markdown) {
   let text = markdown || '';
-
   const variables = {};
   text = text.replace(/^\[var:([a-zA-Z0-9_\-]+)="([^"]*)"\]\s*$/gm, (_, key, value) => {
     variables[key] = value;
@@ -812,11 +1006,9 @@ function renderInlineMarkdown(text) {
 
   out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
     const safeSrc = sanitizeImageSrc(src);
-    if (!safeSrc) {
-      return '';
-    }
-    return `<img src="${safeSrc}" alt="${escapeHtml(alt)}" />`;
+    return safeSrc ? `<img src="${safeSrc}" alt="${escapeHtml(alt)}" />` : '';
   });
+
   out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
     const safeHref = sanitizeHref(href);
     if (!safeHref) {
@@ -825,10 +1017,10 @@ function renderInlineMarkdown(text) {
     const isExternal = /^https?:\/\//i.test(safeHref);
     return `<a href="${safeHref}"${isExternal ? ' target="_blank" rel="noopener noreferrer"' : ''}>${escapeHtml(label)}</a>`;
   });
+
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
-
   return out;
 }
 
@@ -849,37 +1041,11 @@ function stripHtml(value) {
 
 function sanitizeStyle(styleText) {
   const allowedProperties = new Set([
-    'background',
-    'background-color',
-    'border',
-    'border-color',
-    'border-radius',
-    'box-shadow',
-    'color',
-    'display',
-    'float',
-    'font-size',
-    'font-style',
-    'font-weight',
-    'height',
-    'line-height',
-    'margin',
-    'margin-top',
-    'margin-right',
-    'margin-bottom',
-    'margin-left',
-    'max-height',
-    'max-width',
-    'min-height',
-    'min-width',
-    'opacity',
-    'padding',
-    'padding-top',
-    'padding-right',
-    'padding-bottom',
-    'padding-left',
-    'text-align',
-    'width',
+    'background', 'background-color', 'border', 'border-color', 'border-radius', 'box-shadow',
+    'color', 'display', 'float', 'font-size', 'font-style', 'font-weight', 'height', 'line-height',
+    'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'max-height', 'max-width',
+    'min-height', 'min-width', 'opacity', 'padding', 'padding-top', 'padding-right', 'padding-bottom',
+    'padding-left', 'text-align', 'width',
   ]);
 
   return styleText
@@ -933,7 +1099,7 @@ function sanitizeImageSrc(value) {
   if (/^(https?:\/\/)/i.test(src)) {
     return escapeHtml(src);
   }
-  if (/^(assets\/|\.{0,2}\/|[a-zA-Z0-9._/-]+$)/.test(src)) {
+  if (/^(assets\/|storage\/assets\/|\.{0,2}\/|[a-zA-Z0-9._/-]+$)/.test(src)) {
     return escapeHtml(src);
   }
   return '';
@@ -958,14 +1124,36 @@ function applyProjectCss() {
   styleTag.textContent = state.project?.styleCss || '';
 }
 
+function cleanupProjectBackup(projectId) {
+  if (!projectId) {
+    return;
+  }
+  try {
+    localStorage.removeItem(`lorebinder-backup-${projectId}`);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function applyInterfacePreferences() {
+  const preferences = state.authUser?.preferences || {};
+  const themeKey = preferences.interfaceTheme || 'midnight';
+  const theme = INTERFACE_THEME_STYLES[themeKey] || INTERFACE_THEME_STYLES.midnight;
+  Object.entries(theme).forEach(([variable, value]) => {
+    document.documentElement.style.setProperty(variable, value);
+  });
+  document.documentElement.style.setProperty('--font-scale', String(preferences.fontScale || 1));
+}
+
 async function uploadAsset() {
   const file = ui.assetUpload.files?.[0];
-  if (!file) {
+  if (!file || !state.project) {
     return;
   }
 
   const form = new FormData();
   form.append('asset', file);
+  form.append('projectId', state.project.id);
 
   const response = await fetch('api.php?action=upload_asset', {
     method: 'POST',
@@ -978,7 +1166,6 @@ async function uploadAsset() {
   }
 
   const payload = await response.json();
-
   if (!response.ok) {
     alert(payload.error || 'Asset upload failed.');
     return;
@@ -991,6 +1178,10 @@ async function uploadAsset() {
 
 function renderAssets() {
   ui.assetList.innerHTML = '';
+  if (!state.assets.length) {
+    ui.assetList.innerHTML = '<li class="empty-state">No assets uploaded for this project.</li>';
+    return;
+  }
 
   state.assets.forEach((asset) => {
     const li = document.createElement('li');
@@ -1006,8 +1197,14 @@ function renderAssets() {
     copy.type = 'button';
     copy.textContent = 'Copy Link';
     copy.addEventListener('click', async () => {
-      const markdown = `![Alt Text](assets/${asset.name})`;
-      await navigator.clipboard.writeText(markdown);
+      const altText = generateAltTextFromFilename(asset.name);
+      const markdown = `![${altText}](storage/assets/${state.project.id}/${asset.name})`;
+      try {
+        await navigator.clipboard.writeText(markdown);
+      } catch (error) {
+        console.error(error);
+        alert('Could not copy the asset markdown link.');
+      }
     });
 
     const rename = document.createElement('button');
@@ -1042,7 +1239,7 @@ async function postAssetAction(action, body) {
   const payload = await apiRequest(action, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, projectId: state.project?.id || '' }),
   });
 
   state.assets = payload.assets || [];
@@ -1050,7 +1247,7 @@ async function postAssetAction(action, body) {
 }
 
 function markDirty() {
-  if (!state.authUser) {
+  if (!state.authUser || !state.project) {
     return;
   }
 
@@ -1066,7 +1263,7 @@ function markDirty() {
       console.error(error);
       ui.saveStatus.textContent = '⚠ Save failed. Keeping local draft.';
       try {
-        localStorage.setItem('lorebinder-backup', JSON.stringify(state.project));
+        localStorage.setItem(`lorebinder-backup-${state.project.id}`, JSON.stringify(state.project));
       } catch (storageError) {
         console.error(storageError);
         ui.saveStatus.textContent = '⚠ Save failed and local backup could not be written.';
@@ -1076,30 +1273,87 @@ function markDirty() {
 }
 
 async function saveState() {
-  if (!state.isDirty) {
+  if (!state.isDirty || !state.project) {
     return;
   }
 
   ui.saveStatus.textContent = '↻ Autosaving...';
-
   const payload = await apiRequest('save_state', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ project: state.project }),
   });
 
-  if (!payload.ok) {
-    throw new Error(payload.error || 'Save request failed.');
-  }
-
+  applyStatePayload(payload);
   state.isDirty = false;
+  cleanupProjectBackup(state.project?.id);
   ui.saveStatus.textContent = '● Saved';
+  renderProjectControls();
 }
 
-async function apiRequest(action, options = {}) {
+async function switchProject(projectId) {
+  if (state.isDirty) {
+    await saveState();
+  }
+
+  const payload = await apiRequest('switch_project', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId }),
+  });
+
+  state.isDirty = false;
+  applyStatePayload(payload);
+  state.selectedNodeId = null;
+  renderAll();
+}
+
+async function toggleArchiveProject() {
+  if (!state.project) {
+    return;
+  }
+
+  if (state.isDirty) {
+    await saveState();
+  }
+
+  const payload = await apiRequest('archive_project', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId: state.project.id }),
+  });
+
+  applyStatePayload(payload);
+  state.isDirty = false;
+  renderAll();
+}
+
+async function removeCurrentProject() {
+  if (!state.project) {
+    return;
+  }
+  if (!confirm(`Delete project "${state.project.title}"? This also removes its assets.`)) {
+    return;
+  }
+
+  const deletedProjectId = state.project.id;
+  const payload = await apiRequest('delete_project', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId: state.project.id }),
+  });
+
+  cleanupProjectBackup(deletedProjectId);
+  applyStatePayload(payload);
+  state.isDirty = false;
+  state.selectedNodeId = null;
+  renderAll();
+}
+
+async function apiRequest(action, options = {}, handle401 = true) {
   const response = await fetch(`api.php?action=${encodeURIComponent(action)}`, options);
 
-  if (response.status === 401) {
+  if (response.status === 401 && handle401) {
     await handleUnauthorized();
     throw new Error('Login required.');
   }
@@ -1114,8 +1368,13 @@ async function apiRequest(action, options = {}) {
 
 async function handleUnauthorized() {
   state.authUser = null;
+  state.project = null;
+  state.projects = [];
+  state.assets = [];
   renderAuthControls();
+  applyInterfacePreferences();
   setWorkspaceEnabled(false);
+  clearWorkspace();
   showAuthOverlay();
 }
 
@@ -1154,7 +1413,7 @@ function showAuthOverlay() {
         <input id="request-username" name="username" required minlength="3" maxlength="40" />
         <label for="request-real-name">Real Name</label>
         <input id="request-real-name" name="realName" required minlength="2" maxlength="80" />
-        <label for="request-email">Real Email Address</label>
+        <label for="request-email">Email Address</label>
         <input id="request-email" name="email" type="email" required maxlength="160" />
         <label for="request-password">Password</label>
         <input id="request-password" name="password" type="password" required minlength="8" maxlength="120" />
@@ -1168,12 +1427,22 @@ function showAuthOverlay() {
           <button type="submit">Submit Account Request</button>
         </div>
       </form>
+      <form id="forgot-password-form" class="overlay-block">
+        <h3>Password Reset Email</h3>
+        <p class="form-hint">Request a reset link for the email address on file.</p>
+        <label for="forgot-password-email">Email Address</label>
+        <input id="forgot-password-email" name="email" type="email" required maxlength="160" />
+        <div class="overlay-actions">
+          <button type="submit">Send Reset Email</button>
+        </div>
+      </form>
     `,
     false,
   );
 
   const loginForm = document.getElementById('login-form');
   const requestForm = document.getElementById('request-account-form');
+  const forgotForm = document.getElementById('forgot-password-form');
 
   loginForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -1187,12 +1456,12 @@ function showAuthOverlay() {
           username: String(formData.get('username') || ''),
           password: String(formData.get('password') || ''),
         }),
-      });
+      }, false);
 
       state.authUser = payload.user || null;
       renderAuthControls();
+      applyInterfacePreferences();
       closeOverlay();
-      setWorkspaceEnabled(true);
       await loadProjectState();
     } catch (error) {
       alert(error.message || 'Login failed.');
@@ -1214,7 +1483,7 @@ function showAuthOverlay() {
           password: String(formData.get('password') || ''),
           role: String(formData.get('role') || 'sub_author'),
         }),
-      });
+      }, false);
 
       alert('Account request submitted. An admin must approve it.');
       requestForm.reset();
@@ -1222,16 +1491,308 @@ function showAuthOverlay() {
       alert(error.message || 'Account request failed.');
     }
   });
+
+  forgotForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(forgotForm);
+
+    try {
+      await apiRequest('request_password_reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: String(formData.get('email') || '') }),
+      }, false);
+      alert('If that email address exists, a password reset message has been queued.');
+      forgotForm.reset();
+    } catch (error) {
+      alert(error.message || 'Password reset request failed.');
+    }
+  });
+}
+
+function showPasswordResetOverlay(token) {
+  openOverlay(
+    'Reset Password',
+    `
+      <form id="password-reset-form" class="overlay-block">
+        <p class="form-hint">Choose a new password for your LoreBinder account.</p>
+        <label for="reset-password">New Password</label>
+        <input id="reset-password" name="password" type="password" required minlength="8" maxlength="120" />
+        <label for="reset-password-confirm">Confirm Password</label>
+        <input id="reset-password-confirm" name="passwordConfirm" type="password" required minlength="8" maxlength="120" />
+        <div class="overlay-actions">
+          <button type="submit">Update Password</button>
+          <button id="reset-back-to-login" type="button">Back to Login</button>
+        </div>
+      </form>
+    `,
+    true,
+  );
+
+  const form = document.getElementById('password-reset-form');
+  const backButton = document.getElementById('reset-back-to-login');
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const password = String(formData.get('password') || '');
+    const passwordConfirm = String(formData.get('passwordConfirm') || '');
+
+    if (password !== passwordConfirm) {
+      alert('Passwords must match.');
+      return;
+    }
+
+    try {
+      await apiRequest('complete_password_reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+      }, false);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      alert('Password updated. You can now sign in.');
+      showAuthOverlay();
+    } catch (error) {
+      alert(error.message || 'Could not complete password reset.');
+    }
+  });
+
+  backButton?.addEventListener('click', () => {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    showAuthOverlay();
+  });
 }
 
 async function logout() {
-  await apiRequest('logout', { method: 'POST' });
+  await apiRequest('logout', { method: 'POST' }, false);
   state.authUser = null;
   state.project = null;
+  state.projects = [];
   state.assets = [];
+  state.isDirty = false;
   renderAuthControls();
+  applyInterfacePreferences();
   setWorkspaceEnabled(false);
+  clearWorkspace();
   showAuthOverlay();
+}
+
+function showCreateProjectOverlay() {
+  openOverlay(
+    'Create Project',
+    `
+      <form id="create-project-form" class="overlay-block">
+        <label for="create-project-title">Project Name</label>
+        <input id="create-project-title" name="title" required maxlength="120" />
+        <label for="create-project-theme">Primary Theme</label>
+        <select id="create-project-theme" name="themeKey">
+          ${state.themePresets.map((preset) => `<option value="${escapeHtml(preset.key)}">${escapeHtml(preset.label)}</option>`).join('')}
+        </select>
+        <div class="overlay-actions">
+          <button type="submit">Create Project</button>
+        </div>
+      </form>
+    `,
+    true,
+  );
+
+  const form = document.getElementById('create-project-form');
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+
+    try {
+      const payload = await apiRequest('create_project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: String(formData.get('title') || ''),
+          themeKey: String(formData.get('themeKey') || ''),
+        }),
+      });
+
+      applyStatePayload(payload);
+      state.isDirty = false;
+      state.selectedNodeId = null;
+      closeOverlay();
+      renderAll();
+      setWorkspaceEnabled(true);
+    } catch (error) {
+      alert(error.message || 'Could not create project.');
+    }
+  });
+}
+
+async function showProfileOverlay() {
+  if (!state.authUser) {
+    return;
+  }
+
+  const profile = state.authUser.profile || { aboutMe: '', website: '', gamesPlayed: [] };
+  const selectedGames = Array.isArray(profile.gamesPlayed) ? profile.gamesPlayed : [];
+  const preferences = state.authUser.preferences || { fontScale: 1, interfaceTheme: 'midnight' };
+  const ownedProjects = state.projects || [];
+  const shareLink = `${window.location.origin}${window.location.pathname}?profile=${encodeURIComponent(state.authUser.username)}`;
+
+  openOverlay(
+    'Profile & Preferences',
+    `
+      <div class="overlay-block">
+        <h3>Shareable Profile</h3>
+        <p class="form-hint">Share this link with other LoreBinder users or readers.</p>
+        <div class="overlay-actions">
+          <input id="profile-share-link" value="${escapeHtml(shareLink)}" readonly />
+          <button id="copy-profile-link" type="button">Copy Link</button>
+        </div>
+      </div>
+      <form id="profile-form" class="overlay-block">
+        <h3>Public Profile</h3>
+        <p><strong>User Name:</strong> ${escapeHtml(state.authUser.username)}</p>
+        <p><strong>Projects Involved With:</strong> ${ownedProjects.length ? ownedProjects.map((project) => escapeHtml(project.title)).join(', ') : 'None yet'}</p>
+        <fieldset class="profile-games-grid">
+          <legend>Games Played</legend>
+          ${COMMON_GAMES.map((game) => `
+            <label class="checkbox-row">
+              <input type="checkbox" name="gamesPlayed" value="${escapeHtml(game)}" ${selectedGames.includes(game) ? 'checked' : ''} />
+              <span>${escapeHtml(game)}</span>
+            </label>
+          `).join('')}
+        </fieldset>
+        <label for="profile-games-custom">Other Games (comma separated)</label>
+        <input id="profile-games-custom" name="gamesCustom" value="${escapeHtml(selectedGames.filter((game) => !COMMON_GAMES.includes(game)).join(', '))}" />
+        <label for="profile-about">About Me</label>
+        <textarea id="profile-about" name="aboutMe" rows="5" maxlength="800">${escapeHtml(profile.aboutMe || '')}</textarea>
+        <label for="profile-website">Website Link</label>
+        <input id="profile-website" name="website" type="url" value="${escapeHtml(profile.website || '')}" />
+        <div class="overlay-actions">
+          <button type="submit">Save Profile</button>
+        </div>
+      </form>
+      <form id="preferences-form" class="overlay-block">
+        <h3>Main Interface Preferences</h3>
+        <label for="pref-font-scale">Main Font Size</label>
+        <input id="pref-font-scale" name="fontScale" type="range" min="0.85" max="1.4" step="0.05" value="${escapeHtml(String(preferences.fontScale || 1))}" />
+        <p class="form-hint">Current scale: <span id="font-scale-value">${escapeHtml(String(preferences.fontScale || 1))}</span>x</p>
+        <label for="pref-interface-theme">Interface Colours</label>
+        <select id="pref-interface-theme" name="interfaceTheme">
+          ${Object.entries(state.interfaceThemes).map(([key, label]) => `<option value="${escapeHtml(key)}" ${preferences.interfaceTheme === key ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}
+        </select>
+        <div class="overlay-actions">
+          <button type="submit">Save Preferences</button>
+        </div>
+      </form>
+      <div class="overlay-block">
+        <h3>Security</h3>
+        <p class="form-hint">Need to change your password? Request a reset email at the address on record: <strong>${escapeHtml(state.authUser.email || 'No email on file')}</strong>.</p>
+        <div class="overlay-actions">
+          <button id="request-current-password-reset" type="button">Email Me a Reset Link</button>
+        </div>
+      </div>
+    `,
+    true,
+  );
+
+  document.getElementById('copy-profile-link')?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+    } catch (error) {
+      console.error(error);
+      alert('Could not copy the profile link.');
+    }
+  });
+
+  document.getElementById('pref-font-scale')?.addEventListener('input', (event) => {
+    const fontScaleValue = event.target.value;
+    const label = document.getElementById('font-scale-value');
+    if (label) {
+      label.textContent = fontScaleValue;
+    }
+  });
+
+  document.getElementById('profile-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const games = formData.getAll('gamesPlayed').map(String);
+    const customGames = String(formData.get('gamesCustom') || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    try {
+      const payload = await apiRequest('update_profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          aboutMe: String(formData.get('aboutMe') || ''),
+          website: String(formData.get('website') || ''),
+          gamesPlayed: [...new Set([...games, ...customGames])],
+        }),
+      });
+      state.authUser = payload.user || state.authUser;
+      renderAuthControls();
+      alert('Profile saved.');
+      await showProfileOverlay();
+    } catch (error) {
+      alert(error.message || 'Unable to save profile.');
+    }
+  });
+
+  document.getElementById('preferences-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+
+    try {
+      const payload = await apiRequest('update_preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fontScale: Number(formData.get('fontScale') || 1),
+          interfaceTheme: String(formData.get('interfaceTheme') || 'midnight'),
+        }),
+      });
+      state.authUser = payload.user || state.authUser;
+      renderAuthControls();
+      applyInterfacePreferences();
+      alert('Preferences saved.');
+    } catch (error) {
+      alert(error.message || 'Unable to save preferences.');
+    }
+  });
+
+  document.getElementById('request-current-password-reset')?.addEventListener('click', async () => {
+    try {
+      await apiRequest('request_password_reset_current', { method: 'POST' });
+      alert('A password reset message has been queued for your account email.');
+    } catch (error) {
+      alert(error.message || 'Unable to queue password reset.');
+    }
+  });
+}
+
+async function showPublicProfileOverlay(username, loggedIn) {
+  const response = await fetch(`api.php?action=public_profile&username=${encodeURIComponent(username)}`);
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || 'Unable to load profile.');
+  }
+
+  const profile = payload.profile || {};
+  openOverlay(
+    `${profile.username || username} Profile`,
+    `
+      <div class="overlay-block public-profile">
+        <p><strong>User Name:</strong> ${escapeHtml(profile.username || username)}</p>
+        <p><strong>Games Played:</strong> ${(profile.gamesPlayed || []).length ? profile.gamesPlayed.map(escapeHtml).join(', ') : 'No games listed yet.'}</p>
+        <p><strong>Projects Involved With:</strong> ${(profile.projects || []).length ? profile.projects.map((project) => `${escapeHtml(project.title)} (${escapeHtml(project.status)})`).join(', ') : 'No projects listed yet.'}</p>
+        <p><strong>About Me:</strong> ${escapeHtml(profile.aboutMe || 'No bio provided yet.')}</p>
+        <p><strong>Website:</strong> ${profile.website ? `<a href="${escapeHtml(profile.website)}" target="_blank" rel="noopener noreferrer">${escapeHtml(profile.website)}</a>` : 'No website listed.'}</p>
+        ${loggedIn ? '' : '<div class="overlay-actions"><button id="shared-profile-login" type="button">Sign In</button></div>'}
+      </div>
+    `,
+    true,
+  );
+
+  document.getElementById('shared-profile-login')?.addEventListener('click', () => showAuthOverlay());
 }
 
 async function showAdminOverlay() {
@@ -1240,51 +1801,66 @@ async function showAdminOverlay() {
     return;
   }
 
-  const [usersPayload, requestsPayload] = await Promise.all([
+  const [usersPayload, requestsPayload, projectsPayload] = await Promise.all([
     apiRequest('admin_list_users'),
     apiRequest('admin_list_requests'),
+    apiRequest('admin_list_projects'),
   ]);
 
   const users = usersPayload.users || [];
   const requests = requestsPayload.requests || [];
-  const currentAdminId = state.authUser?.id || '';
+  const projects = projectsPayload.projects || [];
+  const currentAdminId = state.authUser.id || '';
 
   openOverlay(
     'Admin Console',
     `
-      <div class="overlay-block">
-        <h3>Pending Account Requests</h3>
-        <ul class="admin-list" id="admin-requests-list"></ul>
+      <div class="overlay-tabs" id="admin-tabs">
+        <button class="overlay-tab active" data-panel="admin-requests-panel" type="button">Requests</button>
+        <button class="overlay-tab" data-panel="admin-users-panel" type="button">Users</button>
+        <button class="overlay-tab" data-panel="admin-projects-panel" type="button">Projects</button>
       </div>
-      <div class="overlay-block">
-        <h3>Users</h3>
-        <ul class="admin-list" id="admin-users-list"></ul>
-      </div>
-      <div class="overlay-block">
-        <h3>Project Administration</h3>
-        <p>Delete project content and assets (cannot be undone).</p>
-        <div class="overlay-actions">
-          <button id="admin-delete-project-btn" class="danger" type="button">Delete Project Content</button>
+      <section id="admin-requests-panel" class="overlay-panel active">
+        <div class="overlay-block">
+          <h3>Pending Account Requests</h3>
+          <ul class="admin-list" id="admin-requests-list"></ul>
         </div>
-      </div>
+      </section>
+      <section id="admin-users-panel" class="overlay-panel">
+        <div class="overlay-block">
+          <h3>Users</h3>
+          <ul class="admin-list" id="admin-users-list"></ul>
+        </div>
+      </section>
+      <section id="admin-projects-panel" class="overlay-panel">
+        <div class="overlay-block">
+          <h3>Projects</h3>
+          <ul class="admin-list" id="admin-projects-list"></ul>
+        </div>
+      </section>
     `,
     true,
   );
 
+  bindOverlayTabs();
+
   const requestsList = document.getElementById('admin-requests-list');
   const usersList = document.getElementById('admin-users-list');
+  const projectsList = document.getElementById('admin-projects-list');
 
-  if (requests.length === 0) {
-    const li = document.createElement('li');
-    li.textContent = 'No pending account requests.';
-    requestsList?.appendChild(li);
+  if (!requests.length) {
+    requestsList.innerHTML = '<li class="empty-state">No pending account requests.</li>';
   } else {
     requests.forEach((request) => {
       const li = document.createElement('li');
       li.className = 'admin-item';
-
-      const details = document.createElement('span');
-      details.textContent = `${request.username} | ${request.realName} | ${request.email} | role: ${request.role} | requested: ${request.createdAt}`;
+      li.innerHTML = `
+        <div>
+          <strong>${escapeHtml(request.username)}</strong>
+          <p>${escapeHtml(request.realName)} • ${escapeHtml(request.email)}</p>
+          <p class="muted">Requested role: ${escapeHtml(request.role)} • ${escapeHtml(formatDateTime(request.createdAt))}</p>
+        </div>
+      `;
 
       const actions = document.createElement('div');
       actions.className = 'admin-actions';
@@ -1315,22 +1891,49 @@ async function showAdminOverlay() {
       });
 
       actions.append(approve, reject);
-      li.append(details, actions);
-      requestsList?.appendChild(li);
+      li.appendChild(actions);
+      requestsList.appendChild(li);
     });
   }
 
   users.forEach((user) => {
     const li = document.createElement('li');
     li.className = 'admin-item';
-
-    const details = document.createElement('span');
-    details.textContent = `${user.username} | ${user.realName} | ${user.email} | status: ${user.status} | role: ${user.role} | last login: ${user.lastLoginAt || 'Never'}`;
+    li.innerHTML = `
+      <div>
+        <strong>${escapeHtml(user.username)}</strong>
+        <p>${escapeHtml(user.realName)} • ${escapeHtml(user.email)}</p>
+        <p class="muted">Role: ${escapeHtml(user.role)} • Status: ${escapeHtml(user.status)} • Last login: ${escapeHtml(user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Never')}</p>
+      </div>
+    `;
 
     const actions = document.createElement('div');
     actions.className = 'admin-actions';
 
     if (user.id !== currentAdminId) {
+      const promote = document.createElement('button');
+      promote.type = 'button';
+      promote.textContent = user.role === 'admin' ? 'Admin' : 'Make Admin';
+      promote.disabled = user.role === 'admin';
+      promote.addEventListener('click', async () => {
+        await apiRequest('admin_set_user_role', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, role: 'admin' }),
+        });
+        await showAdminOverlay();
+      });
+
+      const resetPassword = document.createElement('button');
+      resetPassword.type = 'button';
+      resetPassword.textContent = 'Reset Password';
+      resetPassword.addEventListener('click', () => {
+        showAdminResetPasswordDialog(user).catch((error) => {
+          console.error(error);
+          alert(error.message || 'Unable to reset password.');
+        });
+      });
+
       const toggleStatus = document.createElement('button');
       toggleStatus.type = 'button';
       toggleStatus.textContent = user.status === 'banned' ? 'Unban' : 'Ban';
@@ -1351,7 +1954,7 @@ async function showAdminOverlay() {
       remove.className = 'danger';
       remove.textContent = 'Delete';
       remove.addEventListener('click', async () => {
-        if (!confirm(`Delete user ${user.username}?`)) {
+        if (!confirm(`Delete user ${user.username}? Their owned projects will also be removed.`)) {
           return;
         }
         await apiRequest('admin_delete_user', {
@@ -1362,21 +1965,100 @@ async function showAdminOverlay() {
         await showAdminOverlay();
       });
 
-      actions.append(toggleStatus, remove);
+      actions.append(promote, resetPassword, toggleStatus, remove);
     }
 
-    li.append(details, actions);
-    usersList?.appendChild(li);
+    li.appendChild(actions);
+    usersList.appendChild(li);
   });
 
-  const deleteProjectBtn = document.getElementById('admin-delete-project-btn');
-  deleteProjectBtn?.addEventListener('click', async () => {
-    if (!confirm('Delete project content and assets? This cannot be undone.')) {
-      return;
-    }
-    await apiRequest('admin_delete_project', { method: 'POST' });
-    await loadProjectState();
-    closeOverlay();
+  if (!projects.length) {
+    projectsList.innerHTML = '<li class="empty-state">No projects found.</li>';
+  } else {
+    projects.forEach((project) => {
+      const li = document.createElement('li');
+      li.className = 'admin-item';
+      li.innerHTML = `
+        <div>
+          <strong>${escapeHtml(project.title)}</strong>
+          <p>${escapeHtml(project.ownerUsername)} • ${escapeHtml(themeLabel(project.themeKey))}</p>
+          <p class="muted">Status: ${escapeHtml(project.status)} • Updated: ${escapeHtml(formatDateTime(project.updatedAt))}</p>
+        </div>
+      `;
+
+      const actions = document.createElement('div');
+      actions.className = 'admin-actions';
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'danger';
+      remove.textContent = 'Delete';
+      remove.addEventListener('click', async () => {
+        if (!confirm(`Delete project ${project.title}?`)) {
+          return;
+        }
+        cleanupProjectBackup(project.id);
+        await apiRequest('admin_delete_project', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId: project.id }),
+        });
+        if (state.project?.id === project.id) {
+          await loadProjectState();
+        }
+        await showAdminOverlay();
+      });
+
+      actions.append(remove);
+      li.appendChild(actions);
+      projectsList.appendChild(li);
+    });
+  }
+}
+
+function bindOverlayTabs() {
+  ui.overlayBody.querySelectorAll('.overlay-tab').forEach((button) => {
+    button.addEventListener('click', () => {
+      const targetPanel = button.dataset.panel;
+      ui.overlayBody.querySelectorAll('.overlay-tab').forEach((tab) => tab.classList.toggle('active', tab === button));
+      ui.overlayBody.querySelectorAll('.overlay-panel').forEach((panel) => panel.classList.toggle('active', panel.id === targetPanel));
+    });
+  });
+}
+
+async function showAdminResetPasswordDialog(user) {
+  openOverlay(
+    `Reset Password: ${user.username}`,
+    `
+      <form id="admin-reset-password-form" class="overlay-block">
+        <label for="admin-reset-password-input">New Password</label>
+        <input id="admin-reset-password-input" name="password" type="password" required minlength="8" maxlength="120" />
+        <div class="overlay-actions">
+          <button type="submit">Update Password</button>
+          <button id="admin-reset-password-cancel" type="button">Back</button>
+        </div>
+      </form>
+    `,
+    true,
+  );
+
+  document.getElementById('admin-reset-password-cancel')?.addEventListener('click', () => {
+    showAdminOverlay().catch((error) => {
+      console.error(error);
+      alert(error.message || 'Unable to reopen admin panel.');
+    });
+  });
+
+  document.getElementById('admin-reset-password-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    await apiRequest('admin_reset_user_password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id, password: String(formData.get('password') || '') }),
+    });
+    alert(`Password reset for ${user.username}.`);
+    await showAdminOverlay();
   });
 }
 
@@ -1390,6 +2072,12 @@ async function showHelpOverlay() {
   openOverlay('LoreBinder Help', state.helpHtml, true);
 }
 
+function generateAltTextFromFilename(filename) {
+  const baseName = String(filename || '').replace(/\.[^.]+$/, '');
+  const readableName = baseName.replace(/[-_]+/g, ' ').trim();
+  return readableName || 'Image';
+}
+
 function formatBytes(value) {
   if (value < 1024) {
     return `${value} B`;
@@ -1398,4 +2086,15 @@ function formatBytes(value) {
     return `${(value / 1024).toFixed(1)} KB`;
   }
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return 'Unknown';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString();
 }
