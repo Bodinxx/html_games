@@ -10,6 +10,7 @@ const STORAGE_DIR = __DIR__ . '/storage';
 const ASSETS_DIR = STORAGE_DIR . '/assets';
 const PROJECT_FILE = STORAGE_DIR . '/project.json';
 const USERS_FILE = STORAGE_DIR . '/users.enc';
+const USERS_KEY_FILE = STORAGE_DIR . '/users.key';
 const USERS_KEY_ENV = 'LOREBINDER_USERS_KEY';
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'];
@@ -26,6 +27,7 @@ const USER_ROLE_REVIEWER = 'reviewer';
 const USER_STATUS_ACTIVE = 'active';
 const USER_STATUS_BANNED = 'banned';
 const REQUEST_STATUS_PENDING = 'pending';
+const SESSION_COOKIE_EXPIRE_PAST_SECONDS = 42000;
 
 ensureStorage();
 
@@ -77,7 +79,7 @@ if ($action === 'logout') {
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $params = session_get_cookie_params();
-        setcookie(session_name(), '', time() - 42000,
+        setcookie(session_name(), '', time() - SESSION_COOKIE_EXPIRE_PAST_SECONDS,
             $params['path'], $params['domain'], $params['secure'], $params['httponly']);
     }
     session_destroy();
@@ -784,11 +786,23 @@ function decryptUserPayload(string $raw): ?array
 function usersEncryptionKey(): string
 {
     $configured = trim((string) getenv(USERS_KEY_ENV));
-    $seed = $configured !== ''
-        ? $configured
-        : ('lorebinder-default-users-key|' . __DIR__ . '|set-' . USERS_KEY_ENV . '-in-production');
+    if ($configured !== '') {
+        return hash('sha256', $configured, true);
+    }
 
-    return hash('sha256', $seed, true);
+    if (!is_file(USERS_KEY_FILE)) {
+        $generated = base64_encode(random_bytes(32));
+        file_put_contents(USERS_KEY_FILE, $generated, LOCK_EX);
+        @chmod(USERS_KEY_FILE, 0600);
+    }
+
+    $stored = trim((string) file_get_contents(USERS_KEY_FILE));
+    $decoded = base64_decode($stored, true);
+    if ($decoded === false || strlen($decoded) < 32) {
+        throw new RuntimeException('User encryption key is missing or invalid. Set ' . USERS_KEY_ENV . ' or regenerate ' . USERS_KEY_FILE . '.');
+    }
+
+    return substr($decoded, 0, 32);
 }
 
 function normalizeUsername(string $username): string

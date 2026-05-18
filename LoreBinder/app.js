@@ -1329,7 +1329,7 @@ async function showAdminOverlay() {
     const actions = document.createElement('div');
     actions.className = 'admin-actions';
 
-    if (user.username.toLowerCase() !== state.authUser.username.toLowerCase()) {
+    if (user.id !== state.authUser.id) {
       const toggleStatus = document.createElement('button');
       toggleStatus.type = 'button';
       toggleStatus.textContent = user.status === 'banned' ? 'Unban' : 'Ban';
