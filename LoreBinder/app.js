@@ -1247,6 +1247,7 @@ async function showAdminOverlay() {
 
   const users = usersPayload.users || [];
   const requests = requestsPayload.requests || [];
+  const currentAdminId = state.authUser?.id || '';
 
   openOverlay(
     'Admin Console',
@@ -1329,7 +1330,7 @@ async function showAdminOverlay() {
     const actions = document.createElement('div');
     actions.className = 'admin-actions';
 
-    if (user.id !== state.authUser.id) {
+    if (user.id !== currentAdminId) {
       const toggleStatus = document.createElement('button');
       toggleStatus.type = 'button';
       toggleStatus.textContent = user.status === 'banned' ? 'Unban' : 'Ban';
