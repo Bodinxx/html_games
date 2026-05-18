@@ -1197,7 +1197,7 @@ function renderAssets() {
     copy.type = 'button';
     copy.textContent = 'Copy Link';
     copy.addEventListener('click', async () => {
-      const altText = asset.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || 'Image';
+      const altText = generateAltTextFromFilename(asset.name);
       const markdown = `![${altText}](storage/assets/${state.project.id}/${asset.name})`;
       try {
         await navigator.clipboard.writeText(markdown);
@@ -1702,10 +1702,10 @@ async function showProfileOverlay() {
   });
 
   document.getElementById('pref-font-scale')?.addEventListener('input', (event) => {
-    const value = event.target.value;
+    const fontScaleValue = event.target.value;
     const label = document.getElementById('font-scale-value');
     if (label) {
-      label.textContent = value;
+      label.textContent = fontScaleValue;
     }
   });
 
@@ -2070,6 +2070,12 @@ async function showHelpOverlay() {
       : '<div class="overlay-help"><h3>Help unavailable</h3><p>Could not load help content.</p></div>';
   }
   openOverlay('LoreBinder Help', state.helpHtml, true);
+}
+
+function generateAltTextFromFilename(filename) {
+  const baseName = String(filename || '').replace(/\.[^.]+$/, '');
+  const readableName = baseName.replace(/[-_]+/g, ' ').trim();
+  return readableName || 'Image';
 }
 
 function formatBytes(value) {

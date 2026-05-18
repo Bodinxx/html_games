@@ -1775,7 +1775,11 @@ function queuePasswordResetEmail(string $email, string $username, string $token)
     $resetUrl = baseAppUrl() . '?reset=' . rawurlencode($token);
     $subject = 'LoreBinder password reset';
     $expiresInMinutes = max(1, (int) ceil(PASSWORD_RESET_EXPIRY_SECONDS / 60));
-    $message = "Hello {$username},\n\nUse this link to reset your LoreBinder password:\n{$resetUrl}\n\nThis link expires in {$expiresInMinutes} minutes.\n";
+    $safeUsername = trim((string) preg_replace('/[\r\n]+/', ' ', $username));
+    if ($safeUsername === '') {
+        $safeUsername = 'LoreBinder user';
+    }
+    $message = "Hello {$safeUsername},\n\nUse this link to reset your LoreBinder password:\n{$resetUrl}\n\nThis link expires in {$expiresInMinutes} minutes.\n";
 
     $log = json_decode((string) file_get_contents(MAIL_LOG_FILE), true);
     if (!is_array($log)) {
@@ -1783,8 +1787,8 @@ function queuePasswordResetEmail(string $email, string $username, string $token)
     }
 
     $mailStatus = 'skipped';
-    $mailTo = str_replace(["\r", "\n"], '', $email);
-    if (filter_var($mailTo, FILTER_VALIDATE_EMAIL) && function_exists('mail')) {
+    $mailTo = trim($email);
+    if (isSafeMailAddress($mailTo) && function_exists('mail')) {
         $mailStatus = mail($mailTo, $subject, $message) ? 'sent' : 'failed';
     }
 
@@ -1808,13 +1812,32 @@ function baseAppUrl(): string
     }
 
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    if (!preg_match('/^[a-zA-Z0-9.-]+(?::[0-9]{1,5})?$/', $host)) {
-        $host = 'localhost';
+    $serverName = (string) ($_SERVER['SERVER_NAME'] ?? 'localhost');
+    if (!preg_match('/^[a-zA-Z0-9.-]+$/', $serverName)) {
+        $serverName = 'localhost';
+    }
+    $serverPort = (string) ($_SERVER['SERVER_PORT'] ?? '');
+    $defaultPort = $scheme === 'https' ? '443' : '80';
+    $host = $serverName;
+    if ($serverPort !== '' && $serverPort !== $defaultPort && preg_match('/^[0-9]{1,5}$/', $serverPort)) {
+        $host .= ':' . $serverPort;
     }
     $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '/LoreBinder/api.php');
     $directory = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
     return $scheme . '://' . $host . $directory . '/index.php';
+}
+
+function isSafeMailAddress(string $email): bool
+{
+    if ($email === '' || strpbrk($email, "\r\n") !== false) {
+        return false;
+    }
+
+    if (preg_match('/[\x00-\x1F\x7F]/', $email) === 1) {
+        return false;
+    }
+
+    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
 }
 
 function userAssignableRoles(): array
