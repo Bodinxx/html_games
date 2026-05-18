@@ -188,6 +188,7 @@ function bindEvents() {
       styleDoc.content = state.project.styleCss;
       styleDoc.updatedAt = new Date().toISOString();
     }
+    renderTree();
     syncEditorFromActiveDocument();
     applyProjectCss();
     markDirty();

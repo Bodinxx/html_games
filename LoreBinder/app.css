@@ -212,7 +212,6 @@ button.danger {
 }
 
 .doc-tab.active,
-.mode-tabs button.active,
 .overlay-tab.active {
   background: var(--app-accent);
 }
@@ -222,10 +221,6 @@ button.danger {
   border: none;
   background: transparent;
   line-height: 1;
-}
-
-.mode-tabs {
-  display: none;
 }
 
 .editor-grid {
