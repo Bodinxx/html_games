@@ -290,6 +290,9 @@ function moveNode(draggedId, targetId) {
   if (!dragged || !target) {
     return;
   }
+  if (dragged.node.type === 'folder' && containsNodeId(dragged.node, targetId)) {
+    return;
+  }
 
   dragged.container.splice(dragged.index, 1);
 
@@ -404,6 +407,19 @@ function collectDocumentNodes(tree) {
   };
   walk(tree || []);
   return result;
+}
+
+function containsNodeId(rootNode, targetId) {
+  if (!rootNode) {
+    return false;
+  }
+  if (rootNode.id === targetId) {
+    return true;
+  }
+  if (rootNode.type !== 'folder' || !Array.isArray(rootNode.children)) {
+    return false;
+  }
+  return rootNode.children.some((child) => containsNodeId(child, targetId));
 }
 
 function findNodeAndParent(nodes, targetId, container = null) {
@@ -611,8 +627,21 @@ function renderInlineMarkdown(text) {
     return `<span class="${escapeHtml(klass)}" style="${sanitizeStyle(style || '')}">${escapeHtml(inner)}</span>`;
   });
 
-  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />');
-  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+    const safeSrc = sanitizeImageSrc(src);
+    if (!safeSrc) {
+      return '';
+    }
+    return `<img src="${safeSrc}" alt="${alt}" />`;
+  });
+  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
+    const safeHref = sanitizeHref(href);
+    if (!safeHref) {
+      return label;
+    }
+    const isExternal = /^https?:\/\//i.test(safeHref);
+    return `<a href="${safeHref}"${isExternal ? ' target="_blank" rel="noopener noreferrer"' : ''}>${label}</a>`;
+  });
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -642,6 +671,37 @@ function sanitizeStyle(styleText) {
     .filter(Boolean)
     .filter((token) => /^[-a-zA-Z]+\s*:\s*[-#(),.%\sa-zA-Z0-9]+$/.test(token))
     .join('; ');
+}
+
+function sanitizeHref(value) {
+  const href = value.trim();
+  if (!href) {
+    return '';
+  }
+  if (href.startsWith('#') || href.startsWith('doc:')) {
+    return escapeHtml(href);
+  }
+  if (/^(https?:\/\/|mailto:)/i.test(href)) {
+    return escapeHtml(href);
+  }
+  if (/^(assets\/|\.{0,2}\/|[a-zA-Z0-9._/-]+$)/.test(href)) {
+    return escapeHtml(href);
+  }
+  return '';
+}
+
+function sanitizeImageSrc(value) {
+  const src = value.trim();
+  if (!src) {
+    return '';
+  }
+  if (/^(https?:\/\/)/i.test(src)) {
+    return escapeHtml(src);
+  }
+  if (/^(assets\/|\.{0,2}\/|[a-zA-Z0-9._/-]+$)/.test(src)) {
+    return escapeHtml(src);
+  }
+  return '';
 }
 
 function slugify(value) {
