@@ -1032,8 +1032,10 @@ function defaultProjectStore(): array
 function defaultProject(string $ownerUserId, string $title = 'LoreBinder Project', string $themeKey = DEFAULT_THEME_KEY): array
 {
     $docId = 'doc-' . bin2hex(random_bytes(6));
+    $styleDocId = 'doc-' . bin2hex(random_bytes(6));
     $projectId = 'project-' . bin2hex(random_bytes(8));
     $now = gmdate(DATE_ATOM);
+    $baseCss = themePresetCss($themeKey);
 
     return [
         'id' => $projectId,
@@ -1051,6 +1053,13 @@ function defaultProject(string $ownerUserId, string $title = 'LoreBinder Project
                     [
                         'id' => 'node-' . bin2hex(random_bytes(4)),
                         'type' => 'document',
+                        'name' => 'base.css',
+                        'docId' => $styleDocId,
+                        'includeInCompile' => false,
+                    ],
+                    [
+                        'id' => 'node-' . bin2hex(random_bytes(4)),
+                        'type' => 'document',
                         'name' => 'Welcome.md',
                         'docId' => $docId,
                         'includeInCompile' => true,
@@ -1062,13 +1071,19 @@ function defaultProject(string $ownerUserId, string $title = 'LoreBinder Project
             $docId => [
                 'id' => $docId,
                 'name' => 'Welcome.md',
-                'content' => "# {$title}\n\nWelcome to LoreBinder. Use the project controls to manage multiple worlds, archive old work, and tailor the CSS theme for this book.\n\n## Next Steps\n- Update your profile and preferences from the Profile button.\n- Pick a primary theme from the project toolbar.\n- Build out your chapters, locations, and factions.\n",
+                'content' => "# {$title}\n> #### by Author Name\n\n---\n## Introduction\nWelcome to LoreBinder. This starter document follows a Homebrewery-style flow while keeping your project in a multi-file structure.\n\n### Quick Start\n- Write markdown in the left code editor.\n- Edit from the right view editor when you want to work in context.\n- Open `base.css` in the file tree to adjust your project's base styling.\n\n---\n## Chapter 1 | Getting Started\nThis is a sample section for your setting, adventure, or sourcebook.\n\n> ### Sidebar\n> Use sidebars for lore notes, callouts, and reminders.\n\n### Sample Creature\n**Armor Class** 12  \n**Hit Points** 15 (2d8 + 6)  \n**Speed** 30 ft.\n",
+                'updatedAt' => $now,
+            ],
+            $styleDocId => [
+                'id' => $styleDocId,
+                'name' => 'base.css',
+                'content' => $baseCss,
                 'updatedAt' => $now,
             ],
         ],
         'openTabs' => [$docId],
         'activeDocumentId' => $docId,
-        'styleCss' => themePresetCss($themeKey),
+        'styleCss' => $baseCss,
         'createdAt' => $now,
         'updatedAt' => $now,
     ];

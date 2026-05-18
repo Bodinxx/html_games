@@ -9,26 +9,29 @@
 </head>
 <body>
   <main class="layout">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <header class="section-header">
         <h1>LoreBinder</h1>
-        <button id="new-doc-btn" type="button">+ Doc</button>
+        <button id="toggle-sidebar-btn" type="button" aria-expanded="true" aria-controls="sidebar-content">⟨</button>
       </header>
-      <div class="tree-tools">
-        <button id="new-folder-btn" type="button">+ Folder</button>
-        <button id="rename-node-btn" type="button">Rename</button>
-        <button id="delete-node-btn" type="button" class="danger">Delete</button>
-      </div>
-      <ul id="file-tree" class="file-tree"></ul>
-
-      <section class="assets-panel">
-        <div class="section-header compact">
-          <h2>Assets</h2>
-          <label class="upload-button" for="asset-upload">Upload</label>
-          <input id="asset-upload" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,.gif" hidden />
+      <div id="sidebar-content" class="sidebar-content">
+        <div class="tree-tools">
+          <button id="new-doc-btn" type="button">+ Doc</button>
+          <button id="new-folder-btn" type="button">+ Folder</button>
+          <button id="rename-node-btn" type="button">Rename</button>
+          <button id="delete-node-btn" type="button" class="danger">Delete</button>
         </div>
-        <ul id="asset-list" class="asset-list"></ul>
-      </section>
+        <ul id="file-tree" class="file-tree"></ul>
+
+        <section class="assets-panel">
+          <div class="section-header compact">
+            <h2>Assets</h2>
+            <label class="upload-button" for="asset-upload">Upload</label>
+            <input id="asset-upload" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,.gif" hidden />
+          </div>
+          <ul id="asset-list" class="asset-list"></ul>
+        </section>
+      </div>
     </aside>
 
     <section class="workspace">
@@ -65,25 +68,15 @@
 
       <nav id="doc-tabs" class="doc-tabs" aria-label="Open documents"></nav>
 
-      <div class="mode-tabs">
-        <button id="mode-visual" type="button" class="active">Visual Layout</button>
-        <button id="mode-code" type="button">Plain Text</button>
-      </div>
-
       <section id="editor-grid" class="editor-grid visual-mode">
-        <article id="visual-editor" class="editor-pane" contenteditable="true"></article>
-        <textarea id="code-editor" class="editor-pane hidden" spellcheck="false"></textarea>
-        <section class="preview-pane">
-          <h2>Preview</h2>
-          <div id="rendered-preview" class="rendered-preview"></div>
+        <section class="editor-column">
+          <h2>Code</h2>
+          <textarea id="code-editor" class="editor-pane" spellcheck="false"></textarea>
         </section>
-      </section>
-
-      <section class="css-panel">
-        <header class="section-header compact">
-          <h2>Project CSS Overrides</h2>
-        </header>
-        <textarea id="css-editor" spellcheck="false"></textarea>
+        <section class="editor-column">
+          <h2>View</h2>
+          <article id="visual-editor" class="editor-pane" contenteditable="true"></article>
+        </section>
       </section>
 
       <section class="compile-panel">
