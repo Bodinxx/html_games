@@ -52,6 +52,7 @@ const INTERFACE_THEME_STYLES = {
 };
 
 const BASE_CSS_FILE_NAME = 'base.css';
+const MAX_URL_DECODE_PASSES = 3;
 const GOOGLE_FONT_NAMES = [
   'Open Sans',
   'Roboto',
@@ -85,7 +86,8 @@ const state = {
   overlayClosable: true,
   themePresets: [],
   interfaceThemes: {},
-  loadedGoogleFonts: new Set(GOOGLE_FONT_NAMES),
+  fontSyncTimer: null,
+  loadedGoogleFonts: new Set(),
 };
 
 const ui = {
@@ -376,7 +378,7 @@ function editorMenuDefinitions() {
       hint: 'Sample markdown and styled block snippets.',
       items: [
         { label: 'Table', action: () => insertSnippet(buildSampleTable(3, 3)) },
-        { label: 'Wide Table', action: () => insertSnippet(buildSampleTable(3, 3)) },
+        { label: 'Wide Table', action: () => insertSnippet(`::: wide-block\n${buildSampleTable(3, 3)}:::\n`) },
         { label: 'Split Table', action: () => insertSnippet(buildSplitTableSnippet()) },
         { label: 'Martial Class Table', action: () => insertSnippet(buildClassTableSnippet('Martial Class Table')) },
         { label: 'Martial Class Table (Unframed)', action: () => insertSnippet(buildClassTableSnippet('Martial Class Table', true)) },
@@ -433,7 +435,11 @@ function insertSnippet(snippet, selectionText = '') {
 
 function insertColumnLayoutSnippet() {
   const columnCount = prompt('Column count', '2');
-  if (!columnCount || !/^[1-4]$/.test(columnCount)) {
+  if (!columnCount) {
+    return;
+  }
+  if (!/^[1-4]$/.test(columnCount)) {
+    alert('Column count must be a number from 1 to 4.');
     return;
   }
   insertSnippet(`::: columns-${columnCount}\nAdd column content here.\n:::\n`, 'Add column content here.');
@@ -449,13 +455,17 @@ function promptForCustomFontSnippet() {
   if (!fontName) {
     return;
   }
+  if (!/^[a-z0-9][a-z0-9\s-]{0,79}$/i.test(fontName.trim())) {
+    alert('Enter a valid Google Font family name using letters, numbers, spaces, or hyphens.');
+    return;
+  }
   ensureGoogleFontLink([fontName]);
   insertFontSnippet(fontName.trim());
 }
 
 function showImageInsertOverlay() {
   const assetButtons = state.assets.length
-    ? state.assets.map((asset) => `<button type="button" class="insert-asset-btn" data-src="${escapeHtml(asset.url || '')}" data-alt="${escapeHtml(generateAltTextFromFilename(asset.name))}">${escapeHtml(asset.name)}</button>`).join('')
+    ? state.assets.map((asset) => `<button type="button" class="insert-asset-btn" data-src="${escapeHtml(getAssetUrl(asset))}" data-alt="${escapeHtml(generateAltTextFromFilename(asset.name))}">${escapeHtml(asset.name)}</button>`).join('')
     : '<p class="empty-state">No uploaded assets for this project yet.</p>';
 
   openOverlay(
@@ -541,6 +551,14 @@ function buildCasterTableSnippet(title, unframed = false) {
 
 function buildBlockSnippet(className, body) {
   return `::: ${className}\n${body}\n:::\n`;
+}
+
+function getAssetUrl(asset) {
+  return asset?.url || `storage/assets/${encodeURIComponent(state.project?.id || '')}/${encodeURIComponent(asset?.name || '')}`;
+}
+
+function isProjectStyleDocument(doc) {
+  return String(doc?.name || '').trim().toLowerCase() === BASE_CSS_FILE_NAME;
 }
 
 async function refreshAuthState() {
@@ -980,11 +998,11 @@ function updateActiveDocument(content) {
 
   doc.content = content;
   doc.updatedAt = new Date().toISOString();
-  if (String(doc.name || '').trim().toLowerCase() === BASE_CSS_FILE_NAME) {
+  if (isProjectStyleDocument(doc)) {
     state.project.styleCss = content;
     applyProjectCss();
   }
-  syncGoogleFontsFromProject();
+  scheduleGoogleFontSync();
   markDirty();
 }
 
@@ -1005,7 +1023,7 @@ function renderActiveDocumentPreview() {
     return;
   }
 
-  if (String(doc.name || '').trim().toLowerCase() === BASE_CSS_FILE_NAME) {
+  if (isProjectStyleDocument(doc)) {
     ui.visualEditor.innerHTML = `<pre class="preview-source">${escapeHtml(doc.content || '')}</pre>`;
     return;
   }
@@ -1429,7 +1447,7 @@ function sanitizeStyle(styleText) {
       if (!value || /url\s*\(|expression\s*\(/i.test(value)) {
         return false;
       }
-      return /^[-#(),.%/"'\sa-zA-Z0-9]+$/.test(value);
+      return /^[-#(),.%\sa-zA-Z0-9]+$/.test(value);
     })
     .join('; ');
 }
@@ -1449,10 +1467,7 @@ function sanitizeHref(value) {
   if (/^(https?:\/\/|mailto:)/i.test(href)) {
     return escapeHtml(href);
   }
-  if (/^(assets\/|storage\/assets\/|\.{0,2}\/|[a-zA-Z0-9._/%-]+$)/.test(href)) {
-    return escapeHtml(href);
-  }
-  return '';
+  return sanitizeRelativeAssetPath(href);
 }
 
 function sanitizeImageSrc(value) {
@@ -1463,10 +1478,38 @@ function sanitizeImageSrc(value) {
   if (/^(https?:\/\/)/i.test(src)) {
     return escapeHtml(src);
   }
-  if (/^(assets\/|storage\/assets\/|\.{0,2}\/|[a-zA-Z0-9._/%-]+$)/.test(src)) {
-    return escapeHtml(src);
+  return sanitizeRelativeAssetPath(src);
+}
+
+function sanitizeRelativeAssetPath(value) {
+  const rawPath = String(value || '').trim();
+  if (!/^(assets\/|storage\/assets\/|\.{0,2}\/|[a-zA-Z0-9._/%-]+$)/.test(rawPath)) {
+    return '';
   }
-  return '';
+
+  let decodedPath = rawPath;
+  try {
+    for (let count = 0; count < MAX_URL_DECODE_PASSES; count += 1) {
+      const nextDecodedPath = decodeURIComponent(decodedPath);
+      if (nextDecodedPath === decodedPath) {
+        break;
+      }
+      decodedPath = nextDecodedPath;
+    }
+  } catch (error) {
+    return '';
+  }
+
+  const normalizedPath = decodedPath.replace(/\\/g, '/');
+  if (
+    normalizedPath.startsWith('/')
+    || normalizedPath.includes('\0')
+    || normalizedPath.split('/').some((segment) => segment === '..')
+  ) {
+    return '';
+  }
+
+  return escapeHtml(rawPath);
 }
 
 function slugify(value) {
@@ -1489,14 +1532,19 @@ function applyProjectCss() {
 }
 
 function syncGoogleFontsFromProject() {
+  if (state.fontSyncTimer) {
+    clearTimeout(state.fontSyncTimer);
+    state.fontSyncTimer = null;
+  }
+
   const docs = Object.values(state.project?.documents || {});
-  const fontMatches = new Set(GOOGLE_FONT_NAMES);
+  const fontMatches = new Set();
   const sourceText = [
     state.project?.styleCss || '',
     ...docs.map((doc) => doc?.content || ''),
   ].join('\n');
 
-  Array.from(sourceText.matchAll(/font-family\s*:\s*([^;\n]+)/gi)).forEach((match) => {
+  Array.from(sourceText.matchAll(/font-family\s*:\s*([^;\n]{1,120})/gi)).forEach((match) => {
     String(match[1] || '')
       .split(',')
       .map((token) => token.replace(/["']/g, '').trim())
@@ -1509,6 +1557,16 @@ function syncGoogleFontsFromProject() {
   });
 
   ensureGoogleFontLink([...fontMatches]);
+}
+
+function scheduleGoogleFontSync() {
+  if (state.fontSyncTimer) {
+    clearTimeout(state.fontSyncTimer);
+  }
+  state.fontSyncTimer = setTimeout(() => {
+    state.fontSyncTimer = null;
+    syncGoogleFontsFromProject();
+  }, 150);
 }
 
 function ensureGoogleFontLink(fontNames) {
@@ -1526,7 +1584,7 @@ function ensureGoogleFontLink(fontNames) {
     document.head.appendChild(link);
   }
   const families = [...state.loadedGoogleFonts]
-    .map((name) => `family=${encodeURIComponent(name.trim().replace(/\s+/g, ' ')).replace(/%20/g, '+')}`)
+    .map((name) => `family=${name.trim().replace(/\s+/g, '+')}`)
     .join('&');
   link.href = `https://fonts.googleapis.com/css2?${families}&display=swap`;
 }
@@ -1605,7 +1663,7 @@ function renderAssets() {
     copy.textContent = 'Copy Link';
     copy.addEventListener('click', async () => {
       const altText = generateAltTextFromFilename(asset.name);
-      const markdown = `![${altText}](${asset.url || `storage/assets/${encodeURIComponent(state.project.id)}/${encodeURIComponent(asset.name)}`})`;
+      const markdown = `![${altText}](${getAssetUrl(asset)})`;
       try {
         await navigator.clipboard.writeText(markdown);
       } catch (error) {

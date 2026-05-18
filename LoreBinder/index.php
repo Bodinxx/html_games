@@ -4,9 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LoreBinder</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500;700&family=Unica+One&family=Audiowide&family=Michroma&family=Quantico:wght@400;700&family=Oswald:wght@400;500;700&family=Bebas+Neue&family=Great+Vibes&family=Cookie&family=Pattaya&family=Bungee&family=Chango&family=Architects+Daughter&family=Tangerine:wght@400;700&family=Amatic+SC:wght@400;700&display=swap" />
   <link rel="stylesheet" href="base.css" />
   <link rel="stylesheet" href="app.css" />
 </head>
