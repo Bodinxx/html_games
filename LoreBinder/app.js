@@ -486,7 +486,6 @@ function createNode(type) {
   renderTree();
   renderDocTabs();
   syncEditorFromActiveDocument();
-  refreshPreview();
   markDirty();
 }
 
@@ -538,7 +537,6 @@ function deleteSelectedNode() {
   renderTree();
   renderDocTabs();
   syncEditorFromActiveDocument();
-  refreshPreview();
   markDirty();
 }
 
@@ -667,7 +665,6 @@ function renderDocTabs() {
       state.project.activeDocumentId = docId;
       renderDocTabs();
       syncEditorFromActiveDocument();
-      refreshPreview();
       markDirty();
     });
 
@@ -691,7 +688,6 @@ function openDocument(docId) {
   state.project.activeDocumentId = docId;
   renderDocTabs();
   syncEditorFromActiveDocument();
-  refreshPreview();
   markDirty();
 }
 
@@ -702,7 +698,6 @@ function closeTab(docId) {
   }
   renderDocTabs();
   syncEditorFromActiveDocument();
-  refreshPreview();
   markDirty();
 }
 
@@ -771,10 +766,6 @@ function findNodeAndParent(nodes, targetId, container = null) {
   }
 
   return null;
-}
-
-function refreshPreview() {
-  return;
 }
 
 function getProjectStyleDocument(project) {
