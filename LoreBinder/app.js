@@ -710,7 +710,7 @@ function updateActiveDocument(content) {
 
   doc.content = content;
   doc.updatedAt = new Date().toISOString();
-  if (doc.name.trim().toLowerCase() === BASE_CSS_FILE_NAME) {
+  if (String(doc.name || '').trim().toLowerCase() === BASE_CSS_FILE_NAME) {
     state.project.styleCss = content;
     applyProjectCss();
   }
@@ -774,7 +774,9 @@ function getProjectStyleDocument(project) {
     return null;
   }
 
-  return Object.values(project.documents).find((doc) => String(doc?.name || '').trim().toLowerCase() === BASE_CSS_FILE_NAME) || null;
+  return Object.values(project.documents)
+    .filter((doc) => doc && typeof doc === 'object')
+    .find((doc) => String(doc.name || '').trim().toLowerCase() === BASE_CSS_FILE_NAME) || null;
 }
 
 function hasDocNode(nodes, docId) {
