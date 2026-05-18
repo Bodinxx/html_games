@@ -47,6 +47,11 @@ legend {
   display: grid;
   grid-template-columns: 300px 1fr;
   min-height: 100vh;
+  transition: grid-template-columns 0.2s ease;
+}
+
+.layout.sidebar-collapsed {
+  grid-template-columns: 52px 1fr;
 }
 
 .sidebar {
@@ -56,6 +61,21 @@ legend {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
+}
+
+.sidebar-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-height: 0;
+}
+
+.layout.sidebar-collapsed .sidebar-content {
+  display: none;
+}
+
+.layout.sidebar-collapsed .sidebar .section-header h1 {
+  display: none;
 }
 
 .section-header {
@@ -116,9 +136,10 @@ button.danger {
 
 .workspace {
   padding: 0.9rem;
-  display: grid;
-  grid-template-rows: auto auto auto 1fr auto auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 0.7rem;
+  min-height: 100vh;
 }
 
 .topbar {
@@ -203,22 +224,33 @@ button.danger {
   line-height: 1;
 }
 
+.mode-tabs {
+  display: none;
+}
+
 .editor-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.7rem;
   align-items: start;
+  flex: 1;
+  min-height: 0;
 }
 
-.editor-grid.visual-mode #visual-editor,
-.editor-grid.code-mode #code-editor {
-  grid-column: 1 / -1;
+.editor-column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.editor-column h2 {
+  margin: 0;
+  font-size: 1rem;
 }
 
 .editor-pane,
-#css-editor,
-.compile-output,
-.rendered-preview {
+.compile-output {
   width: 100%;
   border: 1px solid var(--app-border);
   border-radius: 8px;
@@ -228,22 +260,13 @@ button.danger {
 }
 
 .editor-pane {
-  min-height: 360px;
+  min-height: 52vh;
+  height: 100%;
   resize: vertical;
 }
 
-#code-editor,
-#css-editor {
+#code-editor {
   font-family: 'SFMono-Regular', Consolas, monospace;
-}
-
-#css-editor {
-  min-height: 190px;
-}
-
-.rendered-preview {
-  overflow: auto;
-  min-height: 240px;
 }
 
 .compile-output {
@@ -311,6 +334,7 @@ button.danger {
 .status-bar {
   text-align: right;
   color: var(--app-text-soft);
+  margin-top: auto;
 }
 
 .overlay {

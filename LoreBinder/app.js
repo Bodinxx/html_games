@@ -51,6 +51,8 @@ const INTERFACE_THEME_STYLES = {
   },
 };
 
+const BASE_CSS_FILE_NAME = 'base.css';
+
 const state = {
   project: null,
   projects: [],
@@ -67,6 +69,8 @@ const state = {
 };
 
 const ui = {
+  layout: document.querySelector('.layout'),
+  toggleSidebarBtn: document.getElementById('toggle-sidebar-btn'),
   fileTree: document.getElementById('file-tree'),
   assetList: document.getElementById('asset-list'),
   assetUpload: document.getElementById('asset-upload'),
@@ -80,12 +84,8 @@ const ui = {
   editorGrid: document.getElementById('editor-grid'),
   visualEditor: document.getElementById('visual-editor'),
   codeEditor: document.getElementById('code-editor'),
-  cssEditor: document.getElementById('css-editor'),
-  renderedPreview: document.getElementById('rendered-preview'),
   compileOutput: document.getElementById('compile-output'),
   saveStatus: document.getElementById('save-status'),
-  modeVisual: document.getElementById('mode-visual'),
-  modeCode: document.getElementById('mode-code'),
   compileBtn: document.getElementById('compile-btn'),
   validateLinksBtn: document.getElementById('validate-links-btn'),
   newDocBtn: document.getElementById('new-doc-btn'),
@@ -159,6 +159,7 @@ function bindEvents() {
   ui.newProjectBtn.addEventListener('click', () => showCreateProjectOverlay());
   ui.archiveProjectBtn.addEventListener('click', () => toggleArchiveProject());
   ui.deleteProjectBtn.addEventListener('click', () => removeCurrentProject());
+  ui.toggleSidebarBtn?.addEventListener('click', () => toggleSidebar());
 
   ui.themePreset.addEventListener('change', () => {
     if (!state.project) {
@@ -182,36 +183,25 @@ function bindEvents() {
 
     state.project.themeKey = selectedPreset.key;
     state.project.styleCss = selectedPreset.css;
-    ui.cssEditor.value = state.project.styleCss;
+    const styleDoc = getProjectStyleDocument(state.project);
+    if (styleDoc) {
+      styleDoc.content = state.project.styleCss;
+      styleDoc.updatedAt = new Date().toISOString();
+    }
+    syncEditorFromActiveDocument();
     applyProjectCss();
-    refreshPreview();
     markDirty();
   });
-
-  ui.modeVisual.addEventListener('click', () => setMode('visual'));
-  ui.modeCode.addEventListener('click', () => setMode('code'));
 
   ui.codeEditor.addEventListener('input', () => {
     updateActiveDocument(ui.codeEditor.value);
     ui.visualEditor.textContent = ui.codeEditor.value;
-    refreshPreview();
   });
 
   ui.visualEditor.addEventListener('input', () => {
     const markdown = ui.visualEditor.textContent;
     updateActiveDocument(markdown);
     ui.codeEditor.value = markdown;
-    refreshPreview();
-  });
-
-  ui.cssEditor.addEventListener('input', () => {
-    if (!state.project) {
-      return;
-    }
-    state.project.styleCss = ui.cssEditor.value;
-    applyProjectCss();
-    refreshPreview();
-    markDirty();
   });
 
   ui.compileBtn.addEventListener('click', () => {
@@ -311,6 +301,9 @@ function applyStatePayload(payload) {
   state.authUser = payload.user || state.authUser;
   state.themePresets = payload.themePresets || state.themePresets;
   state.interfaceThemes = payload.interfaceThemes || state.interfaceThemes;
+  if (state.project) {
+    ensureProjectStyleDocument(state.project);
+  }
   renderAuthControls();
   applyInterfacePreferences();
 }
@@ -328,15 +321,12 @@ function setWorkspaceEnabled(enabled) {
     ui.docTabs,
     ui.visualEditor,
     ui.codeEditor,
-    ui.cssEditor,
     ui.compileBtn,
     ui.validateLinksBtn,
     ui.newDocBtn,
     ui.newFolderBtn,
     ui.renameNodeBtn,
     ui.deleteNodeBtn,
-    ui.modeVisual,
-    ui.modeCode,
   ];
 
   controls.forEach((node) => {
@@ -350,7 +340,6 @@ function setWorkspaceEnabled(enabled) {
 
   ui.visualEditor.contentEditable = enabled ? 'true' : 'false';
   ui.codeEditor.readOnly = !enabled;
-  ui.cssEditor.readOnly = !enabled;
 
   if (!enabled && !state.authUser) {
     ui.saveStatus.textContent = 'Login required.';
@@ -385,26 +374,21 @@ function renderAll() {
   }
 
   ui.projectTitle.value = state.project.title || '';
-  ui.cssEditor.value = state.project.styleCss || '';
   applyProjectCss();
   renderTree();
   renderDocTabs();
   renderAssets();
   syncEditorFromActiveDocument();
-  setMode(state.mode);
-  refreshPreview();
   ui.saveStatus.textContent = state.isDirty ? '○ Editing...' : '● Saved';
 }
 
 function clearWorkspace() {
   ui.projectTitle.value = '';
-  ui.cssEditor.value = '';
   ui.fileTree.innerHTML = '<li class="empty-state">No project selected.</li>';
   ui.docTabs.innerHTML = '';
   ui.assetList.innerHTML = '<li class="empty-state">No project assets yet.</li>';
   ui.codeEditor.value = '';
   ui.visualEditor.textContent = '';
-  ui.renderedPreview.innerHTML = '<p class="empty-state">Create a project to start writing.</p>';
   ui.compileOutput.textContent = 'Create or switch to a project to compile.';
   const styleTag = document.getElementById('project-style-overrides');
   if (styleTag) {
@@ -456,17 +440,6 @@ function themeLabel(key) {
 
 function getThemePreset(key) {
   return state.themePresets.find((preset) => preset.key === key) || null;
-}
-
-function setMode(mode) {
-  state.mode = mode;
-  const visualActive = mode === 'visual';
-  ui.modeVisual.classList.toggle('active', visualActive);
-  ui.modeCode.classList.toggle('active', !visualActive);
-  ui.visualEditor.classList.toggle('hidden', !visualActive);
-  ui.codeEditor.classList.toggle('hidden', visualActive);
-  ui.editorGrid.classList.toggle('visual-mode', visualActive);
-  ui.editorGrid.classList.toggle('code-mode', !visualActive);
 }
 
 function createNode(type) {
@@ -735,16 +708,23 @@ function closeTab(docId) {
 
 function updateActiveDocument(content) {
   const doc = getActiveDocument();
-  if (!doc) {
+  if (!doc || !state.project) {
     return;
   }
 
   doc.content = content;
   doc.updatedAt = new Date().toISOString();
+  if (doc.name.toLowerCase() === BASE_CSS_FILE_NAME) {
+    state.project.styleCss = content;
+    applyProjectCss();
+  }
   markDirty();
 }
 
 function syncEditorFromActiveDocument() {
+  if (state.project) {
+    ensureProjectStyleDocument(state.project);
+  }
   const doc = getActiveDocument();
   const content = doc?.content || '';
   ui.codeEditor.value = content;
@@ -794,9 +774,71 @@ function findNodeAndParent(nodes, targetId, container = null) {
 }
 
 function refreshPreview() {
-  const markdown = ui.codeEditor.value;
-  const rendered = renderMarkdown(markdown);
-  ui.renderedPreview.innerHTML = rendered.html;
+  return;
+}
+
+function getProjectStyleDocument(project) {
+  if (!project?.documents) {
+    return null;
+  }
+
+  return Object.values(project.documents).find((doc) => String(doc?.name || '').toLowerCase() === BASE_CSS_FILE_NAME) || null;
+}
+
+function hasDocNode(nodes, docId) {
+  return (nodes || []).some((node) => {
+    if (node.type === 'document' && node.docId === docId) {
+      return true;
+    }
+    if (node.type === 'folder') {
+      return hasDocNode(node.children || [], docId);
+    }
+    return false;
+  });
+}
+
+function ensureProjectStyleDocument(project) {
+  if (!project || !project.documents) {
+    return null;
+  }
+
+  let styleDoc = getProjectStyleDocument(project);
+  if (!styleDoc) {
+    const docId = `doc-${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    styleDoc = {
+      id: docId,
+      name: BASE_CSS_FILE_NAME,
+      content: project.styleCss || '',
+      updatedAt: now,
+    };
+    project.documents[docId] = styleDoc;
+  }
+  if (!styleDoc.content && project.styleCss) {
+    styleDoc.content = project.styleCss;
+  }
+  project.styleCss = styleDoc.content || '';
+  if (!hasDocNode(project.tree || [], styleDoc.id)) {
+    project.tree = project.tree || [];
+    project.tree.unshift({
+      id: `node-${crypto.randomUUID()}`,
+      type: 'document',
+      name: styleDoc.name,
+      includeInCompile: false,
+      docId: styleDoc.id,
+    });
+  }
+
+  return styleDoc;
+}
+
+function toggleSidebar() {
+  if (!ui.layout || !ui.toggleSidebarBtn) {
+    return;
+  }
+  const collapsed = ui.layout.classList.toggle('sidebar-collapsed');
+  ui.toggleSidebarBtn.textContent = collapsed ? '⟩' : '⟨';
+  ui.toggleSidebarBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
 }
 
 function compileProject() {
