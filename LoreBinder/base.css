@@ -1,0 +1,50 @@
+:root {
+  --page-bg: #f3eee0;
+  --ink: #2d2419;
+  --accent: #7a4d13;
+  --paper: #fffaf0;
+  --line: #d9c9ab;
+}
+
+.rendered-preview,
+#visual-editor {
+  font-family: 'Georgia', serif;
+  line-height: 1.55;
+  color: var(--ink);
+  background: linear-gradient(180deg, #fffef9 0%, var(--page-bg) 100%);
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 360px;
+}
+
+.rendered-preview h1,
+.rendered-preview h2,
+.rendered-preview h3 {
+  color: var(--accent);
+  margin-top: 1rem;
+}
+
+.rendered-preview img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+.wrap-left::after,
+.wrap-right::after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
+.wrap-left img {
+  float: left;
+  max-width: 42%;
+  margin: 0 1rem 0.8rem 0;
+}
+
+.wrap-right img {
+  float: right;
+  max-width: 42%;
+  margin: 0 0 0.8rem 1rem;
+}
