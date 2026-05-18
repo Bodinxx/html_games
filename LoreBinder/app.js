@@ -533,13 +533,7 @@ function validateProjectLinks() {
 }
 
 function extractMarkdownLinks(markdown) {
-  const links = [];
-  const pattern = /\[[^\]]+\]\(([^)]+)\)/g;
-  let match;
-  while ((match = pattern.exec(markdown)) !== null) {
-    links.push(match[1]);
-  }
-  return links;
+  return Array.from(markdown.matchAll(/\[[^\]]+\]\(([^)]+)\)/g), (match) => match[1]);
 }
 
 function extractAnchors(markdown) {
@@ -827,7 +821,12 @@ function markDirty() {
     saveState().catch((error) => {
       console.error(error);
       ui.saveStatus.textContent = '⚠ Save failed. Keeping local draft.';
-      localStorage.setItem('lorebinder-backup', JSON.stringify(state.project));
+      try {
+        localStorage.setItem('lorebinder-backup', JSON.stringify(state.project));
+      } catch (storageError) {
+        console.error(storageError);
+        ui.saveStatus.textContent = '⚠ Save failed and local backup could not be written.';
+      }
     });
   }, 5000);
 }
