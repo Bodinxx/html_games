@@ -20,7 +20,7 @@
 html,
 body {
   width: 100%;
-  height: 100%;
+  height: 100dvh;
 }
 
 body {
@@ -53,8 +53,8 @@ legend {
 .layout {
   display: grid;
   grid-template-columns: 300px 1fr;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   transition: grid-template-columns 0.2s ease;
   overflow: hidden;
 }
@@ -80,6 +80,10 @@ legend {
   min-height: 0;
   overflow: auto;
   padding: 0.6rem;
+}
+
+.sidebar-content[hidden] {
+  display: none !important;
 }
 
 .layout.sidebar-collapsed .sidebar-content {
@@ -167,23 +171,36 @@ button.danger {
   display: flex;
   flex-direction: column;
   gap: 0;
-  min-height: 100vh;
+  min-height: 0;
+  height: 100%;
   min-width: 0;
   overflow: hidden;
 }
 
 .topbar {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.35rem 0.45rem;
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) repeat(8, minmax(32px, auto));
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
   border-bottom: 1px solid var(--app-border);
   background: var(--app-panel-alt);
-  min-height: 44px;
+  min-height: 36px;
 }
 
-.toolbar-spacer {
-  flex: 1;
+.topbar-select {
+  border-radius: 0;
+  min-height: 100%;
+}
+
+.topbar > button,
+.topbar > details > summary {
+  border-radius: 0;
+  min-height: 100%;
+}
+
+.hidden-toolbar-fields {
+  display: none;
 }
 
 .stack-field {
@@ -240,14 +257,14 @@ button.danger {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  padding: 0.35rem 0.45rem;
+  padding: 0;
   border-bottom: 1px solid var(--app-border);
-  min-height: 40px;
+  min-height: 32px;
   overflow: auto;
 }
 
 .editor-toolbar {
-  padding: 0.35rem 0.45rem;
+  padding: 0;
   border-bottom: 1px solid var(--app-border);
   background: color-mix(in srgb, var(--app-panel-alt) 75%, var(--app-panel) 25%);
   overflow: auto hidden;
@@ -370,7 +387,7 @@ button.danger {
 .editor-column h2 {
   margin: 0;
   font-size: 0.85rem;
-  padding: 0.35rem 0.45rem;
+  padding: 0.2rem 0.35rem;
   border-bottom: 1px solid var(--app-border);
   background: color-mix(in srgb, var(--app-panel-alt) 70%, var(--app-panel) 30%);
 }
@@ -381,7 +398,7 @@ button.danger {
   border: 1px solid var(--app-border);
   background: var(--app-surface);
   color: var(--app-text);
-  padding: 0.6rem;
+  padding: 0;
 }
 
 .editor-pane {
@@ -468,19 +485,20 @@ button.danger {
 }
 
 .compile-panel {
-  min-height: 180px;
-  max-height: 28vh;
+  min-height: 0;
+  max-height: none;
+  flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-top: 1px solid var(--app-border);
+  border-top: 0;
 }
 
 .status-bar {
   text-align: right;
   color: var(--app-text-soft);
   margin-top: auto;
-  padding: 0.25rem 0.45rem;
+  padding: 0.15rem 0.35rem;
   border-top: 1px solid var(--app-border);
 }
 
@@ -596,6 +614,57 @@ button.danger {
 
 .hidden {
   display: none !important;
+}
+
+.workspace-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--app-border);
+  min-height: 32px;
+}
+
+.workspace-tab {
+  border-radius: 0;
+  border: 0;
+  border-right: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-accent) 28%, var(--app-panel) 72%);
+}
+
+.workspace-tab.active {
+  background: var(--app-accent);
+}
+
+.workspace-panels {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace-panel {
+  display: none;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.workspace-panel.active {
+  display: flex;
+}
+
+.asset-root,
+.asset-node {
+  cursor: default;
+}
+
+.asset-inline-btn {
+  min-width: 22px;
+  padding: 0.1rem 0.3rem;
+  line-height: 1;
+}
+
+.asset-node .name {
+  flex: initial;
 }
 
 @media (max-width: 1200px) {

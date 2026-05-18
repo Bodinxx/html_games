@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 
 const STORAGE_DIR = __DIR__ . '/storage';
 const ASSETS_DIR = STORAGE_DIR . '/assets';
+const PROJECTS_DIR = STORAGE_DIR . '/projects';
 const PROJECT_FILE = STORAGE_DIR . '/project.json';
 const USERS_FILE = STORAGE_DIR . '/users.enc';
 const USERS_KEY_FILE = STORAGE_DIR . '/users.key';
@@ -282,6 +283,7 @@ if ($action === 'save_state') {
     $projectStore['projects'][$index] = $normalized;
     $projectStore['activeProjectIdByUser'][(string) ($user['id'] ?? '')] = $projectId;
     writeProjectStore($projectStore);
+    syncProjectDocumentFiles($normalized);
 
     respond(buildStatePayload($user));
 }
@@ -378,6 +380,7 @@ if ($action === 'delete_project') {
     $ownerId = (string) ($project['ownerUserId'] ?? '');
     array_splice($projectStore['projects'], $index, 1);
     deleteProjectAssets($projectId);
+    deleteProjectDocuments($projectId);
     $projectStore = repairProjectSelections($projectStore);
     writeProjectStore($projectStore);
 
@@ -756,6 +759,7 @@ if ($action === 'admin_delete_user') {
     foreach ($projectStore['projects'] as $projectIndex => $project) {
         if (($project['ownerUserId'] ?? '') === $userId) {
             deleteProjectAssets((string) ($project['id'] ?? ''));
+            deleteProjectDocuments((string) ($project['id'] ?? ''));
             unset($projectStore['projects'][$projectIndex]);
         }
     }
@@ -783,6 +787,7 @@ if ($action === 'admin_delete_project') {
 
     array_splice($projectStore['projects'], $index, 1);
     deleteProjectAssets($projectId);
+    deleteProjectDocuments($projectId);
     $projectStore = repairProjectSelections($projectStore);
     writeProjectStore($projectStore);
 
@@ -798,6 +803,9 @@ function ensureStorage(): void
     }
     if (!is_dir(ASSETS_DIR)) {
         mkdir(ASSETS_DIR, STORAGE_DIR_PERMISSIONS, true);
+    }
+    if (!is_dir(PROJECTS_DIR)) {
+        mkdir(PROJECTS_DIR, STORAGE_DIR_PERMISSIONS, true);
     }
     if (!is_file(MAIL_LOG_FILE)) {
         file_put_contents(MAIL_LOG_FILE, json_encode([], JSON_PRETTY_PRINT));
@@ -1263,6 +1271,107 @@ function ensureProjectAssetsDir(string $projectId): string
     return $path;
 }
 
+function ensureProjectDocumentsDir(string $projectId): string
+{
+    $safeProjectId = sanitizePathSegment($projectId, 'project');
+    $path = PROJECTS_DIR . '/' . $safeProjectId;
+    if (!is_dir($path)) {
+        mkdir($path, STORAGE_DIR_PERMISSIONS, true);
+    }
+    return $path;
+}
+
+function sanitizePathSegment(string $value, string $fallback = 'item'): string
+{
+    $segment = trim(str_replace(['\\', '/'], '_', $value));
+    $segment = preg_replace('/[^a-zA-Z0-9._ -]/', '_', $segment) ?? '';
+    $segment = trim($segment, " ._\t\n\r\0\x0B");
+    return $segment !== '' ? $segment : $fallback;
+}
+
+function syncProjectDocumentFiles(array $project): void
+{
+    $projectId = trim((string) ($project['id'] ?? ''));
+    if ($projectId === '') {
+        return;
+    }
+
+    $baseDir = ensureProjectDocumentsDir($projectId);
+    $documents = is_array($project['documents'] ?? null) ? $project['documents'] : [];
+    $tree = is_array($project['tree'] ?? null) ? $project['tree'] : [];
+    $desiredFiles = [];
+    $usedPaths = [];
+
+    $walk = static function (array $nodes, array $segments = []) use (&$walk, $documents, &$desiredFiles, &$usedPaths): void {
+        foreach ($nodes as $node) {
+            if (!is_array($node)) {
+                continue;
+            }
+            $type = (string) ($node['type'] ?? 'document');
+            $name = sanitizePathSegment((string) ($node['name'] ?? ''), $type === 'folder' ? 'folder' : 'document.md');
+            if ($type === 'folder') {
+                $walk((array) ($node['children'] ?? []), [...$segments, $name]);
+                continue;
+            }
+
+            $docId = trim((string) ($node['docId'] ?? ''));
+            if ($docId === '' || !isset($documents[$docId]) || !is_array($documents[$docId])) {
+                continue;
+            }
+
+            if (!str_contains($name, '.')) {
+                $name .= '.md';
+            }
+
+            $relativePath = implode('/', [...$segments, $name]);
+            $info = pathinfo($relativePath);
+            $dir = $info['dirname'] ?? '';
+            $filename = $info['filename'] ?? 'document';
+            $extension = isset($info['extension']) && $info['extension'] !== '' ? '.' . $info['extension'] : '';
+            $uniquePath = $relativePath;
+            $counter = 1;
+            while (isset($usedPaths[$uniquePath])) {
+                $uniqueName = $filename . '-' . $counter . $extension;
+                $uniquePath = ($dir === '.' || $dir === '') ? $uniqueName : $dir . '/' . $uniqueName;
+                $counter++;
+            }
+            $usedPaths[$uniquePath] = true;
+            $desiredFiles[$uniquePath] = (string) ($documents[$docId]['content'] ?? '');
+        }
+    };
+
+    $walk($tree, []);
+
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($baseDir, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+
+    foreach ($iterator as $entry) {
+        if (!$entry instanceof SplFileInfo) {
+            continue;
+        }
+        $fullPath = $entry->getPathname();
+        $relative = ltrim(str_replace('\\', '/', substr($fullPath, strlen($baseDir))), '/');
+        if ($entry->isFile()) {
+            if (!array_key_exists($relative, $desiredFiles)) {
+                @unlink($fullPath);
+            }
+            continue;
+        }
+        @rmdir($fullPath);
+    }
+
+    foreach ($desiredFiles as $relative => $content) {
+        $target = $baseDir . '/' . $relative;
+        $directory = dirname($target);
+        if (!is_dir($directory)) {
+            mkdir($directory, STORAGE_DIR_PERMISSIONS, true);
+        }
+        file_put_contents($target, $content);
+    }
+}
+
 function deleteProjectAssets(string $projectId): void
 {
     $path = ASSETS_DIR . '/' . $projectId;
@@ -1282,6 +1391,32 @@ function deleteProjectAssets(string $projectId): void
             }
         }
     }
+    @rmdir($path);
+}
+
+function deleteProjectDocuments(string $projectId): void
+{
+    $path = PROJECTS_DIR . '/' . sanitizePathSegment($projectId, 'project');
+    if (!is_dir($path)) {
+        return;
+    }
+
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+
+    foreach ($iterator as $entry) {
+        if (!$entry instanceof SplFileInfo) {
+            continue;
+        }
+        if ($entry->isDir()) {
+            @rmdir($entry->getPathname());
+        } else {
+            @unlink($entry->getPathname());
+        }
+    }
+
     @rmdir($path);
 }
 
