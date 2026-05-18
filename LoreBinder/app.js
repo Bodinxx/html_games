@@ -78,6 +78,7 @@ const state = {
   projects: [],
   assets: [],
   selectedNodeId: null,
+  activeWorkspacePanel: 'editor',
   mode: 'visual',
   saveTimer: null,
   isDirty: false,
@@ -92,17 +93,22 @@ const state = {
 
 const ui = {
   layout: document.querySelector('.layout'),
+  sidebar: document.getElementById('sidebar'),
+  sidebarContent: document.getElementById('sidebar-content'),
   toggleSidebarBtn: document.getElementById('toggle-sidebar-btn'),
   fileTree: document.getElementById('file-tree'),
-  assetList: document.getElementById('asset-list'),
   assetUpload: document.getElementById('asset-upload'),
   projectSelect: document.getElementById('project-select'),
   newProjectBtn: document.getElementById('new-project-btn'),
   archiveProjectBtn: document.getElementById('archive-project-btn'),
   deleteProjectBtn: document.getElementById('delete-project-btn'),
+  downloadPdfBtn: document.getElementById('download-pdf-btn'),
   projectInfoMenu: document.getElementById('project-info-menu'),
   themePreset: document.getElementById('theme-preset'),
   projectTitle: document.getElementById('project-title'),
+  workspaceTabs: document.getElementById('workspace-tabs'),
+  editorWorkspace: document.getElementById('editor-workspace'),
+  compileWorkspace: document.getElementById('compile-workspace'),
   docTabs: document.getElementById('doc-tabs'),
   editorToolbar: document.getElementById('editor-toolbar'),
   editorGrid: document.getElementById('editor-grid'),
@@ -166,7 +172,7 @@ async function bootstrap() {
 }
 
 function bindEvents() {
-  ui.projectTitle.addEventListener('input', () => {
+  ui.projectTitle?.addEventListener('input', () => {
     if (!state.project) {
       return;
     }
@@ -174,7 +180,7 @@ function bindEvents() {
     markDirty();
   });
 
-  ui.projectSelect.addEventListener('change', async () => {
+  ui.projectSelect?.addEventListener('change', async () => {
     const nextProjectId = ui.projectSelect.value;
     if (!nextProjectId || nextProjectId === state.project?.id) {
       return;
@@ -182,12 +188,12 @@ function bindEvents() {
     await switchProject(nextProjectId);
   });
 
-  ui.newProjectBtn.addEventListener('click', () => showCreateProjectOverlay());
-  ui.archiveProjectBtn.addEventListener('click', () => toggleArchiveProject());
-  ui.deleteProjectBtn.addEventListener('click', () => removeCurrentProject());
+  ui.newProjectBtn?.addEventListener('click', () => showCreateProjectOverlay());
+  ui.archiveProjectBtn?.addEventListener('click', () => toggleArchiveProject());
+  ui.deleteProjectBtn?.addEventListener('click', () => removeCurrentProject());
   ui.toggleSidebarBtn?.addEventListener('click', () => toggleSidebar());
 
-  ui.themePreset.addEventListener('change', () => {
+  ui.themePreset?.addEventListener('change', () => {
     if (!state.project) {
       return;
     }
@@ -220,20 +226,21 @@ function bindEvents() {
     markDirty();
   });
 
-  ui.codeEditor.addEventListener('input', () => {
+  ui.codeEditor?.addEventListener('input', () => {
     updateActiveDocument(ui.codeEditor.value);
     renderActiveDocumentPreview();
   });
 
-  ui.compileBtn.addEventListener('click', () => {
+  ui.compileBtn?.addEventListener('click', () => {
     if (!state.project) {
       return;
     }
     const compiled = compileProject();
     ui.compileOutput.textContent = compiled.output;
+    setActiveWorkspacePanel('compile');
   });
 
-  ui.validateLinksBtn.addEventListener('click', () => {
+  ui.validateLinksBtn?.addEventListener('click', () => {
     if (!state.project) {
       return;
     }
@@ -241,56 +248,66 @@ function bindEvents() {
     ui.compileOutput.textContent = validation.length
       ? validation.map((line) => `⚠ ${line}`).join('\n')
       : '✓ All internal links resolved.';
+    setActiveWorkspacePanel('compile');
   });
 
-  ui.newDocBtn.addEventListener('click', () => createNode('document'));
-  ui.newFolderBtn.addEventListener('click', () => createNode('folder'));
-  ui.renameNodeBtn.addEventListener('click', renameSelectedNode);
-  ui.deleteNodeBtn.addEventListener('click', deleteSelectedNode);
+  ui.newDocBtn?.addEventListener('click', () => createNode('document'));
+  ui.newFolderBtn?.addEventListener('click', () => createNode('folder'));
+  ui.renameNodeBtn?.addEventListener('click', renameSelectedNode);
+  ui.deleteNodeBtn?.addEventListener('click', deleteSelectedNode);
 
-  ui.assetUpload.addEventListener('change', uploadAsset);
-  ui.helpBtn.addEventListener('click', () => {
+  ui.assetUpload?.addEventListener('change', uploadAsset);
+  ui.downloadPdfBtn?.addEventListener('click', () => window.print());
+  ui.helpBtn?.addEventListener('click', () => {
     showHelpOverlay().catch((error) => {
       console.error(error);
       alert(error.message || 'Unable to open help.');
     });
   });
 
-  ui.profileBtn.addEventListener('click', () => {
+  ui.profileBtn?.addEventListener('click', () => {
     showProfileOverlay().catch((error) => {
       console.error(error);
       alert(error.message || 'Unable to open profile settings.');
     });
   });
 
-  ui.adminBtn.addEventListener('click', () => {
+  ui.adminBtn?.addEventListener('click', () => {
     showAdminOverlay().catch((error) => {
       console.error(error);
       alert(error.message || 'Unable to open admin panel.');
     });
   });
 
-  ui.logoutBtn.addEventListener('click', () => {
+  ui.logoutBtn?.addEventListener('click', () => {
     logout().catch((error) => {
       console.error(error);
       alert(error.message || 'Logout failed.');
     });
   });
 
-  ui.overlayCloseBtn.addEventListener('click', () => {
+  ui.overlayCloseBtn?.addEventListener('click', () => {
     if (!state.overlayClosable) {
       return;
     }
     closeOverlay();
   });
 
-  ui.overlay.addEventListener('click', (event) => {
+  ui.overlay?.addEventListener('click', (event) => {
     if (!state.overlayClosable) {
       return;
     }
     if (event.target === ui.overlay) {
       closeOverlay();
     }
+  });
+
+  ui.workspaceTabs?.addEventListener('click', (event) => {
+    const target = event.target.closest('button[data-panel]');
+    if (!target) {
+      return;
+    }
+    setActiveWorkspacePanel(target.dataset.panel === 'compile' ? 'compile' : 'editor');
   });
 }
 
@@ -337,7 +354,7 @@ function renderEditorToolbar() {
 function editorMenuDefinitions() {
   return [
     {
-      label: 'EDITOR',
+      label: '📝 Editor',
       hint: 'Layout and cross-link helpers.',
       items: [
         { label: 'Column count', action: insertColumnLayoutSnippet },
@@ -352,7 +369,7 @@ function editorMenuDefinitions() {
       ],
     },
     {
-      label: 'FONTS',
+      label: '🗛 Fonts',
       hint: 'Google Fonts snippets plus a custom family loader.',
       items: [
         ...GOOGLE_FONT_NAMES.map((fontName) => ({
@@ -363,7 +380,7 @@ function editorMenuDefinitions() {
       ],
     },
     {
-      label: 'IMAGES',
+      label: '🖼️ Images',
       hint: 'Insert asset links or image scaffolds.',
       items: [
         { label: 'Image', action: showImageInsertOverlay },
@@ -374,7 +391,7 @@ function editorMenuDefinitions() {
       ],
     },
     {
-      label: 'TABLES',
+      label: '📅 Tables',
       hint: 'Sample markdown and styled block snippets.',
       items: [
         { label: 'Table', action: () => insertSnippet(buildSampleTable(3, 3)) },
@@ -406,6 +423,15 @@ function closeToolbarMenus() {
   document.querySelectorAll('.toolbar-menu[open]').forEach((menu) => {
     menu.open = false;
   });
+}
+
+function setActiveWorkspacePanel(panel) {
+  state.activeWorkspacePanel = panel === 'compile' ? 'compile' : 'editor';
+  ui.workspaceTabs?.querySelectorAll('.workspace-tab').forEach((tab) => {
+    tab.classList.toggle('active', tab.dataset.panel === state.activeWorkspacePanel);
+  });
+  ui.editorWorkspace?.classList.toggle('active', state.activeWorkspacePanel === 'editor');
+  ui.compileWorkspace?.classList.toggle('active', state.activeWorkspacePanel === 'compile');
 }
 
 function insertSnippet(snippet, selectionText = '') {
@@ -610,6 +636,7 @@ function setWorkspaceEnabled(enabled) {
     ui.visualEditor,
     ui.codeEditor,
     ui.compileBtn,
+    ui.downloadPdfBtn,
     ui.validateLinksBtn,
     ui.newDocBtn,
     ui.newFolderBtn,
@@ -627,7 +654,9 @@ function setWorkspaceEnabled(enabled) {
   });
 
   ui.visualEditor.contentEditable = 'false';
-  ui.codeEditor.readOnly = !enabled;
+  if (ui.codeEditor) {
+    ui.codeEditor.readOnly = !enabled;
+  }
 
   if (!enabled && !state.authUser) {
     ui.saveStatus.textContent = 'Login required.';
@@ -637,9 +666,14 @@ function setWorkspaceEnabled(enabled) {
 }
 
 function renderAuthControls() {
+  if (!ui.userMenu || !ui.currentUserLabel || !ui.profileBtn || !ui.adminBtn || !ui.logoutBtn) {
+    return;
+  }
+
   if (!state.authUser) {
     ui.userMenu.classList.add('hidden');
-    ui.currentUserLabel.textContent = '';
+    ui.currentUserLabel.textContent = '👤';
+    ui.currentUserLabel.title = 'User menu';
     ui.profileBtn.classList.add('hidden');
     ui.adminBtn.classList.add('hidden');
     ui.logoutBtn.classList.add('hidden');
@@ -648,7 +682,8 @@ function renderAuthControls() {
 
   const displayName = state.authUser.realName ? `${state.authUser.username} • ${state.authUser.realName}` : state.authUser.username;
   ui.userMenu.classList.remove('hidden');
-  ui.currentUserLabel.textContent = `${displayName} (${state.authUser.role}) ▾`;
+  ui.currentUserLabel.textContent = '👤';
+  ui.currentUserLabel.title = `${displayName} • ${state.authUser.role}`;
   ui.profileBtn.classList.remove('hidden');
   ui.logoutBtn.classList.remove('hidden');
   ui.adminBtn.classList.toggle('hidden', state.authUser.role !== 'admin');
@@ -657,28 +692,41 @@ function renderAuthControls() {
 function renderAll() {
   renderProjectControls();
   syncGoogleFontsFromProject();
+  setActiveWorkspacePanel(state.activeWorkspacePanel);
   if (!state.project) {
     clearWorkspace();
     return;
   }
 
-  ui.projectTitle.value = state.project.title || '';
+  if (ui.projectTitle) {
+    ui.projectTitle.value = state.project.title || '';
+  }
   applyProjectCss();
   renderTree();
   renderDocTabs();
-  renderAssets();
   syncEditorFromActiveDocument();
   ui.saveStatus.textContent = state.isDirty ? '○ Editing...' : '● Saved';
 }
 
 function clearWorkspace() {
-  ui.projectTitle.value = '';
-  ui.fileTree.innerHTML = '<li class="empty-state">No project selected.</li>';
-  ui.docTabs.innerHTML = '';
-  ui.assetList.innerHTML = '<li class="empty-state">No project assets yet.</li>';
-  ui.codeEditor.value = '';
-  ui.visualEditor.innerHTML = '';
-  ui.compileOutput.textContent = 'Create or switch to a project to compile.';
+  if (ui.projectTitle) {
+    ui.projectTitle.value = '';
+  }
+  if (ui.fileTree) {
+    ui.fileTree.innerHTML = '<li class="empty-state">No project selected.</li>';
+  }
+  if (ui.docTabs) {
+    ui.docTabs.innerHTML = '';
+  }
+  if (ui.codeEditor) {
+    ui.codeEditor.value = '';
+  }
+  if (ui.visualEditor) {
+    ui.visualEditor.innerHTML = '';
+  }
+  if (ui.compileOutput) {
+    ui.compileOutput.textContent = 'Create or switch to a project to compile.';
+  }
   const styleTag = document.getElementById('project-style-overrides');
   if (styleTag) {
     styleTag.textContent = '';
@@ -686,6 +734,9 @@ function clearWorkspace() {
 }
 
 function renderProjectControls() {
+  if (!ui.projectSelect || !ui.archiveProjectBtn || !ui.themePreset) {
+    return;
+  }
   ui.projectSelect.innerHTML = '';
   const activeProjects = state.projects.filter((project) => project.status !== 'archived');
   const archivedProjects = state.projects.filter((project) => project.status === 'archived');
@@ -830,9 +881,15 @@ function deleteSelectedNode() {
 }
 
 function renderTree() {
+  if (!ui.fileTree) {
+    return;
+  }
+
   ui.fileTree.innerHTML = '';
+  ui.fileTree.appendChild(renderAssetsTreeNode());
+
   if (!state.project?.tree?.length) {
-    ui.fileTree.innerHTML = '<li class="empty-state">No documents yet.</li>';
+    ui.fileTree.insertAdjacentHTML('beforeend', '<li class="empty-state">No documents yet.</li>');
     return;
   }
 
@@ -886,14 +943,16 @@ function renderTreeNode(node) {
     event.dataTransfer?.setData('text/plain', node.id);
   });
 
-  li.addEventListener('dragover', (event) => event.preventDefault());
+  li.addEventListener('dragover', (event) => {
+    event.preventDefault();
+  });
   li.addEventListener('drop', (event) => {
     event.preventDefault();
     const draggedId = event.dataTransfer?.getData('text/plain');
     if (!draggedId || draggedId === node.id) {
       return;
     }
-    moveNode(draggedId, node.id);
+    moveNode(draggedId, node.id, dropPositionFromEvent(event, row, node));
   });
 
   li.appendChild(row);
@@ -907,7 +966,20 @@ function renderTreeNode(node) {
   return li;
 }
 
-function moveNode(draggedId, targetId) {
+function dropPositionFromEvent(event, row, node) {
+  const rect = row.getBoundingClientRect();
+  const offset = event.clientY - rect.top;
+  const threshold = Math.max(6, rect.height * 0.25);
+  if (offset < threshold) {
+    return 'before';
+  }
+  if (offset > rect.height - threshold) {
+    return 'after';
+  }
+  return node.type === 'folder' ? 'inside' : 'after';
+}
+
+function moveNode(draggedId, targetId, position = 'after') {
   const dragged = findNodeAndParent(state.project.tree, draggedId);
   const target = findNodeAndParent(state.project.tree, targetId);
   if (!dragged || !target) {
@@ -918,15 +990,112 @@ function moveNode(draggedId, targetId) {
   }
 
   dragged.container.splice(dragged.index, 1);
-  if (target.node.type === 'folder') {
+  if (position === 'inside' && target.node.type === 'folder') {
     target.node.children = target.node.children || [];
     target.node.children.push(dragged.node);
+  } else if (position === 'before') {
+    target.container.splice(target.index, 0, dragged.node);
   } else {
     target.container.splice(target.index + 1, 0, dragged.node);
   }
 
   renderTree();
   markDirty();
+}
+
+function renderAssetsTreeNode() {
+  const li = document.createElement('li');
+  li.className = 'assets-tree-root';
+
+  const row = document.createElement('div');
+  row.className = 'tree-node asset-root';
+
+  const icon = document.createElement('span');
+  icon.textContent = '📁';
+
+  const name = document.createElement('span');
+  name.className = 'name';
+  name.textContent = 'Assets';
+
+  const upload = document.createElement('button');
+  upload.type = 'button';
+  upload.className = 'asset-inline-btn';
+  upload.textContent = '⬆️';
+  upload.title = 'Upload asset';
+  upload.addEventListener('click', () => ui.assetUpload?.click());
+
+  row.append(icon, name, upload);
+  li.appendChild(row);
+
+  const list = document.createElement('ul');
+  if (!state.assets.length) {
+    const empty = document.createElement('li');
+    empty.className = 'empty-state';
+    empty.textContent = 'No assets uploaded for this project.';
+    list.appendChild(empty);
+  } else {
+    state.assets.forEach((asset) => {
+      const item = document.createElement('li');
+      item.className = 'asset-tree-item';
+
+      const rowItem = document.createElement('div');
+      rowItem.className = 'tree-node asset-node';
+
+      const assetIcon = document.createElement('span');
+      assetIcon.textContent = '🖼️';
+
+      const label = document.createElement('span');
+      label.className = 'name';
+      label.textContent = `${asset.name} (${formatBytes(asset.size)})`;
+
+      const copyButton = createAssetActionButton('🔗', 'Copy link', async () => {
+        const altText = generateAltTextFromFilename(asset.name);
+        const markdown = `![${altText}](${getAssetUrl(asset)})`;
+        try {
+          await navigator.clipboard.writeText(markdown);
+        } catch (error) {
+          console.error(error);
+          alert('Could not copy the asset markdown link.');
+        }
+      });
+
+      const renameButton = createAssetActionButton('✏️', 'Rename', async () => {
+        const nextName = prompt('New asset filename', asset.name);
+        if (!nextName) {
+          return;
+        }
+        await postAssetAction('rename_asset', { oldName: asset.name, newName: nextName });
+      });
+
+      const removeButton = createAssetActionButton('🚫', 'Delete', async () => {
+        if (!confirm(`Delete ${asset.name}?`)) {
+          return;
+        }
+        await postAssetAction('delete_asset', { filename: asset.name });
+      });
+      removeButton.classList.add('danger');
+
+      rowItem.append(assetIcon, label, copyButton, renameButton, removeButton);
+      item.appendChild(rowItem);
+      list.appendChild(item);
+    });
+  }
+
+  li.appendChild(list);
+  return li;
+}
+
+function createAssetActionButton(icon, title, onClick) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'asset-inline-btn';
+  button.textContent = icon;
+  button.title = title;
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    onClick();
+  });
+  return button;
 }
 
 function renderDocTabs() {
@@ -1136,6 +1305,11 @@ function toggleSidebar() {
     return;
   }
   const collapsed = ui.layout.classList.toggle('sidebar-collapsed');
+  ui.sidebar?.classList.toggle('is-collapsed', collapsed);
+  if (ui.sidebarContent) {
+    ui.sidebarContent.hidden = collapsed;
+    ui.sidebarContent.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+  }
   ui.toggleSidebarBtn.textContent = collapsed ? '⟩' : '⟨';
   ui.toggleSidebarBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
 }
@@ -1642,62 +1816,7 @@ async function uploadAsset() {
 }
 
 function renderAssets() {
-  ui.assetList.innerHTML = '';
-  if (!state.assets.length) {
-    ui.assetList.innerHTML = '<li class="empty-state">No assets uploaded for this project.</li>';
-    return;
-  }
-
-  state.assets.forEach((asset) => {
-    const li = document.createElement('li');
-    li.className = 'asset-item';
-
-    const label = document.createElement('span');
-    label.textContent = `${asset.name} (${formatBytes(asset.size)})`;
-
-    const actions = document.createElement('div');
-    actions.className = 'asset-actions';
-
-    const copy = document.createElement('button');
-    copy.type = 'button';
-    copy.textContent = 'Copy Link';
-    copy.addEventListener('click', async () => {
-      const altText = generateAltTextFromFilename(asset.name);
-      const markdown = `![${altText}](${getAssetUrl(asset)})`;
-      try {
-        await navigator.clipboard.writeText(markdown);
-      } catch (error) {
-        console.error(error);
-        alert('Could not copy the asset markdown link.');
-      }
-    });
-
-    const rename = document.createElement('button');
-    rename.type = 'button';
-    rename.textContent = 'Rename';
-    rename.addEventListener('click', async () => {
-      const nextName = prompt('New asset filename', asset.name);
-      if (!nextName) {
-        return;
-      }
-      await postAssetAction('rename_asset', { oldName: asset.name, newName: nextName });
-    });
-
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'danger';
-    remove.textContent = 'Delete';
-    remove.addEventListener('click', async () => {
-      if (!confirm(`Delete ${asset.name}?`)) {
-        return;
-      }
-      await postAssetAction('delete_asset', { filename: asset.name });
-    });
-
-    actions.append(copy, rename, remove);
-    li.append(label, actions);
-    ui.assetList.appendChild(li);
-  });
+  renderTree();
 }
 
 async function postAssetAction(action, body) {

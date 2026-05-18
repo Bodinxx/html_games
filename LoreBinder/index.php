@@ -20,77 +20,64 @@
           <button id="new-folder-btn" type="button">+ Folder</button>
           <button id="rename-node-btn" type="button">Rename</button>
           <button id="delete-node-btn" type="button" class="danger">Delete</button>
+          <label class="upload-button" for="asset-upload">Upload Asset</label>
+          <input id="asset-upload" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,.gif" hidden />
         </div>
         <ul id="file-tree" class="file-tree"></ul>
-
-        <section class="assets-panel">
-          <div class="section-header compact">
-            <h2>Assets</h2>
-            <label class="upload-button" for="asset-upload">Upload</label>
-            <input id="asset-upload" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,.gif" hidden />
-          </div>
-          <ul id="asset-list" class="asset-list"></ul>
-        </section>
       </div>
     </aside>
 
     <section class="workspace">
       <header class="topbar">
-        <label class="stack-field toolbar-field compact">
-          <span>Projects</span>
-          <select id="project-select" class="toolbar-select"></select>
-        </label>
-        <div class="project-actions">
-          <button id="new-project-btn" type="button">+ Project</button>
-          <button id="archive-project-btn" type="button">Archive</button>
-          <button id="delete-project-btn" type="button" class="danger">Remove</button>
-        </div>
-        <details id="project-info-menu" class="toolbar-menu">
-          <summary class="icon-button" aria-label="Project info" title="Project info">ⓘ</summary>
-          <div class="toolbar-popover project-popover">
-            <label class="stack-field toolbar-field">
-              <span>Project Name</span>
-              <input id="project-title" class="project-title" type="text" placeholder="Project title" />
-            </label>
-            <label class="stack-field toolbar-field">
-              <span>Primary Theme</span>
-              <select id="theme-preset" class="toolbar-select"></select>
-            </label>
-          </div>
-        </details>
-        <div class="toolbar-spacer"></div>
-        <button id="compile-btn" type="button" class="icon-button" aria-label="Compile Book" title="Compile Book">⚙</button>
+        <select id="project-select" class="toolbar-select topbar-select" aria-label="Project"></select>
+        <button id="new-project-btn" type="button" class="icon-button" aria-label="Add Project" title="Add Project">➕</button>
+        <button id="archive-project-btn" type="button" class="icon-button" aria-label="Archive" title="Archive">📂</button>
+        <button id="delete-project-btn" type="button" class="icon-button danger" aria-label="Remove" title="Remove">🚫</button>
+        <button id="compile-btn" type="button" class="icon-button" aria-label="Compile Book" title="Compile Book">⚙️</button>
+        <button id="download-pdf-btn" type="button" class="icon-button" aria-label="Download PDF" title="Download PDF">📄</button>
         <button id="validate-links-btn" type="button" class="icon-button" aria-label="Check Links" title="Check Links">🔗</button>
-        <button id="help-btn" type="button" class="icon-button" aria-label="Help" title="Help">?</button>
+        <button id="help-btn" type="button" class="icon-button" aria-label="Help" title="Help">ℹ️</button>
         <details id="user-menu" class="toolbar-menu hidden">
-          <summary id="current-user-label" class="current-user"></summary>
+          <summary id="current-user-label" class="current-user" aria-label="User menu">👤</summary>
           <div class="toolbar-popover user-popover">
             <button id="profile-btn" type="button">Profile</button>
             <button id="admin-btn" type="button" class="hidden">Admin</button>
             <button id="logout-btn" type="button">Logout</button>
           </div>
         </details>
+        <div class="hidden-toolbar-fields" aria-hidden="true">
+          <input id="project-title" class="project-title" type="text" />
+          <select id="theme-preset" class="toolbar-select"></select>
+        </div>
       </header>
 
-      <nav id="doc-tabs" class="doc-tabs" aria-label="Open documents"></nav>
-      <section id="editor-toolbar" class="editor-toolbar" aria-label="Editor tools"></section>
+      <nav id="workspace-tabs" class="workspace-tabs" aria-label="Workspace tabs">
+        <button type="button" class="workspace-tab active" data-panel="editor">Editor / Preview</button>
+        <button type="button" class="workspace-tab" data-panel="compile">Compilation Output</button>
+      </nav>
 
-      <section id="editor-grid" class="editor-grid visual-mode">
-        <section class="editor-column">
-          <h2>Code</h2>
-          <textarea id="code-editor" class="editor-pane" spellcheck="false"></textarea>
-        </section>
-        <section class="editor-column">
-          <h2>Preview</h2>
-          <article id="visual-editor" class="editor-pane rendered-preview" contenteditable="false"></article>
-        </section>
-      </section>
+      <section class="workspace-panels">
+        <section id="editor-workspace" class="workspace-panel active">
+          <nav id="doc-tabs" class="doc-tabs" aria-label="Open documents"></nav>
+          <section id="editor-toolbar" class="editor-toolbar" aria-label="Editor tools"></section>
 
-      <section class="compile-panel">
-        <header class="section-header compact">
-          <h2>Compilation Output</h2>
-        </header>
-        <div id="compile-output" class="compile-output"></div>
+          <section id="editor-grid" class="editor-grid visual-mode">
+            <section class="editor-column">
+              <h2>Code</h2>
+              <textarea id="code-editor" class="editor-pane" spellcheck="false"></textarea>
+            </section>
+            <section class="editor-column">
+              <h2>Preview</h2>
+              <article id="visual-editor" class="editor-pane rendered-preview" contenteditable="false"></article>
+            </section>
+          </section>
+        </section>
+
+        <section id="compile-workspace" class="workspace-panel">
+          <section class="compile-panel">
+            <div id="compile-output" class="compile-output"></div>
+          </section>
+        </section>
       </section>
 
       <footer class="status-bar" id="save-status">● Saved</footer>
