@@ -52,6 +52,26 @@ const INTERFACE_THEME_STYLES = {
 };
 
 const BASE_CSS_FILE_NAME = 'base.css';
+const MAX_URL_DECODE_PASSES = 3;
+const GOOGLE_FONT_NAMES = [
+  'Open Sans',
+  'Roboto',
+  'Roboto Mono',
+  'Unica One',
+  'Audiowide',
+  'Michroma',
+  'Quantico',
+  'Oswald',
+  'Bebas Neue',
+  'Great Vibes',
+  'Cookie',
+  'Pattaya',
+  'Bungee',
+  'Chango',
+  'Architects Daughter',
+  'Tangerine',
+  'Amatic SC',
+];
 
 const state = {
   project: null,
@@ -66,6 +86,8 @@ const state = {
   overlayClosable: true,
   themePresets: [],
   interfaceThemes: {},
+  fontSyncTimer: null,
+  loadedGoogleFonts: new Set(),
 };
 
 const ui = {
@@ -78,9 +100,11 @@ const ui = {
   newProjectBtn: document.getElementById('new-project-btn'),
   archiveProjectBtn: document.getElementById('archive-project-btn'),
   deleteProjectBtn: document.getElementById('delete-project-btn'),
+  projectInfoMenu: document.getElementById('project-info-menu'),
   themePreset: document.getElementById('theme-preset'),
   projectTitle: document.getElementById('project-title'),
   docTabs: document.getElementById('doc-tabs'),
+  editorToolbar: document.getElementById('editor-toolbar'),
   editorGrid: document.getElementById('editor-grid'),
   visualEditor: document.getElementById('visual-editor'),
   codeEditor: document.getElementById('code-editor'),
@@ -93,6 +117,7 @@ const ui = {
   renameNodeBtn: document.getElementById('rename-node-btn'),
   deleteNodeBtn: document.getElementById('delete-node-btn'),
   helpBtn: document.getElementById('help-btn'),
+  userMenu: document.getElementById('user-menu'),
   currentUserLabel: document.getElementById('current-user-label'),
   profileBtn: document.getElementById('profile-btn'),
   adminBtn: document.getElementById('admin-btn'),
@@ -110,6 +135,7 @@ bootstrap().catch((error) => {
 
 async function bootstrap() {
   bindEvents();
+  renderEditorToolbar();
   await refreshAuthState();
 
   const params = new URLSearchParams(window.location.search);
@@ -196,13 +222,7 @@ function bindEvents() {
 
   ui.codeEditor.addEventListener('input', () => {
     updateActiveDocument(ui.codeEditor.value);
-    ui.visualEditor.textContent = ui.codeEditor.value;
-  });
-
-  ui.visualEditor.addEventListener('input', () => {
-    const markdown = ui.visualEditor.textContent;
-    updateActiveDocument(markdown);
-    ui.codeEditor.value = markdown;
+    renderActiveDocumentPreview();
   });
 
   ui.compileBtn.addEventListener('click', () => {
@@ -274,6 +294,273 @@ function bindEvents() {
   });
 }
 
+function renderEditorToolbar() {
+  if (!ui.editorToolbar) {
+    return;
+  }
+
+  ui.editorToolbar.innerHTML = '';
+  editorMenuDefinitions().forEach((menu) => {
+    const details = document.createElement('details');
+    details.className = 'toolbar-menu';
+
+    const summary = document.createElement('summary');
+    summary.textContent = menu.label;
+    details.appendChild(summary);
+
+    const popover = document.createElement('div');
+    popover.className = 'toolbar-popover';
+
+    if (menu.hint) {
+      const hint = document.createElement('div');
+      hint.className = 'menu-hint';
+      hint.textContent = menu.hint;
+      popover.appendChild(hint);
+    }
+
+    menu.items.forEach((item) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = item.label;
+      button.addEventListener('click', () => {
+        closeToolbarMenus();
+        item.action();
+      });
+      popover.appendChild(button);
+    });
+
+    details.appendChild(popover);
+    ui.editorToolbar.appendChild(details);
+  });
+}
+
+function editorMenuDefinitions() {
+  return [
+    {
+      label: 'EDITOR',
+      hint: 'Layout and cross-link helpers.',
+      items: [
+        { label: 'Column count', action: insertColumnLayoutSnippet },
+        { label: 'Column Break', action: () => insertSnippet('::: column-break\n\n:::\n') },
+        { label: 'New Page Break', action: () => insertSnippet('::: page-break\n\n:::\n') },
+        { label: 'Vertical Spacing', action: () => insertSnippet('::: v-space\n\n:::\n') },
+        { label: 'Horizontal Spacing', action: () => insertSnippet('`     `') },
+        { label: 'A Wide Block', action: () => insertSnippet('::: wide-block\nAdd wide content here.\n:::\n', 'Add wide content here.') },
+        { label: 'Link to Header', action: () => insertSnippet('[Jump to Header](#header-slug)') },
+        { label: 'Link to Page', action: () => insertSnippet('[Jump to Page](doc:document-id)') },
+        { label: 'Link to Page + Header', action: () => insertSnippet('[Jump to Section](doc:document-id#header-slug)') },
+      ],
+    },
+    {
+      label: 'FONTS',
+      hint: 'Google Fonts snippets plus a custom family loader.',
+      items: [
+        ...GOOGLE_FONT_NAMES.map((fontName) => ({
+          label: fontName,
+          action: () => insertFontSnippet(fontName),
+        })),
+        { label: 'Custom Google Font…', action: promptForCustomFontSnippet },
+      ],
+    },
+    {
+      label: 'IMAGES',
+      hint: 'Insert asset links or image scaffolds.',
+      items: [
+        { label: 'Image', action: showImageInsertOverlay },
+        { label: 'Image Wrap Left', action: () => insertSnippet('::: wrap-left\n![Alt text](https://example.com/image.webp)\n:::\n', 'https://example.com/image.webp') },
+        { label: 'Image Wrap Right', action: () => insertSnippet('::: wrap-right\n![Alt text](https://example.com/image.webp)\n:::\n', 'https://example.com/image.webp') },
+        { label: 'Background Image', action: () => insertSnippet('::: wide-block\nBackground image URL: https://example.com/background.webp\nAdd overlay content here.\n:::\n', 'https://example.com/background.webp') },
+        { label: 'Watermark', action: () => insertSnippet('::: note-block\nWatermark image URL: https://example.com/watermark.webp\nAdd page content here.\n:::\n', 'https://example.com/watermark.webp') },
+      ],
+    },
+    {
+      label: 'TABLES',
+      hint: 'Sample markdown and styled block snippets.',
+      items: [
+        { label: 'Table', action: () => insertSnippet(buildSampleTable(3, 3)) },
+        { label: 'Wide Table', action: () => insertSnippet(`::: wide-block\n${buildSampleTable(3, 3)}:::\n`) },
+        { label: 'Split Table', action: () => insertSnippet(buildSplitTableSnippet()) },
+        { label: 'Martial Class Table', action: () => insertSnippet(buildClassTableSnippet('Martial Class Table')) },
+        { label: 'Martial Class Table (Unframed)', action: () => insertSnippet(buildClassTableSnippet('Martial Class Table', true)) },
+        { label: 'Full Caster Class Table', action: () => insertSnippet(buildCasterTableSnippet('Full Caster Class Table')) },
+        { label: 'Full Caster Class Table (Unframed)', action: () => insertSnippet(buildCasterTableSnippet('Full Caster Class Table', true)) },
+        { label: 'Half Caster Class Table', action: () => insertSnippet(buildCasterTableSnippet('Half Caster Class Table')) },
+        { label: 'Half Caster Class Table (Unframed)', action: () => insertSnippet(buildCasterTableSnippet('Half Caster Class Table', true)) },
+        { label: 'Spell', action: () => insertSnippet(buildBlockSnippet('spell-block', 'Spell Name\n*1st-level evocation*\n\nDescribe the spell here.')) },
+        { label: 'Class Feature', action: () => insertSnippet(buildBlockSnippet('class-feature-block', 'Class Feature\nDescribe the feature here.')) },
+        { label: 'Quote', action: () => insertSnippet(buildBlockSnippet('quote-block', '"Quoted lore or dramatic text."')) },
+        { label: 'Note', action: () => insertSnippet(buildBlockSnippet('note-block', 'Useful GM or player note.')) },
+        { label: 'Descriptive Text Box', action: () => insertSnippet(buildBlockSnippet('description-block', 'Boxed descriptive text for the scene.')) },
+        { label: 'Opponent Stat Block', action: () => insertSnippet(buildBlockSnippet('monster-stat-block', '**Armor Class** 15\n**Hit Points** 45 (6d8 + 18)\n**Speed** 30 ft.')) },
+        { label: 'Opponent Stat Block (Unframed)', action: () => insertSnippet(buildBlockSnippet('monster-stat-block unframed-block', '**Armor Class** 15\n**Hit Points** 45 (6d8 + 18)\n**Speed** 30 ft.')) },
+        { label: 'Opponent Stat Block Wide', action: () => insertSnippet(buildBlockSnippet('monster-stat-block wide-block', '**Armor Class** 15\n**Hit Points** 45 (6d8 + 18)\n**Speed** 30 ft.')) },
+        { label: 'Front Cover Page', action: () => insertSnippet(buildBlockSnippet('cover-page', '# Front Cover\nSubtitle or tagline\n\nAuthor Name')) },
+        { label: 'Inside Cover Page', action: () => insertSnippet(buildBlockSnippet('inside-cover-page', '# Inside Cover\nCredits, legal copy, or quick summary.')) },
+        { label: 'Item', action: () => insertSnippet(buildBlockSnippet('item-block', '## Item Name\n*Wondrous item, rare*\n\nDescribe the item here.')) },
+      ],
+    },
+  ];
+}
+
+function closeToolbarMenus() {
+  document.querySelectorAll('.toolbar-menu[open]').forEach((menu) => {
+    menu.open = false;
+  });
+}
+
+function insertSnippet(snippet, selectionText = '') {
+  if (!state.project || !getActiveDocument()) {
+    return;
+  }
+
+  const editor = ui.codeEditor;
+  const start = editor.selectionStart ?? editor.value.length;
+  const end = editor.selectionEnd ?? start;
+  editor.setRangeText(snippet, start, end, 'end');
+
+  if (selectionText) {
+    const selectStart = editor.value.indexOf(selectionText, start);
+    if (selectStart >= 0) {
+      editor.focus();
+      editor.setSelectionRange(selectStart, selectStart + selectionText.length);
+    }
+  } else {
+    editor.focus();
+    const cursor = start + snippet.length;
+    editor.setSelectionRange(cursor, cursor);
+  }
+
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function insertColumnLayoutSnippet() {
+  const columnCount = prompt('Column count', '2');
+  if (!columnCount) {
+    return;
+  }
+  if (!/^[1-4]$/.test(columnCount)) {
+    alert('Column count must be a number from 1 to 4.');
+    return;
+  }
+  insertSnippet(`::: columns-${columnCount}\nAdd column content here.\n:::\n`, 'Add column content here.');
+}
+
+function insertFontSnippet(fontName) {
+  ensureGoogleFontLink([fontName]);
+  insertSnippet(`{{font-inline,font-family: ${fontName}\nReplace this text\n}}\n`, 'Replace this text');
+}
+
+function promptForCustomFontSnippet() {
+  const fontName = prompt('Google font family name', 'Roboto');
+  if (!fontName) {
+    return;
+  }
+  if (!/^[a-z0-9][a-z0-9\s-]{0,79}$/i.test(fontName.trim())) {
+    alert('Enter a valid Google Font family name using letters, numbers, spaces, or hyphens.');
+    return;
+  }
+  ensureGoogleFontLink([fontName]);
+  insertFontSnippet(fontName.trim());
+}
+
+function showImageInsertOverlay() {
+  const assetButtons = state.assets.length
+    ? state.assets.map((asset) => `<button type="button" class="insert-asset-btn" data-src="${escapeHtml(getAssetUrl(asset))}" data-alt="${escapeHtml(generateAltTextFromFilename(asset.name))}">${escapeHtml(asset.name)}</button>`).join('')
+    : '<p class="empty-state">No uploaded assets for this project yet.</p>';
+
+  openOverlay(
+    'Insert Image',
+    `
+      <div class="overlay-block">
+        <h3>Project Assets</h3>
+        <div class="overlay-actions">${assetButtons}</div>
+      </div>
+      <form id="insert-image-url-form" class="overlay-block">
+        <h3>Image URL</h3>
+        <label for="insert-image-url">Image URL</label>
+        <input id="insert-image-url" name="url" type="url" placeholder="https://example.com/image.webp" />
+        <label for="insert-image-alt">Alt text</label>
+        <input id="insert-image-alt" name="alt" placeholder="Image description" />
+        <div class="overlay-actions">
+          <button type="submit">Insert Image</button>
+        </div>
+      </form>
+    `,
+    true,
+  );
+
+  document.querySelectorAll('.insert-asset-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      insertSnippet(`![${button.dataset.alt || 'Image'}](${button.dataset.src || ''})`);
+      closeOverlay();
+    });
+  });
+
+  document.getElementById('insert-image-url-form')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const url = String(formData.get('url') || '').trim();
+    const alt = String(formData.get('alt') || 'Image').trim() || 'Image';
+    if (!url) {
+      return;
+    }
+    insertSnippet(`![${alt}](${url})`);
+    closeOverlay();
+  });
+}
+
+function buildSampleTable(columns, rows) {
+  const headers = Array.from({ length: columns }, (_, index) => `Header ${index + 1}`);
+  const separator = Array.from({ length: columns }, () => '---');
+  const body = Array.from({ length: rows }, (_, rowIndex) => Array.from({ length: columns }, (_, columnIndex) => `Row ${rowIndex + 1}.${columnIndex + 1}`));
+  return [
+    `| ${headers.join(' | ')} |`,
+    `| ${separator.join(' | ')} |`,
+    ...body.map((row) => `| ${row.join(' | ')} |`),
+    '',
+  ].join('\n');
+}
+
+function buildSplitTableSnippet() {
+  return `::: split-columns\n${buildSampleTable(2, 3)}\n${buildSampleTable(2, 3)}:::\n`;
+}
+
+function buildClassTableSnippet(title, unframed = false) {
+  const table = [
+    `### ${title}`,
+    '| Level | Proficiency Bonus | Features | Notes |',
+    '| --- | --- | --- | --- |',
+    '| 1 | +2 | Feature One | Sample benefit |',
+    '| 2 | +2 | Feature Two | Sample benefit |',
+    '| 3 | +2 | Feature Three | Sample benefit |',
+  ].join('\n');
+  return unframed ? `${table}\n\n` : `::: wide-block\n${table}\n:::\n`;
+}
+
+function buildCasterTableSnippet(title, unframed = false) {
+  const table = [
+    `### ${title}`,
+    '| Level | Cantrips | 1st | 2nd | 3rd | Features |',
+    '| --- | --- | --- | --- | --- | --- |',
+    '| 1 | 2 | 2 | — | — | Feature One |',
+    '| 2 | 2 | 3 | — | — | Feature Two |',
+    '| 3 | 2 | 4 | 2 | — | Feature Three |',
+  ].join('\n');
+  return unframed ? `${table}\n\n` : `::: wide-block\n${table}\n:::\n`;
+}
+
+function buildBlockSnippet(className, body) {
+  return `::: ${className}\n${body}\n:::\n`;
+}
+
+function getAssetUrl(asset) {
+  return asset?.url || `storage/assets/${encodeURIComponent(state.project?.id || '')}/${encodeURIComponent(asset?.name || '')}`;
+}
+
+function isProjectStyleDocument(doc) {
+  return String(doc?.name || '').trim().toLowerCase() === BASE_CSS_FILE_NAME;
+}
+
 async function refreshAuthState() {
   try {
     const payload = await apiRequest('auth_state', {}, false);
@@ -339,7 +626,7 @@ function setWorkspaceEnabled(enabled) {
     }
   });
 
-  ui.visualEditor.contentEditable = enabled ? 'true' : 'false';
+  ui.visualEditor.contentEditable = 'false';
   ui.codeEditor.readOnly = !enabled;
 
   if (!enabled && !state.authUser) {
@@ -351,7 +638,7 @@ function setWorkspaceEnabled(enabled) {
 
 function renderAuthControls() {
   if (!state.authUser) {
-    ui.currentUserLabel.classList.add('hidden');
+    ui.userMenu.classList.add('hidden');
     ui.currentUserLabel.textContent = '';
     ui.profileBtn.classList.add('hidden');
     ui.adminBtn.classList.add('hidden');
@@ -360,8 +647,8 @@ function renderAuthControls() {
   }
 
   const displayName = state.authUser.realName ? `${state.authUser.username} • ${state.authUser.realName}` : state.authUser.username;
-  ui.currentUserLabel.classList.remove('hidden');
-  ui.currentUserLabel.textContent = `${displayName} (${state.authUser.role})`;
+  ui.userMenu.classList.remove('hidden');
+  ui.currentUserLabel.textContent = `${displayName} (${state.authUser.role}) ▾`;
   ui.profileBtn.classList.remove('hidden');
   ui.logoutBtn.classList.remove('hidden');
   ui.adminBtn.classList.toggle('hidden', state.authUser.role !== 'admin');
@@ -369,6 +656,7 @@ function renderAuthControls() {
 
 function renderAll() {
   renderProjectControls();
+  syncGoogleFontsFromProject();
   if (!state.project) {
     clearWorkspace();
     return;
@@ -389,7 +677,7 @@ function clearWorkspace() {
   ui.docTabs.innerHTML = '';
   ui.assetList.innerHTML = '<li class="empty-state">No project assets yet.</li>';
   ui.codeEditor.value = '';
-  ui.visualEditor.textContent = '';
+  ui.visualEditor.innerHTML = '';
   ui.compileOutput.textContent = 'Create or switch to a project to compile.';
   const styleTag = document.getElementById('project-style-overrides');
   if (styleTag) {
@@ -710,10 +998,11 @@ function updateActiveDocument(content) {
 
   doc.content = content;
   doc.updatedAt = new Date().toISOString();
-  if (String(doc.name || '').trim().toLowerCase() === BASE_CSS_FILE_NAME) {
+  if (isProjectStyleDocument(doc)) {
     state.project.styleCss = content;
     applyProjectCss();
   }
+  scheduleGoogleFontSync();
   markDirty();
 }
 
@@ -724,7 +1013,23 @@ function syncEditorFromActiveDocument() {
   const doc = getActiveDocument();
   const content = doc?.content || '';
   ui.codeEditor.value = content;
-  ui.visualEditor.textContent = content;
+  renderActiveDocumentPreview();
+}
+
+function renderActiveDocumentPreview() {
+  const doc = getActiveDocument();
+  if (!doc) {
+    ui.visualEditor.innerHTML = '<p class="empty-state">Select a document to preview.</p>';
+    return;
+  }
+
+  if (isProjectStyleDocument(doc)) {
+    ui.visualEditor.innerHTML = `<pre class="preview-source">${escapeHtml(doc.content || '')}</pre>`;
+    return;
+  }
+
+  const rendered = renderMarkdown(doc.content || '');
+  ui.visualEditor.innerHTML = rendered.html || '<p class="empty-state">Nothing to preview yet.</p>';
 }
 
 function getActiveDocument() {
@@ -962,8 +1267,10 @@ function renderMarkdown(markdown) {
   const lines = text.split('\n');
   const html = [];
   let inList = false;
+  let index = 0;
 
-  lines.forEach((line) => {
+  while (index < lines.length) {
+    const line = lines[index];
     const maybeBlock = blockMap.get(line.trim());
     if (maybeBlock) {
       if (inList) {
@@ -971,7 +1278,8 @@ function renderMarkdown(markdown) {
         inList = false;
       }
       html.push(maybeBlock);
-      return;
+      index += 1;
+      continue;
     }
 
     if (/^\s*[-*]\s+/.test(line)) {
@@ -980,7 +1288,8 @@ function renderMarkdown(markdown) {
         inList = true;
       }
       html.push(`<li>${renderInlineMarkdown(line.replace(/^\s*[-*]\s+/, ''))}</li>`);
-      return;
+      index += 1;
+      continue;
     }
 
     if (inList) {
@@ -990,7 +1299,8 @@ function renderMarkdown(markdown) {
 
     if (/^\s*$/.test(line)) {
       html.push('');
-      return;
+      index += 1;
+      continue;
     }
 
     const heading = line.match(/^(#{1,6})\s+(.+)/);
@@ -999,11 +1309,26 @@ function renderMarkdown(markdown) {
       const title = renderInlineMarkdown(heading[2]);
       const id = slugify(stripHtml(title));
       html.push(`<h${level} id="${id}">${title}</h${level}>`);
-      return;
+      index += 1;
+      continue;
+    }
+
+    if (/^\s*---+\s*$/.test(line)) {
+      html.push('<hr />');
+      index += 1;
+      continue;
+    }
+
+    const table = tryRenderMarkdownTable(lines, index);
+    if (table) {
+      html.push(table.html);
+      index = table.nextIndex;
+      continue;
     }
 
     html.push(`<p>${renderInlineMarkdown(line)}</p>`);
-  });
+    index += 1;
+  }
 
   if (inList) {
     html.push('</ul>');
@@ -1013,24 +1338,45 @@ function renderMarkdown(markdown) {
 }
 
 function renderBlockBody(text) {
-  return String(text)
-    .split('\n')
-    .map((line) => {
-      if (/^\s*$/.test(line)) {
-        return '';
-      }
-      const heading = line.match(/^(#{1,6})\s+(.+)/);
-      if (heading) {
-        const level = heading[1].length;
-        const title = renderInlineMarkdown(heading[2]);
-        return `<h${level}>${title}</h${level}>`;
-      }
-      if (/^\s*[-*]\s+/.test(line)) {
-        return `<p>• ${renderInlineMarkdown(line.replace(/^\s*[-*]\s+/, ''))}</p>`;
-      }
-      return `<p>${renderInlineMarkdown(line)}</p>`;
-    })
-    .join('\n');
+  return renderMarkdown(String(text || '')).html;
+}
+
+function tryRenderMarkdownTable(lines, startIndex) {
+  const line = lines[startIndex] || '';
+  const separator = lines[startIndex + 1] || '';
+  if (!/^\|.+\|\s*$/.test(line) || !/^\|\s*[-:| ]+\|\s*$/.test(separator)) {
+    return null;
+  }
+
+  const rows = [];
+  let index = startIndex;
+  while (index < lines.length && /^\|.+\|\s*$/.test(lines[index] || '')) {
+    rows.push(lines[index]);
+    index += 1;
+  }
+
+  if (rows.length < 2) {
+    return null;
+  }
+
+  const headerCells = splitMarkdownTableRow(rows[0]).map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join('');
+  const bodyRows = rows.slice(2)
+    .map((row) => splitMarkdownTableRow(row).map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join(''))
+    .map((cells) => `<tr>${cells}</tr>`)
+    .join('');
+
+  return {
+    html: `<table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table>`,
+    nextIndex: index,
+  };
+}
+
+function splitMarkdownTableRow(row) {
+  return String(row || '')
+    .trim()
+    .replace(/^\||\|$/g, '')
+    .split('|')
+    .map((cell) => cell.trim());
 }
 
 function renderInlineMarkdown(text) {
@@ -1078,7 +1424,7 @@ function stripHtml(value) {
 function sanitizeStyle(styleText) {
   const allowedProperties = new Set([
     'background', 'background-color', 'border', 'border-color', 'border-radius', 'box-shadow',
-    'color', 'display', 'float', 'font-size', 'font-style', 'font-weight', 'height', 'line-height',
+    'break-after', 'color', 'column-count', 'column-gap', 'display', 'float', 'font-family', 'font-size', 'font-style', 'font-weight', 'height', 'line-height',
     'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'max-height', 'max-width',
     'min-height', 'min-width', 'opacity', 'padding', 'padding-top', 'padding-right', 'padding-bottom',
     'padding-left', 'text-align', 'width',
@@ -1121,10 +1467,7 @@ function sanitizeHref(value) {
   if (/^(https?:\/\/|mailto:)/i.test(href)) {
     return escapeHtml(href);
   }
-  if (/^(assets\/|\.{0,2}\/|[a-zA-Z0-9._/-]+$)/.test(href)) {
-    return escapeHtml(href);
-  }
-  return '';
+  return sanitizeRelativeAssetPath(href);
 }
 
 function sanitizeImageSrc(value) {
@@ -1135,10 +1478,38 @@ function sanitizeImageSrc(value) {
   if (/^(https?:\/\/)/i.test(src)) {
     return escapeHtml(src);
   }
-  if (/^(assets\/|storage\/assets\/|\.{0,2}\/|[a-zA-Z0-9._/-]+$)/.test(src)) {
-    return escapeHtml(src);
+  return sanitizeRelativeAssetPath(src);
+}
+
+function sanitizeRelativeAssetPath(value) {
+  const rawPath = String(value || '').trim();
+  if (!/^(assets\/|storage\/assets\/|\.{0,2}\/|[a-zA-Z0-9._/%-]+$)/.test(rawPath)) {
+    return '';
   }
-  return '';
+
+  let decodedPath = rawPath;
+  try {
+    for (let count = 0; count < MAX_URL_DECODE_PASSES; count += 1) {
+      const nextDecodedPath = decodeURIComponent(decodedPath);
+      if (nextDecodedPath === decodedPath) {
+        break;
+      }
+      decodedPath = nextDecodedPath;
+    }
+  } catch (error) {
+    return '';
+  }
+
+  const normalizedPath = decodedPath.replace(/\\/g, '/');
+  if (
+    normalizedPath.startsWith('/')
+    || normalizedPath.includes('\0')
+    || normalizedPath.split('/').some((segment) => segment === '..')
+  ) {
+    return '';
+  }
+
+  return escapeHtml(rawPath);
 }
 
 function slugify(value) {
@@ -1158,6 +1529,64 @@ function applyProjectCss() {
     document.head.appendChild(styleTag);
   }
   styleTag.textContent = state.project?.styleCss || '';
+}
+
+function syncGoogleFontsFromProject() {
+  if (state.fontSyncTimer) {
+    clearTimeout(state.fontSyncTimer);
+    state.fontSyncTimer = null;
+  }
+
+  const docs = Object.values(state.project?.documents || {});
+  const fontMatches = new Set();
+  const sourceText = [
+    state.project?.styleCss || '',
+    ...docs.map((doc) => doc?.content || ''),
+  ].join('\n');
+
+  Array.from(sourceText.matchAll(/font-family\s*:\s*([^;\n]{1,120})/gi)).forEach((match) => {
+    String(match[1] || '')
+      .split(',')
+      .map((token) => token.replace(/["']/g, '').trim())
+      .filter(Boolean)
+      .forEach((name) => {
+        if (/^[a-z0-9][a-z0-9\s-]*$/i.test(name)) {
+          fontMatches.add(name);
+        }
+      });
+  });
+
+  ensureGoogleFontLink([...fontMatches]);
+}
+
+function scheduleGoogleFontSync() {
+  if (state.fontSyncTimer) {
+    clearTimeout(state.fontSyncTimer);
+  }
+  state.fontSyncTimer = setTimeout(() => {
+    state.fontSyncTimer = null;
+    syncGoogleFontsFromProject();
+  }, 150);
+}
+
+function ensureGoogleFontLink(fontNames) {
+  const uniqueFonts = [...new Set(fontNames.map((name) => String(name || '').trim()).filter(Boolean))];
+  if (!uniqueFonts.length) {
+    return;
+  }
+
+  uniqueFonts.forEach((fontName) => state.loadedGoogleFonts.add(fontName));
+  let link = document.getElementById('dynamic-google-fonts');
+  if (!link) {
+    link = document.createElement('link');
+    link.id = 'dynamic-google-fonts';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }
+  const families = [...state.loadedGoogleFonts]
+    .map((name) => `family=${name.trim().replace(/\s+/g, '+')}`)
+    .join('&');
+  link.href = `https://fonts.googleapis.com/css2?${families}&display=swap`;
 }
 
 function cleanupProjectBackup(projectId) {
@@ -1234,7 +1663,7 @@ function renderAssets() {
     copy.textContent = 'Copy Link';
     copy.addEventListener('click', async () => {
       const altText = generateAltTextFromFilename(asset.name);
-      const markdown = `![${altText}](storage/assets/${state.project.id}/${asset.name})`;
+      const markdown = `![${altText}](${getAssetUrl(asset)})`;
       try {
         await navigator.clipboard.writeText(markdown);
       } catch (error) {
