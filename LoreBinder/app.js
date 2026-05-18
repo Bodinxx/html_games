@@ -1605,6 +1605,7 @@ async function showProfileOverlay() {
   }
 
   const profile = state.authUser.profile || { aboutMe: '', website: '', gamesPlayed: [] };
+  const selectedGames = Array.isArray(profile.gamesPlayed) ? profile.gamesPlayed : [];
   const preferences = state.authUser.preferences || { fontScale: 1, interfaceTheme: 'midnight' };
   const ownedProjects = state.projects || [];
   const shareLink = `${window.location.origin}${window.location.pathname}?profile=${encodeURIComponent(state.authUser.username)}`;
@@ -1628,13 +1629,13 @@ async function showProfileOverlay() {
           <legend>Games Played</legend>
           ${COMMON_GAMES.map((game) => `
             <label class="checkbox-row">
-              <input type="checkbox" name="gamesPlayed" value="${escapeHtml(game)}" ${profile.gamesPlayed?.includes(game) ? 'checked' : ''} />
+              <input type="checkbox" name="gamesPlayed" value="${escapeHtml(game)}" ${selectedGames.includes(game) ? 'checked' : ''} />
               <span>${escapeHtml(game)}</span>
             </label>
           `).join('')}
         </fieldset>
         <label for="profile-games-custom">Other Games (comma separated)</label>
-        <input id="profile-games-custom" name="gamesCustom" value="${escapeHtml(profile.gamesPlayed.filter((game) => !COMMON_GAMES.includes(game)).join(', '))}" />
+        <input id="profile-games-custom" name="gamesCustom" value="${escapeHtml(selectedGames.filter((game) => !COMMON_GAMES.includes(game)).join(', '))}" />
         <label for="profile-about">About Me</label>
         <textarea id="profile-about" name="aboutMe" rows="5" maxlength="800">${escapeHtml(profile.aboutMe || '')}</textarea>
         <label for="profile-website">Website Link</label>

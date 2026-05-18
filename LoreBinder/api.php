@@ -1398,7 +1398,7 @@ function loadUserStore(): array
                 return true;
             }
             $expiresAt = strtotime((string) ($entry['expiresAt'] ?? ''));
-            return $expiresAt === false || $expiresAt >= time() - PASSWORD_RESET_EXPIRY_SECONDS;
+            return $expiresAt === false || $expiresAt >= time();
         }
     ));
 
@@ -1800,9 +1800,6 @@ function baseAppUrl(): string
     $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
     $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '/LoreBinder/api.php');
     $directory = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
-    if ($directory === '') {
-        $directory = '';
-    }
     return $scheme . '://' . $host . $directory . '/index.php';
 }
 
