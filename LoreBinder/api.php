@@ -1773,11 +1773,17 @@ function queuePasswordResetEmail(string $email, string $username, string $token)
 {
     $resetUrl = baseAppUrl() . '?reset=' . rawurlencode($token);
     $subject = 'LoreBinder password reset';
-    $message = "Hello {$username},\n\nUse this link to reset your LoreBinder password:\n{$resetUrl}\n\nThis link expires in 60 minutes.\n";
+    $expiresInMinutes = max(1, (int) ceil(PASSWORD_RESET_EXPIRY_SECONDS / 60));
+    $message = "Hello {$username},\n\nUse this link to reset your LoreBinder password:\n{$resetUrl}\n\nThis link expires in {$expiresInMinutes} minutes.\n";
 
     $log = json_decode((string) file_get_contents(MAIL_LOG_FILE), true);
     if (!is_array($log)) {
         $log = [];
+    }
+
+    $mailStatus = 'skipped';
+    if (filter_var($email, FILTER_VALIDATE_EMAIL) && function_exists('mail')) {
+        $mailStatus = mail($email, $subject, $message) ? 'sent' : 'failed';
     }
 
     $log[] = [
@@ -1785,14 +1791,12 @@ function queuePasswordResetEmail(string $email, string $username, string $token)
         'username' => $username,
         'subject' => $subject,
         'message' => $message,
+        'mailStatus' => $mailStatus,
         'createdAt' => gmdate(DATE_ATOM),
     ];
     file_put_contents(MAIL_LOG_FILE, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-
-    if (function_exists('mail')) {
-        @mail($email, $subject, $message);
-    }
 }
+
 
 function baseAppUrl(): string
 {

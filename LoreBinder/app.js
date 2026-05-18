@@ -170,7 +170,10 @@ function bindEvents() {
       return;
     }
 
-    const shouldReplace = !state.project.styleCss.trim() || window.confirm('Applying a new primary theme replaces the current project CSS overrides. Continue?');
+    const currentPreset = getThemePreset(state.project.themeKey);
+    const currentCss = (state.project.styleCss || '').trim();
+    const defaultCss = (currentPreset?.css || '').trim();
+    const shouldReplace = !currentCss || currentCss === defaultCss || window.confirm('Applying a new primary theme replaces the current project CSS overrides. Continue?');
     if (!shouldReplace) {
       ui.themePreset.value = state.project.themeKey || '';
       return;
@@ -1010,7 +1013,7 @@ function renderInlineMarkdown(text) {
     if (!safeHref) {
       return label;
     }
-    const isExternal = /^(https?:\/\/|mailto:)/i.test(safeHref);
+    const isExternal = /^https?:\/\//i.test(safeHref);
     return `<a href="${safeHref}"${isExternal ? ' target="_blank" rel="noopener noreferrer"' : ''}>${escapeHtml(label)}</a>`;
   });
 
@@ -1118,6 +1121,17 @@ function applyProjectCss() {
     document.head.appendChild(styleTag);
   }
   styleTag.textContent = state.project?.styleCss || '';
+}
+
+function cleanupProjectBackup(projectId) {
+  if (!projectId) {
+    return;
+  }
+  try {
+    localStorage.removeItem(`lorebinder-backup-${projectId}`);
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function applyInterfacePreferences() {
@@ -1265,6 +1279,7 @@ async function saveState() {
 
   applyStatePayload(payload);
   state.isDirty = false;
+  cleanupProjectBackup(state.project?.id);
   ui.saveStatus.textContent = '● Saved';
   renderProjectControls();
 }
@@ -1314,12 +1329,14 @@ async function removeCurrentProject() {
     return;
   }
 
+  const deletedProjectId = state.project.id;
   const payload = await apiRequest('delete_project', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ projectId: state.project.id }),
   });
 
+  cleanupProjectBackup(deletedProjectId);
   applyStatePayload(payload);
   state.isDirty = false;
   state.selectedNodeId = null;
@@ -1898,17 +1915,11 @@ async function showAdminOverlay() {
       const resetPassword = document.createElement('button');
       resetPassword.type = 'button';
       resetPassword.textContent = 'Reset Password';
-      resetPassword.addEventListener('click', async () => {
-        const nextPassword = prompt(`Set a new password for ${user.username}`, 'ChangeMe123!');
-        if (!nextPassword) {
-          return;
-        }
-        await apiRequest('admin_reset_user_password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id, password: nextPassword }),
+      resetPassword.addEventListener('click', () => {
+        showAdminResetPasswordDialog(user).catch((error) => {
+          console.error(error);
+          alert(error.message || 'Unable to reset password.');
         });
-        alert(`Password reset for ${user.username}.`);
       });
 
       const toggleStatus = document.createElement('button');
@@ -1974,6 +1985,7 @@ async function showAdminOverlay() {
         if (!confirm(`Delete project ${project.title}?`)) {
           return;
         }
+        cleanupProjectBackup(project.id);
         await apiRequest('admin_delete_project', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1999,6 +2011,42 @@ function bindOverlayTabs() {
       ui.overlayBody.querySelectorAll('.overlay-tab').forEach((tab) => tab.classList.toggle('active', tab === button));
       ui.overlayBody.querySelectorAll('.overlay-panel').forEach((panel) => panel.classList.toggle('active', panel.id === targetPanel));
     });
+  });
+}
+
+async function showAdminResetPasswordDialog(user) {
+  openOverlay(
+    `Reset Password: ${user.username}`,
+    `
+      <form id="admin-reset-password-form" class="overlay-block">
+        <label for="admin-reset-password-input">New Password</label>
+        <input id="admin-reset-password-input" name="password" type="password" required minlength="8" maxlength="120" />
+        <div class="overlay-actions">
+          <button type="submit">Update Password</button>
+          <button id="admin-reset-password-cancel" type="button">Back</button>
+        </div>
+      </form>
+    `,
+    true,
+  );
+
+  document.getElementById('admin-reset-password-cancel')?.addEventListener('click', () => {
+    showAdminOverlay().catch((error) => {
+      console.error(error);
+      alert(error.message || 'Unable to reopen admin panel.');
+    });
+  });
+
+  document.getElementById('admin-reset-password-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    await apiRequest('admin_reset_user_password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id, password: String(formData.get('password') || '') }),
+    });
+    alert(`Password reset for ${user.username}.`);
+    await showAdminOverlay();
   });
 }
 
