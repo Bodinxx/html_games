@@ -173,7 +173,8 @@ function bindEvents() {
     const currentPreset = getThemePreset(state.project.themeKey);
     const currentCss = (state.project.styleCss || '').trim();
     const defaultCss = (currentPreset?.css || '').trim();
-    const shouldReplace = !currentCss || currentCss === defaultCss || window.confirm('Applying a new primary theme replaces the current project CSS overrides. Continue?');
+    const hasCustomCss = currentCss !== '' && currentCss !== defaultCss;
+    const shouldReplace = !hasCustomCss || window.confirm('Applying a new primary theme replaces the current project CSS overrides. Continue?');
     if (!shouldReplace) {
       ui.themePreset.value = state.project.themeKey || '';
       return;
@@ -1196,8 +1197,14 @@ function renderAssets() {
     copy.type = 'button';
     copy.textContent = 'Copy Link';
     copy.addEventListener('click', async () => {
-      const markdown = `![Alt Text](storage/assets/${state.project.id}/${asset.name})`;
-      await navigator.clipboard.writeText(markdown);
+      const altText = asset.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || 'Image';
+      const markdown = `![${altText}](storage/assets/${state.project.id}/${asset.name})`;
+      try {
+        await navigator.clipboard.writeText(markdown);
+      } catch (error) {
+        console.error(error);
+        alert('Could not copy the asset markdown link.');
+      }
     });
 
     const rename = document.createElement('button');
@@ -1686,7 +1693,12 @@ async function showProfileOverlay() {
   );
 
   document.getElementById('copy-profile-link')?.addEventListener('click', async () => {
-    await navigator.clipboard.writeText(shareLink);
+    try {
+      await navigator.clipboard.writeText(shareLink);
+    } catch (error) {
+      console.error(error);
+      alert('Could not copy the profile link.');
+    }
   });
 
   document.getElementById('pref-font-scale')?.addEventListener('input', (event) => {

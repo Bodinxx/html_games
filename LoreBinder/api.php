@@ -34,6 +34,7 @@ const PROJECT_STATUS_ACTIVE = 'active';
 const PROJECT_STATUS_ARCHIVED = 'archived';
 const DEFAULT_THEME_KEY = 'dnd';
 const DEFAULT_INTERFACE_THEME = 'midnight';
+const APP_URL_ENV = 'LOREBINDER_APP_URL';
 const DEFAULT_FONT_SCALE = 1.0;
 
 ensureStorage();
@@ -1752,7 +1753,7 @@ function issuePasswordResetForEmail(string $email): void
             return;
         }
 
-        $token = bin2hex(random_bytes(16));
+        $token = bin2hex(random_bytes(32));
         $now = gmdate(DATE_ATOM);
         $store['passwordResets'][] = [
             'id' => 'reset-' . bin2hex(random_bytes(8)),
@@ -1782,8 +1783,9 @@ function queuePasswordResetEmail(string $email, string $username, string $token)
     }
 
     $mailStatus = 'skipped';
-    if (filter_var($email, FILTER_VALIDATE_EMAIL) && function_exists('mail')) {
-        $mailStatus = mail($email, $subject, $message) ? 'sent' : 'failed';
+    $mailTo = str_replace(["\r", "\n"], '', $email);
+    if (filter_var($mailTo, FILTER_VALIDATE_EMAIL) && function_exists('mail')) {
+        $mailStatus = mail($mailTo, $subject, $message) ? 'sent' : 'failed';
     }
 
     $log[] = [
@@ -1800,8 +1802,16 @@ function queuePasswordResetEmail(string $email, string $username, string $token)
 
 function baseAppUrl(): string
 {
+    $configured = trim((string) getenv(APP_URL_ENV));
+    if ($configured !== '' && filter_var($configured, FILTER_VALIDATE_URL)) {
+        return rtrim($configured, '/');
+    }
+
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    if (!preg_match('/^[a-zA-Z0-9.-]+(?::[0-9]{1,5})?$/', $host)) {
+        $host = 'localhost';
+    }
     $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '/LoreBinder/api.php');
     $directory = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
     return $scheme . '://' . $host . $directory . '/index.php';
