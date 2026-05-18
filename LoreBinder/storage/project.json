@@ -1,0 +1,33 @@
+{
+  "title": "LoreBinder Project",
+  "tree": [
+    {
+      "id": "folder-chapter-1",
+      "type": "folder",
+      "name": "Chapter 1",
+      "includeInCompile": true,
+      "children": [
+        {
+          "id": "node-doc-welcome",
+          "type": "document",
+          "name": "Welcome.md",
+          "docId": "doc-welcome",
+          "includeInCompile": true
+        }
+      ]
+    }
+  ],
+  "documents": {
+    "doc-welcome": {
+      "id": "doc-welcome",
+      "name": "Welcome.md",
+      "content": "[var:campaign_setting=\"The Iron Domains\"]\n\n# LoreBinder\n\nWelcome to [var:campaign_setting].\n\n::: wrap-left\n![Concept Art](assets/sample-art.webp)\n:::\n\n{{monster-stat-block,border-color:crimson\n### Fire Drake\n*Medium dragon, chaotic evil*\n}}\n",
+      "updatedAt": "2026-05-18T00:00:00+00:00"
+    }
+  },
+  "openTabs": [
+    "doc-welcome"
+  ],
+  "activeDocumentId": "doc-welcome",
+  "styleCss": ".monster-stat-block {\n  border: 2px solid #8b0000;\n  border-radius: 8px;\n  padding: 0.75rem;\n  background: rgba(255, 255, 255, 0.75);\n}\n\n.wrap-left img {\n  float: left;\n  max-width: 40%;\n  margin: 0 1rem 0.75rem 0;\n}\n"
+}
