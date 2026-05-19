@@ -13,6 +13,7 @@ const PROJECT_FILE = STORAGE_DIR . '/project.json';
 const USERS_FILE = STORAGE_DIR . '/users.enc';
 const USERS_KEY_FILE = STORAGE_DIR . '/users.key';
 const USERS_KEY_ENV = 'LOREBINDER_USERS_KEY';
+const GLOBAL_SNIPPETS_FILE = STORAGE_DIR . '/global_snippets.json';
 const MAIL_LOG_FILE = STORAGE_DIR . '/mail.outbox.json';
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'];
@@ -48,6 +49,7 @@ if ($action === 'auth_state') {
         'user' => $user,
         'themePresets' => themePresetSummaries(),
         'interfaceThemes' => interfaceThemeOptions(),
+        'globalSnippets' => loadGlobalSnippets(),
     ]);
 }
 
@@ -794,6 +796,62 @@ if ($action === 'admin_delete_project') {
     respond(['ok' => true]);
 }
 
+if ($action === 'admin_list_global_snippets') {
+    requireAdminUserRecord();
+    respond(['snippets' => loadGlobalSnippets()]);
+}
+
+if ($action === 'admin_save_global_snippet') {
+    requireAdminUserRecord();
+    $payload = requestJson();
+    $id = trim((string) ($payload['id'] ?? ''));
+    $name = trim((string) ($payload['name'] ?? ''));
+    $content = (string) ($payload['content'] ?? '');
+
+    if ($name === '') {
+        respond(['error' => 'Snippet name is required.'], 400);
+    }
+
+    $snippets = loadGlobalSnippets();
+    if ($id === '') {
+        $snippets[] = ['id' => 'gs-' . bin2hex(random_bytes(8)), 'name' => $name, 'content' => $content];
+    } else {
+        $found = false;
+        foreach ($snippets as &$snippet) {
+            if ($snippet['id'] === $id) {
+                $snippet['name'] = $name;
+                $snippet['content'] = $content;
+                $found = true;
+                break;
+            }
+        }
+        unset($snippet);
+        if (!$found) {
+            respond(['error' => 'Snippet not found.'], 404);
+        }
+    }
+    saveGlobalSnippets($snippets);
+    respond(['ok' => true, 'snippets' => $snippets]);
+}
+
+if ($action === 'admin_delete_global_snippet') {
+    requireAdminUserRecord();
+    $payload = requestJson();
+    $id = trim((string) ($payload['id'] ?? ''));
+    if ($id === '') {
+        respond(['error' => 'Snippet id is required.'], 400);
+    }
+    $snippets = loadGlobalSnippets();
+    $snippets = array_values(array_filter($snippets, static fn (array $s): bool => $s['id'] !== $id));
+    saveGlobalSnippets($snippets);
+    respond(['ok' => true, 'snippets' => $snippets]);
+}
+
+if ($action === 'sync_drive') {
+    requireActiveSessionUserRecord();
+    respond(['ok' => false, 'message' => 'Google Drive sync is not yet configured. Contact your administrator to set up Drive integration.']);
+}
+
 respond(['error' => 'Unknown action.'], 404);
 
 function ensureStorage(): void
@@ -864,6 +922,46 @@ function respond(array $payload, int $statusCode = 200): void
     exit;
 }
 
+function loadGlobalSnippets(): array
+{
+    if (!is_file(GLOBAL_SNIPPETS_FILE)) {
+        return [];
+    }
+    $raw = (string) file_get_contents(GLOBAL_SNIPPETS_FILE);
+    $decoded = json_decode($raw, true);
+    $snippets = is_array($decoded['snippets'] ?? null) ? $decoded['snippets'] : [];
+    return array_values(array_filter($snippets, static fn ($s): bool => is_array($s) && isset($s['id'], $s['name'])));
+}
+
+function saveGlobalSnippets(array $snippets): void
+{
+    file_put_contents(
+        GLOBAL_SNIPPETS_FILE,
+        json_encode(['snippets' => array_values($snippets)], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+    );
+}
+
+function normalizeProjectSnippets(array $snippets): array
+{
+    $result = [];
+    foreach ($snippets as $snippet) {
+        if (!is_array($snippet)) {
+            continue;
+        }
+        $id = trim((string) ($snippet['id'] ?? ''));
+        $name = trim((string) ($snippet['name'] ?? ''));
+        if ($id === '' || $name === '') {
+            continue;
+        }
+        $result[] = [
+            'id' => $id,
+            'name' => $name,
+            'content' => (string) ($snippet['content'] ?? ''),
+        ];
+    }
+    return $result;
+}
+
 function buildStatePayload(array $user, ?string $preferredProjectId = null): array
 {
     $projectStore = readProjectStore();
@@ -884,6 +982,7 @@ function buildStatePayload(array $user, ?string $preferredProjectId = null): arr
         'user' => sessionUserPayload(refreshUserRecord((string) ($user['id'] ?? '')) ?? $user),
         'themePresets' => themePresetSummaries(),
         'interfaceThemes' => interfaceThemeOptions(),
+        'globalSnippets' => loadGlobalSnippets(),
     ];
 }
 
@@ -988,6 +1087,7 @@ function normalizeProject(array $project, string $ownerUserId): array
         'openTabs' => $openTabs,
         'activeDocumentId' => $activeDocumentId,
         'styleCss' => (string) ($project['styleCss'] ?? themePresetCss($themeKey)),
+        'snippets' => normalizeProjectSnippets((array) ($project['snippets'] ?? [])),
         'createdAt' => (string) ($project['createdAt'] ?? gmdate(DATE_ATOM)),
         'updatedAt' => (string) ($project['updatedAt'] ?? gmdate(DATE_ATOM)),
     ];

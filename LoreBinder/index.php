@@ -20,7 +20,6 @@
           <button id="new-folder-btn" type="button">+ Folder</button>
           <button id="rename-node-btn" type="button">Rename</button>
           <button id="delete-node-btn" type="button" class="danger">Delete</button>
-          <label class="upload-button" for="asset-upload">Upload Asset</label>
           <input id="asset-upload" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,.gif" hidden />
         </div>
         <ul id="file-tree" class="file-tree"></ul>
@@ -36,6 +35,7 @@
         <button id="compile-btn" type="button" class="icon-button" aria-label="Compile Book" title="Compile Book">⚙️</button>
         <button id="download-pdf-btn" type="button" class="icon-button" aria-label="Download PDF" title="Download PDF">📄</button>
         <button id="validate-links-btn" type="button" class="icon-button" aria-label="Check Links" title="Check Links">🔗</button>
+        <button id="sync-drive-btn" type="button" class="icon-button" aria-label="Sync to Google Drive" title="Sync to Google Drive">☁️</button>
         <button id="help-btn" type="button" class="icon-button" aria-label="Help" title="Help">ℹ️</button>
         <details id="user-menu" class="toolbar-menu hidden">
           <summary id="current-user-label" class="current-user" aria-label="User menu">👤</summary>

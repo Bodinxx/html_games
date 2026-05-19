@@ -77,6 +77,7 @@ const state = {
   project: null,
   projects: [],
   assets: [],
+  globalSnippets: [],
   selectedNodeId: null,
   activeWorkspacePanel: 'editor',
   mode: 'visual',
@@ -118,6 +119,7 @@ const ui = {
   saveStatus: document.getElementById('save-status'),
   compileBtn: document.getElementById('compile-btn'),
   validateLinksBtn: document.getElementById('validate-links-btn'),
+  syncDriveBtn: document.getElementById('sync-drive-btn'),
   newDocBtn: document.getElementById('new-doc-btn'),
   newFolderBtn: document.getElementById('new-folder-btn'),
   renameNodeBtn: document.getElementById('rename-node-btn'),
@@ -269,7 +271,8 @@ function bindEvents() {
   ui.deleteNodeBtn?.addEventListener('click', deleteSelectedNode);
 
   ui.assetUpload?.addEventListener('change', uploadAsset);
-  ui.downloadPdfBtn?.addEventListener('click', () => window.print());
+  ui.downloadPdfBtn?.addEventListener('click', () => downloadCompiledPdf());
+  ui.syncDriveBtn?.addEventListener('click', () => showDriveSyncOverlay());
   ui.helpBtn?.addEventListener('click', () => {
     showHelpOverlay().catch((error) => {
       console.error(error);
@@ -374,12 +377,18 @@ function renderEditorToolbar() {
 }
 
 function editorMenuDefinitions() {
+  const projectSnippets = state.project?.snippets || [];
+  const globalSnippets = state.globalSnippets || [];
+  const allSnippets = [...globalSnippets, ...projectSnippets];
+
   return [
     {
       label: '📝 Editor',
       hint: 'Layout and cross-link helpers.',
       items: [
         { label: 'Column count', action: insertColumnLayoutSnippet },
+        { label: '\\column (Column Break)', action: () => insertSnippet('\\column\n') },
+        { label: '\\page (Page Break)', action: () => insertSnippet('\\page\n') },
         { label: 'Column Break', action: () => insertSnippet('::: column-break\n\n:::\n') },
         { label: 'New Page Break', action: () => insertSnippet('::: page-break\n\n:::\n') },
         { label: 'Vertical Spacing', action: () => insertSnippet('::: v-space\n\n:::\n') },
@@ -414,7 +423,7 @@ function editorMenuDefinitions() {
     },
     {
       label: '📅 Tables',
-      hint: 'Sample markdown and styled block snippets.',
+      hint: 'Standard and class table scaffolds.',
       items: [
         { label: 'Table', action: () => insertSnippet(buildSampleTable(3, 3)) },
         { label: 'Wide Table', action: () => insertSnippet(`::: wide-block\n${buildSampleTable(3, 3)}:::\n`) },
@@ -423,8 +432,12 @@ function editorMenuDefinitions() {
         { label: 'Martial Class Table (Unframed)', action: () => insertSnippet(buildClassTableSnippet('Martial Class Table', true)) },
         { label: 'Full Caster Class Table', action: () => insertSnippet(buildCasterTableSnippet('Full Caster Class Table')) },
         { label: 'Full Caster Class Table (Unframed)', action: () => insertSnippet(buildCasterTableSnippet('Full Caster Class Table', true)) },
-        { label: 'Half Caster Class Table', action: () => insertSnippet(buildCasterTableSnippet('Half Caster Class Table')) },
-        { label: 'Half Caster Class Table (Unframed)', action: () => insertSnippet(buildCasterTableSnippet('Half Caster Class Table', true)) },
+      ],
+    },
+    {
+      label: '📚 PHB Tables',
+      hint: 'PHB-style styled block snippets.',
+      items: [
         { label: 'Spell', action: () => insertSnippet(buildBlockSnippet('spell-block', 'Spell Name\n*1st-level evocation*\n\nDescribe the spell here.')) },
         { label: 'Class Feature', action: () => insertSnippet(buildBlockSnippet('class-feature-block', 'Class Feature\nDescribe the feature here.')) },
         { label: 'Quote', action: () => insertSnippet(buildBlockSnippet('quote-block', '"Quoted lore or dramatic text."')) },
@@ -436,6 +449,17 @@ function editorMenuDefinitions() {
         { label: 'Front Cover Page', action: () => insertSnippet(buildBlockSnippet('cover-page', '# Front Cover\nSubtitle or tagline\n\nAuthor Name')) },
         { label: 'Inside Cover Page', action: () => insertSnippet(buildBlockSnippet('inside-cover-page', '# Inside Cover\nCredits, legal copy, or quick summary.')) },
         { label: 'Item', action: () => insertSnippet(buildBlockSnippet('item-block', '## Item Name\n*Wondrous item, rare*\n\nDescribe the item here.')) },
+      ],
+    },
+    {
+      label: '✨ Snippets',
+      hint: 'Project and global saved snippets.',
+      items: [
+        { label: '＋ Manage Snippets…', action: showManageSnippetsOverlay },
+        ...allSnippets.map((snippet) => ({
+          label: snippet.name,
+          action: () => insertSnippet(snippet.content),
+        })),
       ],
     },
   ];
@@ -660,6 +684,7 @@ async function refreshAuthState() {
     state.authUser = payload.user || null;
     state.themePresets = payload.themePresets || [];
     state.interfaceThemes = payload.interfaceThemes || {};
+    state.globalSnippets = payload.globalSnippets || [];
   } catch (error) {
     state.authUser = null;
   }
@@ -679,6 +704,7 @@ function applyStatePayload(payload) {
   state.project = payload.project || null;
   state.projects = payload.projects || [];
   state.assets = payload.assets || [];
+  state.globalSnippets = payload.globalSnippets || state.globalSnippets;
   state.authUser = payload.user || state.authUser;
   state.themePresets = payload.themePresets || state.themePresets;
   state.interfaceThemes = payload.interfaceThemes || state.interfaceThemes;
@@ -758,6 +784,7 @@ function renderAuthControls() {
 
 function renderAll() {
   renderProjectControls();
+  renderEditorToolbar();
   syncGoogleFontsFromProject();
   setActiveWorkspacePanel(state.activeWorkspacePanel);
   if (!state.project) {
@@ -963,6 +990,31 @@ function renderTree() {
   state.project.tree.forEach((node) => {
     ui.fileTree.appendChild(renderTreeNode(node));
   });
+
+  ui.fileTree.addEventListener('dragover', (event) => {
+    if (event.target === ui.fileTree) {
+      event.preventDefault();
+    }
+  });
+
+  ui.fileTree.addEventListener('drop', (event) => {
+    if (event.target !== ui.fileTree) {
+      return;
+    }
+    event.preventDefault();
+    const draggedId = event.dataTransfer?.getData('text/plain');
+    if (!draggedId || !state.project) {
+      return;
+    }
+    const dragged = findNodeAndParent(state.project.tree, draggedId);
+    if (!dragged) {
+      return;
+    }
+    dragged.container.splice(dragged.index, 1);
+    state.project.tree.push(dragged.node);
+    renderTree();
+    markDirty();
+  });
 }
 
 function renderTreeNode(node) {
@@ -1012,9 +1064,21 @@ function renderTreeNode(node) {
 
   li.addEventListener('dragover', (event) => {
     event.preventDefault();
+    const pos = dropPositionFromEvent(event, row, node);
+    row.classList.toggle('drag-over-before', pos === 'before');
+    row.classList.toggle('drag-over-after', pos === 'after');
+    row.classList.toggle('drag-over-inside', pos === 'inside');
   });
+
+  li.addEventListener('dragleave', (event) => {
+    if (!li.contains(event.relatedTarget)) {
+      row.classList.remove('drag-over-before', 'drag-over-after', 'drag-over-inside');
+    }
+  });
+
   li.addEventListener('drop', (event) => {
     event.preventDefault();
+    row.classList.remove('drag-over-before', 'drag-over-after', 'drag-over-inside');
     const draggedId = event.dataTransfer?.getData('text/plain');
     if (!draggedId || draggedId === node.id) {
       return;
@@ -1482,6 +1546,11 @@ function extractAnchors(markdown) {
 
 function renderMarkdown(markdown) {
   let text = markdown || '';
+
+  // Support shorthand \column and \page directives
+  text = text.replace(/^\\column\s*$/gm, '::: column-break\n\n:::');
+  text = text.replace(/^\\page\s*$/gm, '::: page-break\n\n:::');
+
   const variables = {};
   text = text.replace(/^\[var:([a-zA-Z0-9_\-]+)="([^"]*)"\]\s*$/gm, (_, key, value) => {
     variables[key] = value;
@@ -2453,15 +2522,17 @@ async function showAdminOverlay() {
     return;
   }
 
-  const [usersPayload, requestsPayload, projectsPayload] = await Promise.all([
+  const [usersPayload, requestsPayload, projectsPayload, snippetsPayload] = await Promise.all([
     apiRequest('admin_list_users'),
     apiRequest('admin_list_requests'),
     apiRequest('admin_list_projects'),
+    apiRequest('admin_list_global_snippets'),
   ]);
 
   const users = usersPayload.users || [];
   const requests = requestsPayload.requests || [];
   const projects = projectsPayload.projects || [];
+  const globalSnippets = snippetsPayload.snippets || [];
   const currentAdminId = state.authUser.id || '';
 
   openOverlay(
@@ -2471,6 +2542,7 @@ async function showAdminOverlay() {
         <button class="overlay-tab active" data-panel="admin-requests-panel" type="button">Requests</button>
         <button class="overlay-tab" data-panel="admin-users-panel" type="button">Users</button>
         <button class="overlay-tab" data-panel="admin-projects-panel" type="button">Projects</button>
+        <button class="overlay-tab" data-panel="admin-snippets-panel" type="button">Snippets</button>
       </div>
       <section id="admin-requests-panel" class="overlay-panel active">
         <div class="overlay-block">
@@ -2490,6 +2562,25 @@ async function showAdminOverlay() {
           <ul class="admin-list" id="admin-projects-list"></ul>
         </div>
       </section>
+      <section id="admin-snippets-panel" class="overlay-panel">
+        <div class="overlay-block">
+          <h3>Global Snippets</h3>
+          <p class="form-hint">These snippets appear in the ✨ Snippets toolbar menu for all users across all projects.</p>
+          <div id="admin-snippets-list"></div>
+        </div>
+        <form id="admin-snippet-form" class="overlay-block">
+          <h3>Add / Edit Global Snippet</h3>
+          <input id="admin-snippet-edit-id" type="hidden" value="" />
+          <label for="admin-snippet-name">Name</label>
+          <input id="admin-snippet-name" name="name" required maxlength="80" placeholder="e.g. My Global Block" />
+          <label for="admin-snippet-content">Content</label>
+          <textarea id="admin-snippet-content" name="content" rows="6" placeholder="::: my-class\nContent here.\n:::"></textarea>
+          <div class="overlay-actions">
+            <button type="submit" id="admin-snippet-save-btn">Save Global Snippet</button>
+            <button type="button" id="admin-snippet-cancel-btn" class="hidden">Cancel Edit</button>
+          </div>
+        </form>
+      </section>
     `,
     true,
   );
@@ -2499,6 +2590,7 @@ async function showAdminOverlay() {
   const requestsList = document.getElementById('admin-requests-list');
   const usersList = document.getElementById('admin-users-list');
   const projectsList = document.getElementById('admin-projects-list');
+  const adminSnippetsList = document.getElementById('admin-snippets-list');
 
   if (!requests.length) {
     requestsList.innerHTML = '<li class="empty-state">No pending account requests.</li>';
@@ -2666,6 +2758,102 @@ async function showAdminOverlay() {
       projectsList.appendChild(li);
     });
   }
+
+  // Global snippets management
+  const renderAdminSnippetRows = (snippets) => {
+    if (!snippets.length) {
+      adminSnippetsList.innerHTML = '<p class="empty-state">No global snippets yet.</p>';
+      return;
+    }
+    adminSnippetsList.innerHTML = snippets
+      .map(
+        (snippet) => `
+        <div class="admin-item" data-global-snippet-id="${escapeHtml(snippet.id)}">
+          <div>
+            <strong>${escapeHtml(snippet.name)}</strong>
+            <p class="muted">${escapeHtml((snippet.content || '').slice(0, 80))}${(snippet.content || '').length > 80 ? '…' : ''}</p>
+          </div>
+          <div class="admin-actions">
+            <button type="button" class="global-snippet-edit-btn">Edit</button>
+            <button type="button" class="global-snippet-delete-btn danger">Delete</button>
+          </div>
+        </div>
+      `,
+      )
+      .join('');
+    bindAdminSnippetButtons(snippets);
+  };
+
+  const adminSnippetForm = document.getElementById('admin-snippet-form');
+  const adminSnippetIdInput = document.getElementById('admin-snippet-edit-id');
+  const adminSnippetNameInput = document.getElementById('admin-snippet-name');
+  const adminSnippetContentInput = document.getElementById('admin-snippet-content');
+  const adminSnippetCancelBtn = document.getElementById('admin-snippet-cancel-btn');
+
+  const clearAdminSnippetForm = () => {
+    adminSnippetIdInput.value = '';
+    adminSnippetNameInput.value = '';
+    adminSnippetContentInput.value = '';
+    adminSnippetCancelBtn.classList.add('hidden');
+    document.getElementById('admin-snippet-save-btn').textContent = 'Save Global Snippet';
+  };
+
+  const bindAdminSnippetButtons = (snippets) => {
+    document.querySelectorAll('.global-snippet-edit-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const snippetId = btn.closest('[data-global-snippet-id]')?.dataset.globalSnippetId;
+        const snippet = snippets.find((s) => s.id === snippetId);
+        if (!snippet) {
+          return;
+        }
+        adminSnippetIdInput.value = snippet.id;
+        adminSnippetNameInput.value = snippet.name;
+        adminSnippetContentInput.value = snippet.content || '';
+        adminSnippetCancelBtn.classList.remove('hidden');
+        document.getElementById('admin-snippet-save-btn').textContent = 'Update Global Snippet';
+        adminSnippetNameInput.focus();
+      });
+    });
+
+    document.querySelectorAll('.global-snippet-delete-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const snippetId = btn.closest('[data-global-snippet-id]')?.dataset.globalSnippetId;
+        if (!snippetId || !confirm('Delete this global snippet?')) {
+          return;
+        }
+        const result = await apiRequest('admin_delete_global_snippet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: snippetId }),
+        });
+        state.globalSnippets = result.snippets || [];
+        renderEditorToolbar();
+        renderAdminSnippetRows(state.globalSnippets);
+      });
+    });
+  };
+
+  adminSnippetCancelBtn?.addEventListener('click', clearAdminSnippetForm);
+
+  adminSnippetForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const name = adminSnippetNameInput.value.trim();
+    const content = adminSnippetContentInput.value;
+    if (!name) {
+      return;
+    }
+    const result = await apiRequest('admin_save_global_snippet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: adminSnippetIdInput.value || '', name, content }),
+    });
+    state.globalSnippets = result.snippets || [];
+    renderEditorToolbar();
+    clearAdminSnippetForm();
+    renderAdminSnippetRows(state.globalSnippets);
+  });
+
+  renderAdminSnippetRows(globalSnippets);
 }
 
 function bindOverlayTabs() {
@@ -2722,6 +2910,215 @@ async function showHelpOverlay() {
       : '<div class="overlay-help"><h3>Help unavailable</h3><p>Could not load help content.</p></div>';
   }
   openOverlay('LoreBinder Help', state.helpHtml, true);
+}
+
+function downloadCompiledPdf() {
+  if (!state.project) {
+    alert('No project selected to compile for PDF.');
+    return;
+  }
+
+  const docs = orderedIncludedDocuments();
+  if (!docs.length) {
+    alert('No included documents to compile. Enable at least one document in the file tree.');
+    return;
+  }
+
+  const htmlChunks = docs.map((doc) => renderMarkdown(doc.content || '').html);
+  const compiledHtml = htmlChunks.join('\n');
+  const projectCss = state.project.styleCss || '';
+  const title = escapeHtml(state.project.title || 'Compiled Document');
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Unable to open print window. Please allow pop-ups for this site.');
+    return;
+  }
+
+  printWindow.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>${title}</title>
+  <link rel="stylesheet" href="base.css" />
+  <style>${projectCss}</style>
+  <style>
+    body { margin: 0; background: white; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body class="rendered-preview">
+${compiledHtml}
+</body>
+</html>`);
+  printWindow.document.close();
+  printWindow.addEventListener('load', () => {
+    printWindow.focus();
+    printWindow.print();
+  });
+}
+
+function showDriveSyncOverlay() {
+  openOverlay(
+    'Google Drive Sync',
+    `
+      <div class="overlay-block">
+        <h3>Connect to Google Drive</h3>
+        <p class="form-hint">Sync your project documents to a Google Drive folder for backup and collaboration. Contact your administrator to configure Drive integration credentials.</p>
+        <div class="overlay-actions">
+          <button id="drive-sync-now-btn" type="button">Sync Now</button>
+        </div>
+      </div>
+    `,
+    true,
+  );
+
+  document.getElementById('drive-sync-now-btn')?.addEventListener('click', async () => {
+    try {
+      const payload = await apiRequest('sync_drive', { method: 'POST' });
+      alert(payload.message || 'Drive sync complete.');
+    } catch (error) {
+      alert(error.message || 'Drive sync failed.');
+    }
+  });
+}
+
+function showManageSnippetsOverlay() {
+  if (!state.project) {
+    alert('Select a project first.');
+    return;
+  }
+
+  const renderSnippetRows = () => {
+    const snippets = state.project.snippets || [];
+    if (!snippets.length) {
+      return '<p class="empty-state">No project snippets yet. Use the form below to add one.</p>';
+    }
+    return snippets
+      .map(
+        (snippet) => `
+        <div class="admin-item" data-snippet-id="${escapeHtml(snippet.id)}">
+          <div>
+            <strong>${escapeHtml(snippet.name)}</strong>
+            <p class="muted snippet-preview">${escapeHtml((snippet.content || '').slice(0, 80))}${(snippet.content || '').length > 80 ? '…' : ''}</p>
+          </div>
+          <div class="admin-actions">
+            <button type="button" class="snippet-edit-btn">Edit</button>
+            <button type="button" class="snippet-delete-btn danger">Delete</button>
+          </div>
+        </div>
+      `,
+      )
+      .join('');
+  };
+
+  openOverlay(
+    'Manage Project Snippets',
+    `
+      <div class="overlay-block">
+        <h3>Project Snippets</h3>
+        <div id="snippets-list">${renderSnippetRows()}</div>
+      </div>
+      <form id="snippet-form" class="overlay-block">
+        <h3>Add / Edit Snippet</h3>
+        <input id="snippet-edit-id" type="hidden" value="" />
+        <label for="snippet-name">Name</label>
+        <input id="snippet-name" name="name" required maxlength="80" placeholder="e.g. My Custom Block" />
+        <label for="snippet-content">Content</label>
+        <textarea id="snippet-content" name="content" rows="6" placeholder="::: my-class\nContent here.\n:::"></textarea>
+        <div class="overlay-actions">
+          <button type="submit" id="snippet-save-btn">Save Snippet</button>
+          <button type="button" id="snippet-cancel-edit-btn" class="hidden">Cancel Edit</button>
+        </div>
+      </form>
+    `,
+    true,
+  );
+
+  const form = document.getElementById('snippet-form');
+  const idInput = document.getElementById('snippet-edit-id');
+  const nameInput = document.getElementById('snippet-name');
+  const contentInput = document.getElementById('snippet-content');
+  const cancelBtn = document.getElementById('snippet-cancel-edit-btn');
+
+  const refreshList = () => {
+    const list = document.getElementById('snippets-list');
+    if (list) {
+      list.innerHTML = renderSnippetRows();
+      bindSnippetListButtons();
+    }
+  };
+
+  const clearForm = () => {
+    idInput.value = '';
+    nameInput.value = '';
+    contentInput.value = '';
+    cancelBtn.classList.add('hidden');
+    document.getElementById('snippet-save-btn').textContent = 'Save Snippet';
+  };
+
+  const bindSnippetListButtons = () => {
+    document.querySelectorAll('.snippet-edit-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const snippetId = btn.closest('[data-snippet-id]')?.dataset.snippetId;
+        const snippet = (state.project.snippets || []).find((s) => s.id === snippetId);
+        if (!snippet) {
+          return;
+        }
+        idInput.value = snippet.id;
+        nameInput.value = snippet.name;
+        contentInput.value = snippet.content || '';
+        cancelBtn.classList.remove('hidden');
+        document.getElementById('snippet-save-btn').textContent = 'Update Snippet';
+        nameInput.focus();
+      });
+    });
+
+    document.querySelectorAll('.snippet-delete-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const snippetId = btn.closest('[data-snippet-id]')?.dataset.snippetId;
+        if (!snippetId || !confirm('Delete this snippet?')) {
+          return;
+        }
+        state.project.snippets = (state.project.snippets || []).filter((s) => s.id !== snippetId);
+        markDirty();
+        renderEditorToolbar();
+        refreshList();
+      });
+    });
+  };
+
+  cancelBtn.addEventListener('click', clearForm);
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const name = nameInput.value.trim();
+    const content = contentInput.value;
+    if (!name) {
+      return;
+    }
+
+    if (!state.project.snippets) {
+      state.project.snippets = [];
+    }
+
+    const existingId = idInput.value;
+    if (existingId) {
+      const index = state.project.snippets.findIndex((s) => s.id === existingId);
+      if (index >= 0) {
+        state.project.snippets[index] = { id: existingId, name, content };
+      }
+    } else {
+      state.project.snippets.push({ id: `snip-${crypto.randomUUID()}`, name, content });
+    }
+
+    markDirty();
+    renderEditorToolbar();
+    clearForm();
+    refreshList();
+  });
+
+  bindSnippetListButtons();
 }
 
 function generateAltTextFromFilename(filename) {
