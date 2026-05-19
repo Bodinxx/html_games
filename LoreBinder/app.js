@@ -54,6 +54,8 @@ const INTERFACE_THEME_STYLES = {
 const BASE_CSS_FILE_NAME = 'base.css';
 const MAX_URL_DECODE_PASSES = 3;
 const MARKDOWN_TAB_WIDTH = 4;
+const MARKDOWN_TAB_REPLACEMENT = ' '.repeat(MARKDOWN_TAB_WIDTH);
+const LOWERCASE_A_CHARCODE = 'a'.charCodeAt(0);
 const GOOGLE_FONT_NAMES = [
   'Open Sans',
   'Roboto',
@@ -582,7 +584,7 @@ function showImageInsertOverlay() {
   });
 }
 
-function listProjectDocuments() {
+function getOrderedProjectDocuments() {
   if (!state.project?.documents) {
     return [];
   }
@@ -616,7 +618,7 @@ function listProjectDocuments() {
 
 function showLinkInsertOverlay(defaultMode = 'section') {
   const activeDoc = getActiveDocument();
-  const docs = listProjectDocuments();
+  const docs = getOrderedProjectDocuments();
   if (!activeDoc && !docs.length) {
     return;
   }
@@ -668,7 +670,11 @@ function showLinkInsertOverlay(defaultMode = 'section') {
   const updateAnchorOptions = () => {
     const selectedDocId = String(docSelect.value || '');
     const targetDoc = selectedDocId ? state.project?.documents?.[selectedDocId] : activeDoc;
-    const anchors = targetDoc ? Array.from(extractAnchors(targetDoc.content || '')).sort((a, b) => a.localeCompare(b)) : [];
+    let anchors = [];
+    if (targetDoc) {
+      anchors = Array.from(extractAnchors(targetDoc.content || ''));
+      anchors.sort((a, b) => a.localeCompare(b));
+    }
     const previous = String(anchorSelect.value || '');
     anchorSelect.innerHTML = `<option value="">${anchors.length ? '(No header slug)' : '(No headers found)'}</option>${anchors.map((slug) => `<option value="${escapeHtml(slug)}">${escapeHtml(slug)}</option>`).join('')}`;
     anchorSelect.disabled = !anchors.length;
@@ -700,7 +706,7 @@ function showLinkInsertOverlay(defaultMode = 'section') {
     } else if (!isLocalDoc) {
       href = `doc:${targetDocId}`;
     } else {
-      alert('Pick a header slug for local links, or choose another document.');
+      alert('Please select a header slug when linking within the current document, or choose a different target document.');
       return;
     }
 
@@ -1831,7 +1837,7 @@ function parseMarkdownListItem(line) {
     return null;
   }
 
-  const rawIndent = match[1].replace(/\t/g, ' '.repeat(MARKDOWN_TAB_WIDTH));
+  const rawIndent = match[1].replace(/\t/g, MARKDOWN_TAB_REPLACEMENT);
   const marker = match[2];
   const content = match[3];
   const isUnordered = marker === '-' || marker === '*';
@@ -1847,7 +1853,7 @@ function parseMarkdownListItem(line) {
   const alphaMatch = marker.match(/^([a-zA-Z])\.$/);
   if (alphaMatch) {
     const letter = alphaMatch[1];
-    const start = letter.toLowerCase().charCodeAt(0) - 96;
+    const start = (letter.toLowerCase().charCodeAt(0) - LOWERCASE_A_CHARCODE) + 1;
     const type = letter === letter.toUpperCase() ? 'A' : 'a';
     return {
       indent: rawIndent.length,
