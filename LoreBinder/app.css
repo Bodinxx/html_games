@@ -179,7 +179,7 @@ button.danger {
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) repeat(8, minmax(32px, auto));
+  grid-template-columns: minmax(200px, 1fr) repeat(9, minmax(32px, auto));
   align-items: stretch;
   gap: 0;
   padding: 0;
@@ -346,6 +346,12 @@ button.danger {
   min-height: 32px;
   padding: 0.2rem;
   font-weight: 700;
+  border: none;
+  background: transparent;
+}
+
+.icon-button:hover {
+  background: color-mix(in srgb, var(--app-accent) 30%, transparent 70%);
 }
 
 .menu-hint {
@@ -426,6 +432,7 @@ button.danger {
 #code-editor {
   font-family: 'SFMono-Regular', Consolas, monospace;
   border-width: 0 1px 0 0;
+  padding-left: 5px;
 }
 
 #visual-editor {
@@ -715,6 +722,18 @@ button.danger {
 
 .asset-node .name {
   flex: initial;
+}
+
+.tree-node.drag-over-before {
+  border-top: 2px solid var(--app-accent);
+}
+
+.tree-node.drag-over-after {
+  border-bottom: 2px solid var(--app-accent);
+}
+
+.tree-node.drag-over-inside {
+  background: color-mix(in srgb, var(--app-accent) 30%, var(--app-panel) 70%);
 }
 
 @media (max-width: 1200px) {
