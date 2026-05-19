@@ -53,6 +53,7 @@ const INTERFACE_THEME_STYLES = {
 
 const BASE_CSS_FILE_NAME = 'base.css';
 const MAX_URL_DECODE_PASSES = 3;
+const MARKDOWN_TAB_WIDTH = 4;
 const GOOGLE_FONT_NAMES = [
   'Open Sans',
   'Roboto',
@@ -1830,7 +1831,7 @@ function parseMarkdownListItem(line) {
     return null;
   }
 
-  const rawIndent = match[1].replace(/\t/g, '    ');
+  const rawIndent = match[1].replace(/\t/g, ' '.repeat(MARKDOWN_TAB_WIDTH));
   const marker = match[2];
   const content = match[3];
   const isUnordered = marker === '-' || marker === '*';
