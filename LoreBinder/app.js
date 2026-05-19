@@ -1070,8 +1070,10 @@ function renderTreeNode(node) {
     row.classList.toggle('drag-over-inside', pos === 'inside');
   });
 
-  li.addEventListener('dragleave', () => {
-    row.classList.remove('drag-over-before', 'drag-over-after', 'drag-over-inside');
+  li.addEventListener('dragleave', (event) => {
+    if (!li.contains(event.relatedTarget)) {
+      row.classList.remove('drag-over-before', 'drag-over-after', 'drag-over-inside');
+    }
   });
 
   li.addEventListener('drop', (event) => {
@@ -2924,7 +2926,7 @@ function downloadCompiledPdf() {
 
   const htmlChunks = docs.map((doc) => renderMarkdown(doc.content || '').html);
   const compiledHtml = htmlChunks.join('\n');
-  const projectCss = escapeHtml(state.project.styleCss || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  const projectCss = state.project.styleCss || '';
   const title = escapeHtml(state.project.title || 'Compiled Document');
 
   const printWindow = window.open('', '_blank');
@@ -3107,7 +3109,7 @@ function showManageSnippetsOverlay() {
         state.project.snippets[index] = { id: existingId, name, content };
       }
     } else {
-      state.project.snippets.push({ id: `snip-${Date.now()}`, name, content });
+      state.project.snippets.push({ id: `snip-${crypto.randomUUID()}`, name, content });
     }
 
     markDirty();
