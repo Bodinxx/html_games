@@ -336,9 +336,9 @@ function renderEditorToolbar() {
       if (!details.open) {
         return;
       }
-      ui.editorToolbar?.querySelectorAll('.toolbar-menu[open]').forEach((openMenu) => {
-        if (openMenu !== details) {
-          openMenu.open = false;
+      ui.editorToolbar?.querySelectorAll('.toolbar-menu[open]').forEach((otherMenu) => {
+        if (otherMenu !== details) {
+          otherMenu.open = false;
         }
       });
     });
@@ -591,7 +591,7 @@ function showAssetPreviewOverlay(asset) {
     try {
       await navigator.clipboard.writeText(markdown);
     } catch (error) {
-      console.error(error);
+      console.error('Failed to copy markdown link to clipboard:', error);
       alert('Could not copy the asset markdown link.');
     }
   });
