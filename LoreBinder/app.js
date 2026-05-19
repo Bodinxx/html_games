@@ -172,6 +172,18 @@ async function bootstrap() {
 }
 
 function bindEvents() {
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.toolbar-menu')) {
+      closeToolbarMenus();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeToolbarMenus();
+    }
+  });
+
   ui.projectTitle?.addEventListener('input', () => {
     if (!state.project) {
       return;
@@ -320,6 +332,16 @@ function renderEditorToolbar() {
   editorMenuDefinitions().forEach((menu) => {
     const details = document.createElement('details');
     details.className = 'toolbar-menu';
+    details.addEventListener('toggle', () => {
+      if (!details.open) {
+        return;
+      }
+      ui.editorToolbar?.querySelectorAll('.toolbar-menu[open]').forEach((otherMenu) => {
+        if (otherMenu !== details) {
+          otherMenu.open = false;
+        }
+      });
+    });
 
     const summary = document.createElement('summary');
     summary.textContent = menu.label;
@@ -531,6 +553,51 @@ function showImageInsertOverlay() {
       return;
     }
     insertSnippet(`![${alt}](${url})`);
+    closeOverlay();
+  });
+}
+
+function showAssetPreviewOverlay(asset) {
+  if (!asset) {
+    return;
+  }
+
+  const assetUrl = getAssetUrl(asset);
+  const altText = generateAltTextFromFilename(asset.name);
+  const markdown = `![${altText}](${assetUrl})`;
+
+  openOverlay(
+    `Asset Preview: ${asset.name}`,
+    `
+      <div class="overlay-block">
+        <h3>${escapeHtml(asset.name)}</h3>
+        <div class="asset-preview-frame">
+          <img src="${escapeHtml(assetUrl)}" alt="${escapeHtml(altText)}" class="asset-preview-image" />
+        </div>
+        <div class="asset-preview-meta">
+          <span>${escapeHtml(formatBytes(asset.size || 0))}</span>
+          <pre class="asset-preview-url">${escapeHtml(assetUrl)}</pre>
+        </div>
+        <div class="overlay-actions">
+          <button id="asset-preview-copy-btn" type="button">Copy Markdown Link</button>
+          <button id="asset-preview-insert-btn" type="button">Insert into Editor</button>
+        </div>
+      </div>
+    `,
+    true,
+  );
+
+  document.getElementById('asset-preview-copy-btn')?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(markdown);
+    } catch (error) {
+      console.error('Failed to copy markdown link to clipboard:', error);
+      alert('Could not copy the asset markdown link.');
+    }
+  });
+
+  document.getElementById('asset-preview-insert-btn')?.addEventListener('click', () => {
+    insertSnippet(markdown);
     closeOverlay();
   });
 }
@@ -1040,6 +1107,7 @@ function renderAssetsTreeNode() {
 
       const rowItem = document.createElement('div');
       rowItem.className = 'tree-node asset-node';
+      rowItem.addEventListener('click', () => showAssetPreviewOverlay(asset));
 
       const assetIcon = document.createElement('span');
       assetIcon.textContent = '🖼️';
