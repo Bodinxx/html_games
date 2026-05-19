@@ -394,9 +394,9 @@ function editorMenuDefinitions() {
         { label: 'Vertical Spacing', action: () => insertSnippet('::: v-space\n\n:::\n') },
         { label: 'Horizontal Spacing', action: () => insertSnippet('`     `') },
         { label: 'A Wide Block', action: () => insertSnippet('::: wide-block\nAdd wide content here.\n:::\n', 'Add wide content here.') },
-        { label: 'Link to Header', action: () => insertSnippet('[Jump to Header](#header-slug)') },
-        { label: 'Link to Page', action: () => insertSnippet('[Jump to Page](doc:document-id)') },
-        { label: 'Link to Page + Header', action: () => insertSnippet('[Jump to Section](doc:document-id#header-slug)') },
+        { label: 'Link to Header', action: () => showLinkInsertOverlay('header') },
+        { label: 'Link to Page', action: () => showLinkInsertOverlay('page') },
+        { label: 'Link to Page + Header', action: () => showLinkInsertOverlay('section') },
       ],
     },
     {
@@ -577,6 +577,133 @@ function showImageInsertOverlay() {
       return;
     }
     insertSnippet(`![${alt}](${url})`);
+    closeOverlay();
+  });
+}
+
+function listProjectDocuments() {
+  if (!state.project?.documents) {
+    return [];
+  }
+
+  const ordered = [];
+  const seen = new Set();
+  const walk = (nodes) => {
+    (nodes || []).forEach((node) => {
+      if (node.type === 'document' && node.docId) {
+        const doc = state.project.documents[node.docId];
+        if (doc && !seen.has(doc.id)) {
+          ordered.push(doc);
+          seen.add(doc.id);
+        }
+      }
+      if (node.type === 'folder') {
+        walk(node.children || []);
+      }
+    });
+  };
+
+  walk(state.project.tree || []);
+  Object.values(state.project.documents).forEach((doc) => {
+    if (doc?.id && !seen.has(doc.id)) {
+      ordered.push(doc);
+      seen.add(doc.id);
+    }
+  });
+  return ordered;
+}
+
+function showLinkInsertOverlay(defaultMode = 'section') {
+  const activeDoc = getActiveDocument();
+  const docs = listProjectDocuments();
+  if (!activeDoc && !docs.length) {
+    return;
+  }
+
+  const preferredLabel = defaultMode === 'header'
+    ? 'Jump to Header'
+    : defaultMode === 'page'
+      ? 'Jump to Page'
+      : 'Jump to Section';
+
+  const preferredDoc = defaultMode === 'header'
+    ? activeDoc
+    : docs.find((doc) => doc.id !== activeDoc?.id) || activeDoc || docs[0];
+
+  const docOptions = docs
+    .map((doc) => `<option value="${escapeHtml(doc.id)}"${doc.id === preferredDoc?.id ? ' selected' : ''}>${escapeHtml(doc.name || doc.id)}</option>`)
+    .join('');
+
+  openOverlay(
+    'Insert Link',
+    `
+      <form id="insert-link-form" class="overlay-block">
+        <h3>Link Builder</h3>
+        <label for="insert-link-label">Link text</label>
+        <input id="insert-link-label" name="label" value="${escapeHtml(preferredLabel)}" maxlength="120" />
+        <label for="insert-link-doc">Target document</label>
+        <select id="insert-link-doc" name="docId">
+          <option value="">Current document (local #anchor)</option>
+          ${docOptions}
+        </select>
+        <label for="insert-link-anchor">Header slug</label>
+        <select id="insert-link-anchor" name="anchor"></select>
+        <p class="form-hint">Choose a target document and optional header. Header slugs come from markdown headings.</p>
+        <div class="overlay-actions">
+          <button type="submit">Insert Link</button>
+        </div>
+      </form>
+    `,
+    true,
+  );
+
+  const form = document.getElementById('insert-link-form');
+  const docSelect = document.getElementById('insert-link-doc');
+  const anchorSelect = document.getElementById('insert-link-anchor');
+  if (!form || !docSelect || !anchorSelect) {
+    return;
+  }
+
+  const updateAnchorOptions = () => {
+    const selectedDocId = String(docSelect.value || '');
+    const targetDoc = selectedDocId ? state.project?.documents?.[selectedDocId] : activeDoc;
+    const anchors = targetDoc ? Array.from(extractAnchors(targetDoc.content || '')).sort((a, b) => a.localeCompare(b)) : [];
+    const previous = String(anchorSelect.value || '');
+    anchorSelect.innerHTML = `<option value="">${anchors.length ? '(No header slug)' : '(No headers found)'}</option>${anchors.map((slug) => `<option value="${escapeHtml(slug)}">${escapeHtml(slug)}</option>`).join('')}`;
+    anchorSelect.disabled = !anchors.length;
+    if (anchors.length) {
+      anchorSelect.value = anchors.includes(previous) ? previous : anchors[0];
+    }
+  };
+
+  if (preferredDoc?.id) {
+    docSelect.value = preferredDoc.id;
+  }
+  updateAnchorOptions();
+  if (defaultMode === 'page') {
+    anchorSelect.value = '';
+  }
+
+  docSelect.addEventListener('change', updateAnchorOptions);
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const label = String(formData.get('label') || '').trim() || preferredLabel;
+    const targetDocId = String(formData.get('docId') || '');
+    const targetAnchor = String(formData.get('anchor') || '');
+    const isLocalDoc = !targetDocId || targetDocId === activeDoc?.id;
+
+    let href = '';
+    if (targetAnchor) {
+      href = isLocalDoc ? `#${targetAnchor}` : `doc:${targetDocId}#${targetAnchor}`;
+    } else if (!isLocalDoc) {
+      href = `doc:${targetDocId}`;
+    } else {
+      alert('Pick a header slug for local links, or choose another document.');
+      return;
+    }
+
+    insertSnippet(`[${label}](${href})`);
     closeOverlay();
   });
 }
@@ -1320,15 +1447,18 @@ function syncEditorFromActiveDocument() {
 function renderActiveDocumentPreview() {
   const doc = getActiveDocument();
   if (!doc) {
+    ui.visualEditor.classList.remove('source-preview');
     ui.visualEditor.innerHTML = '<p class="empty-state">Select a document to preview.</p>';
     return;
   }
 
   if (isProjectStyleDocument(doc)) {
+    ui.visualEditor.classList.add('source-preview');
     ui.visualEditor.innerHTML = `<pre class="preview-source">${escapeHtml(doc.content || '')}</pre>`;
     return;
   }
 
+  ui.visualEditor.classList.remove('source-preview');
   const rendered = renderMarkdown(doc.content || '');
   ui.visualEditor.innerHTML = rendered.html || '<p class="empty-state">Nothing to preview yet.</p>';
 }
@@ -1577,36 +1707,84 @@ function renderMarkdown(markdown) {
 
   const lines = text.split('\n');
   const html = [];
-  let inList = false;
+  const listStack = [];
+  const closeListLevel = () => {
+    const level = listStack.pop();
+    if (!level) {
+      return;
+    }
+    if (level.liOpen) {
+      html.push('</li>');
+    }
+    html.push(`</${level.type}>`);
+  };
+  const closeAllLists = () => {
+    while (listStack.length) {
+      closeListLevel();
+    }
+  };
+  const openListLevel = (type, attributes, indent) => {
+    html.push(`<${type}${attributes}>`);
+    listStack.push({
+      type,
+      attributes,
+      indent,
+      liOpen: false,
+    });
+  };
   let index = 0;
 
   while (index < lines.length) {
     const line = lines[index];
     const maybeBlock = blockMap.get(line.trim());
     if (maybeBlock) {
-      if (inList) {
-        html.push('</ul>');
-        inList = false;
-      }
+      closeAllLists();
       html.push(maybeBlock);
       index += 1;
       continue;
     }
 
-    if (/^\s*[-*]\s+/.test(line)) {
-      if (!inList) {
-        html.push('<ul>');
-        inList = true;
+    const listItem = parseMarkdownListItem(line);
+    if (listItem) {
+      if (!listStack.length) {
+        openListLevel(listItem.type, listItem.attributes, listItem.indent);
+      } else {
+        let top = listStack[listStack.length - 1];
+        if (listItem.indent > top.indent) {
+          openListLevel(listItem.type, listItem.attributes, listItem.indent);
+        } else {
+          while (listStack.length && listItem.indent < listStack[listStack.length - 1].indent) {
+            closeListLevel();
+          }
+
+          top = listStack[listStack.length - 1];
+          if (!top || listItem.indent > top.indent) {
+            openListLevel(listItem.type, listItem.attributes, listItem.indent);
+          } else if (listItem.indent === top.indent && (top.type !== listItem.type || top.attributes !== listItem.attributes)) {
+            if (top.liOpen) {
+              html.push('</li>');
+              top.liOpen = false;
+            }
+            html.push(`</${top.type}>`);
+            listStack.pop();
+            openListLevel(listItem.type, listItem.attributes, listItem.indent);
+          }
+        }
+
+        const current = listStack[listStack.length - 1];
+        if (current?.liOpen) {
+          html.push('</li>');
+          current.liOpen = false;
+        }
       }
-      html.push(`<li>${renderInlineMarkdown(line.replace(/^\s*[-*]\s+/, ''))}</li>`);
+
+      html.push(`<li>${renderInlineMarkdown(listItem.content)}`);
+      listStack[listStack.length - 1].liOpen = true;
       index += 1;
       continue;
     }
 
-    if (inList) {
-      html.push('</ul>');
-      inList = false;
-    }
+    closeAllLists();
 
     if (/^\s*$/.test(line)) {
       html.push('');
@@ -1641,11 +1819,51 @@ function renderMarkdown(markdown) {
     index += 1;
   }
 
-  if (inList) {
-    html.push('</ul>');
-  }
+  closeAllLists();
 
   return { html: html.join('\n') };
+}
+
+function parseMarkdownListItem(line) {
+  const match = String(line || '').match(/^(\s*)([-*]|\d+\.|[a-zA-Z]\.)\s+(.+)$/);
+  if (!match) {
+    return null;
+  }
+
+  const rawIndent = match[1].replace(/\t/g, '    ');
+  const marker = match[2];
+  const content = match[3];
+  const isUnordered = marker === '-' || marker === '*';
+  if (isUnordered) {
+    return {
+      indent: rawIndent.length,
+      type: 'ul',
+      attributes: '',
+      content,
+    };
+  }
+
+  const alphaMatch = marker.match(/^([a-zA-Z])\.$/);
+  if (alphaMatch) {
+    const letter = alphaMatch[1];
+    const start = letter.toLowerCase().charCodeAt(0) - 96;
+    const type = letter === letter.toUpperCase() ? 'A' : 'a';
+    return {
+      indent: rawIndent.length,
+      type: 'ol',
+      attributes: ` type="${type}"${start > 1 ? ` start="${start}"` : ''}`,
+      content,
+    };
+  }
+
+  const numericMatch = marker.match(/^(\d+)\.$/);
+  const start = numericMatch ? Number.parseInt(numericMatch[1], 10) : 1;
+  return {
+    indent: rawIndent.length,
+    type: 'ol',
+    attributes: start > 1 ? ` start="${start}"` : '',
+    content,
+  };
 }
 
 function renderBlockBody(text) {

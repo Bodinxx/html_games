@@ -440,6 +440,11 @@ button.danger {
   padding: 0.75rem;
 }
 
+#visual-editor.source-preview {
+  column-count: 1;
+  column-gap: 0;
+}
+
 .editor-column:first-child #code-editor {
   border-right-width: 1px;
 }
