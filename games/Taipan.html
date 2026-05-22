@@ -181,6 +181,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
             font-weight: bold;
             letter-spacing: 1px;
             min-height: 40px;
+            max-width: 45%;
         }
         .btn-danger { border-color: var(--danger); color: var(--danger); }
         .btn-danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
@@ -537,8 +538,8 @@ let state = {
     guns: 0,
     health: 100,
     currentPort: "Hong Kong",
-    inventory: { Opium: 0, Silk: 0, Arms: 0, General: 0, Tea: 0, Ivory: 0 },
-    warehouse: { Opium: 0, Silk: 0, Arms: 0, General: 0, Tea: 0, Ivory: 0 },
+    inventory: { Opium: 0, Jade: 0, Spices: 0, Silk: 0, Arms: 0, General: 0, Tea: 0, Ivory: 0 },
+    warehouse: { Opium: 0, Jade: 0, Spices: 0, Silk: 0, Arms: 0, General: 0, Tea: 0, Ivory: 0 },
     prices: {},
     selectedType: 1,
     combat: null,
@@ -703,6 +704,13 @@ function applyLoadedState(parsed) {
         if (state.crew.merchants  === undefined) state.crew.merchants  = 0;
         if (state.crew.carpenters === undefined) state.crew.carpenters = 0;
     }
+    // Migrate old saves missing Jade and Spices
+    if (!state.inventory) state.inventory = {};
+    if (!state.warehouse) state.warehouse = {};
+    commodities.forEach(c => {
+        if (state.inventory[c.name] === undefined) state.inventory[c.name] = 0;
+        if (state.warehouse[c.name] === undefined) state.warehouse[c.name] = 0;
+    });
     document.getElementById('setup-container').style.display = 'none';
     document.getElementById('game-container').style.display  = 'block';
     document.getElementById('merchant-name-display').innerText = state.playerName;
@@ -1768,7 +1776,8 @@ function bankAction(type) {
 // =============================================
 function visitWarehouse() {
     const used = getWarehouseUsed();
-    let html = `<p>WAREHOUSE CAPACITY: ${used} / ${state.warehouseTotal}</p><hr class="section-divider">`;
+    const holdUsed = getHoldUsed();
+    let html = `<p>WAREHOUSE: ${used} / ${state.warehouseTotal} &nbsp;|&nbsp; SHIP HOLD: ${holdUsed} / ${state.holdTotal}</p><hr class="section-divider">`;
     commodities.forEach(c => {
         const sq = state.inventory[c.name];
         const wq = state.warehouse[c.name];
@@ -1839,7 +1848,7 @@ function visitShipyard() {
     const repairsLocked = state.stormRepairRequired;
 
     let html = `
-        <p>HULL: ${Math.round(state.health)}% &nbsp;|&nbsp; GUNS: ${state.guns} &nbsp;|&nbsp; FREE HOLD: ${freeHold}</p>
+        <p>GOLD: <strong style="color:var(--gold)">${state.cash.toLocaleString()}</strong> &nbsp;|&nbsp; HULL: ${Math.round(state.health)}% &nbsp;|&nbsp; GUNS: ${state.guns} &nbsp;|&nbsp; FREE HOLD: ${freeHold}</p>
         <hr class="section-divider">
         <p>SHIP REPAIRS (${repairRate} GOLD = 1% HULL)</p>
         <div class="flex-center">
