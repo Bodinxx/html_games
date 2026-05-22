@@ -489,6 +489,13 @@ const STORM_MIN_DAMAGE         = 10;
 const STORM_MAX_DAMAGE         = 40;
 const STORM_REPAIR_COST_PER_HP = 120;
 const ENEMY_HIT_CHANCE         = 0.15;
+const MUGGING_CASH_SCALE       = 120000;
+const MUGGING_DEBT_BASELINE    = 5000;
+const MUGGING_DEBT_RATIO       = 2;
+const MUGGING_MIN_LOSS_PCT     = 0.80;
+const MUGGING_LOSS_SPAN_PCT    = 0.20;
+const RUN_MIN_ESCAPE_CHANCE    = 0.02;
+const RUN_SHIP_PENALTY_SCALE   = 22;
 
 // =============================================
 //  GAME STATE
@@ -743,16 +750,24 @@ function getNetWorth() {
 }
 
 function calculatePirateFleetSize(multiplier = 1) {
-    const base = 1
+    const wealthBonus = Math.floor(Math.max(0, getNetWorth()) / 150000);
+    const base = (
+        1
         + Math.floor(state.guns * 0.8)
         + Math.floor(state.voyageCount * 0.6)
-        + Math.floor(Math.random() * 5);
+        + wealthBonus
+        + Math.floor(Math.random() * 5)
+    );
     return Math.max(1, Math.floor(base * multiplier));
 }
 
+function isDebtPressure() {
+    return state.debt > Math.max(MUGGING_DEBT_BASELINE, state.cash * MUGGING_DEBT_RATIO);
+}
+
 function getMuggingChance() {
-    const cashFactor = Math.min(0.30, state.cash / 120000);
-    const debtDefault = state.debt > Math.max(5000, state.cash * 2);
+    const cashFactor = Math.min(0.30, state.cash / MUGGING_CASH_SCALE);
+    const debtDefault = isDebtPressure();
     const debtFactor = debtDefault ? 0.18 : 0;
     return Math.min(0.75, 0.02 + cashFactor + debtFactor);
 }
@@ -763,12 +778,13 @@ function maybeTriggerMugging(context = 'port') {
     if (context === 'arrival') chance += 0.03;
     chance = Math.min(0.80, chance);
     if (Math.random() >= chance) return false;
-    const pct = 0.80 + Math.random() * 0.20;
+    const debtPressure = isDebtPressure();
+    const pct = MUGGING_MIN_LOSS_PCT + Math.random() * MUGGING_LOSS_SPAN_PCT;
     const lost = Math.floor(state.cash * pct);
     if (lost <= 0) return false;
     state.cash = Math.max(0, state.cash - lost);
     const place = state.currentPort.toUpperCase();
-    const wuLine = state.debt > Math.max(5000, state.cash * 2) ? " WORD SPREAD THAT ELDER BROTHER WU ORDERED THE LESSON." : "";
+    const wuLine = debtPressure ? " WORD SPREAD THAT ELDER BROTHER WU ORDERED THE LESSON." : "";
     showModal(
         "BEATEN UP AND ROBBED",
         `<p>YOU WERE BEATEN UP AND ROBBED OF <strong style="color:var(--danger)">${lost.toLocaleString()} GOLD</strong> IN THE DARK ALLEYS OF ${place}!${wuLine}</p>
@@ -1264,7 +1280,7 @@ async function combatAction(type) {
         const ratio   = getHoldUsed() / state.holdTotal;
         const aliveShips = c.ships.filter(s => s.alive).length;
         const baseChance = 0.45 + 0.25 * (1 - ratio);
-        const chance  = Math.max(0.02, baseChance * Math.exp(-aliveShips / 22));
+        const chance  = Math.max(RUN_MIN_ESCAPE_CHANCE, baseChance * Math.exp(-aliveShips / RUN_SHIP_PENALTY_SCALE));
         if (Math.random() < chance) {
             const loot = bountyReward();
             const fledNote = c.totalFled > 0 ? ` (${c.totalFled} FLED, ${c.totalSunk - c.totalFled} SUNK)` : '';
@@ -1663,6 +1679,7 @@ function acceptShip(cost, cap) {
     state.cash -= cost;
     state.holdTotal = cap;
     state.health = 100;
+    state.stormRepairRequired = false;
     log(`NEW VESSEL ACQUIRED. HOLD NOW ${state.holdTotal}. HULL FULLY RESTORED.`);
     closeModal(); render();
 }
