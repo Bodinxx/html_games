@@ -489,13 +489,16 @@ const STORM_MIN_DAMAGE         = 10;
 const STORM_MAX_DAMAGE         = 40;
 const STORM_REPAIR_COST_PER_HP = 120;
 const ENEMY_HIT_CHANCE         = 0.15;
-const MUGGING_CASH_SCALE       = 120000;
-const MUGGING_DEBT_BASELINE    = 5000;
-const MUGGING_DEBT_RATIO       = 2;
-const MUGGING_MIN_LOSS_PCT     = 0.80;
-const MUGGING_LOSS_SPAN_PCT    = 0.20;
-const RUN_MIN_ESCAPE_CHANCE    = 0.02;
-const RUN_SHIP_PENALTY_SCALE   = 22;
+const MUGGING_CASH_SCALE       = 120000; // cash level where mugging risk reaches its cap component
+const MUGGING_DEBT_BASELINE    = 5000;   // minimum debt level before debt pressure is considered
+const MUGGING_DEBT_RATIO       = 2;      // debt pressure when debt exceeds this multiple of current cash
+const MUGGING_MIN_LOSS_PCT     = 0.80;   // minimum percent of cash lost during mugging
+const MUGGING_LOSS_SPAN_PCT    = 0.20;   // adds random 0-20% to reach 80-100% loss
+const RUN_MIN_ESCAPE_CHANCE    = 0.02;   // floor so escape is never impossible
+const RUN_SHIP_PENALTY_SCALE   = 22;     // exponential scale for escape penalty by enemy ship count
+const EVENT_ENCOUNTER_CHANCE   = 0.38;
+const EVENT_CUSTOMS_CHANCE     = 0.46;
+const EVENT_LIYUEN_CHANCE      = 0.52;
 
 // =============================================
 //  GAME STATE
@@ -746,6 +749,7 @@ function getCargoValue() {
 }
 
 function getNetWorth() {
+    // Net worth can be negative when debt outweighs assets; encounter scaling clamps it to zero.
     return state.cash + state.bank + getCargoValue() - state.debt;
 }
 
@@ -1035,9 +1039,9 @@ function travel(dest) {
     }
 
     const roll = Math.random();
-    if      (roll < 0.38) startEncounter();
-    else if (roll < 0.46) customsEvent();
-    else if (roll < 0.52) liYuenOffer();
+    if      (roll < EVENT_ENCOUNTER_CHANCE) startEncounter();
+    else if (roll < EVENT_CUSTOMS_CHANCE) customsEvent();
+    else if (roll < EVENT_LIYUEN_CHANCE) liYuenOffer();
     else                  arrive();
 }
 
@@ -1549,7 +1553,9 @@ async function enemyVolley() {
     if (alive.length === 0) return;
 
     let hits = 0;
-    for (let i = 0; i < alive.length; i++) { if (Math.random() < ENEMY_HIT_CHANCE) hits++; }
+    for (let i = 0; i < alive.length; i++) {
+        if (Math.random() < ENEMY_HIT_CHANCE) hits++;
+    }
 
     const dmg = hits * 2;
     state.health = Math.max(0, state.health - dmg);
