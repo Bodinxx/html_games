@@ -1,6 +1,6 @@
 <!-- 
 CATEGORY: Games
-DESCRIPTION: Taipan! A deep maritime trading game set in the South China Sea. Navigate 10 historical Far Eastern ports to trade opium, silk, arms, tea, ivory, and general goods. Manage debt to Elder Brother Wu, bank profits in Hong Kong or Macau, and upgrade your ship at the shipyard with cannons, explosive charges, and electric charges. Hire specialist crew — gunners improve cannon accuracy, merchants negotiate better trade prices, and carpenters repair the hull while sailing — in this faithful upgrade of the classic Apple IIc game.
+DESCRIPTION: Taipan! A deep maritime trading game set in the South China Sea. Navigate 10 historical Far Eastern ports to trade opium, jade, spices, silk, arms, tea, ivory, and general goods. Manage debt to Elder Brother Wu, bank profits in Hong Kong or Macau, and upgrade your ship at the shipyard with cannons, explosive charges, and electric charges. Hire specialist crew — gunners improve cannon accuracy, merchants negotiate better trade prices, and carpenters repair the hull while sailing — in this faithful upgrade of the classic Apple IIc game.
 TAGS: Strategy, Simulation, Trading, Adventure, Old School
 -->
 <!DOCTYPE html>
@@ -11,6 +11,15 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
     <title>Taipan!</title>
     <style>
         :root {
+            --viewport-height: 100vh;
+            --viewport-scale: clamp(1, calc(var(--viewport-height) / 820), 1.35);
+            --ui-padding: clamp(10px, calc(var(--viewport-height) * 0.016), 20px);
+            --ui-gap: clamp(6px, calc(var(--viewport-height) * 0.012), 16px);
+            --panel-min-height: clamp(120px, calc(var(--viewport-height) * 0.19), 210px);
+            --log-height: clamp(80px, calc(var(--viewport-height) * 0.13), 150px);
+            --fleet-min-height: clamp(180px, calc(var(--viewport-height) * 0.26), 280px);
+            --ship-box-width: clamp(68px, calc(var(--viewport-height) * 0.095), 96px);
+            --ship-icon-size: clamp(60px, calc(var(--viewport-height) * 0.085), 86px);
             --bg: #030c03;
             --green: #00d44a;
             --green-dim: #007030;
@@ -23,6 +32,9 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
             --electric-dim: #2266aa;
             --explosive: #ff8c00;
             --chain: #bbbbbb;
+        }
+        @supports (height: 100dvh) {
+            :root { --viewport-height: 100dvh; }
         }
 
         * {
@@ -44,7 +56,8 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
             align-items: flex-start;
             min-height: 100vh;
             margin: 0;
-            padding: 10px;
+            padding: var(--ui-padding);
+            font-size: clamp(14px, calc(10px + var(--viewport-height) * 0.007), 19px);
             text-transform: uppercase;
         }
 
@@ -52,8 +65,10 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
             background-color: var(--paper);
             width: 100%;
             max-width: 820px;
+            min-height: 90vh;
+            min-height: calc(var(--viewport-height) * 0.9);
             border: 3px solid var(--green);
-            padding: 20px;
+            padding: calc(18px * var(--viewport-scale));
             box-shadow: 0 0 24px rgba(0,212,74,0.15);
             position: relative;
         }
@@ -62,8 +77,8 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         .header {
             text-align: center;
             border-bottom: 2px solid var(--green);
-            margin-bottom: 16px;
-            padding-bottom: 10px;
+            margin-bottom: calc(14px * var(--viewport-scale));
+            padding-bottom: calc(10px * var(--viewport-scale));
         }
         h1 { margin: 0; font-size: 2em; letter-spacing: 4px; text-shadow: 0 0 12px var(--green); }
         h2, h3 { margin: 0 0 6px; letter-spacing: 2px; }
@@ -71,7 +86,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         .setup-box {
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: calc(12px * var(--viewport-scale));
             max-width: 440px;
             margin: 0 auto;
         }
@@ -80,7 +95,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
             background: #000;
             border: 2px solid var(--green-dim);
             color: var(--green);
-            padding: 8px 10px;
+            padding: calc(8px * var(--viewport-scale)) calc(10px * var(--viewport-scale));
             font-family: inherit;
             font-size: 1.1em;
             outline: none;
@@ -90,7 +105,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
 
         .type-option {
             border: 2px solid var(--green-dim);
-            padding: 12px;
+            padding: calc(12px * var(--viewport-scale));
             cursor: pointer;
             font-size: 0.85em;
         }
@@ -100,10 +115,10 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 6px;
+            gap: calc(6px * var(--viewport-scale));
             border: 1px solid var(--green-dim);
-            padding: 10px;
-            margin-bottom: 14px;
+            padding: calc(10px * var(--viewport-scale));
+            margin-bottom: calc(14px * var(--viewport-scale));
             font-size: 0.82em;
         }
         .stat-item { padding: 2px 0; }
@@ -114,8 +129,8 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         .port-view {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            margin-bottom: 10px;
+            gap: calc(14px * var(--viewport-scale));
+            margin-bottom: calc(10px * var(--viewport-scale));
         }
         @media (max-width: 560px) {
             .port-view { grid-template-columns: 1fr; }
@@ -124,8 +139,8 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
 
         .panel-box {
             border: 1px solid var(--green-dim);
-            padding: 8px;
-            min-height: 120px;
+            padding: calc(8px * var(--viewport-scale));
+            min-height: var(--panel-min-height);
         }
         .panel-box h3 { font-size: 0.85em; border-bottom: 1px solid var(--green-dim); padding-bottom: 4px; margin-bottom: 6px; }
 
@@ -144,7 +159,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
             background: var(--bg);
             color: var(--green);
             border: 1px solid var(--green-dim);
-            padding: 4px 8px;
+            padding: calc(4px * var(--viewport-scale)) calc(8px * var(--viewport-scale));
             cursor: pointer;
             font-family: inherit;
             font-size: 0.78em;
@@ -155,7 +170,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         button:disabled { border-color: #1a1a1a; color: #333; cursor: not-allowed; }
 
         .btn-main {
-            padding: 10px 14px;
+            padding: calc(10px * var(--viewport-scale)) calc(14px * var(--viewport-scale));
             font-size: 0.85em;
             font-weight: bold;
             letter-spacing: 1px;
@@ -168,12 +183,12 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         .btn-explosive:hover:not(:disabled) { background: var(--explosive); color: var(--bg); }
 
         .log {
-            height: 80px;
+            height: var(--log-height);
             overflow-y: auto;
             border: 1px solid var(--green-dim);
-            padding: 6px 8px;
+            padding: calc(6px * var(--viewport-scale)) calc(8px * var(--viewport-scale));
             font-size: 0.75em;
-            margin-bottom: 12px;
+            margin-bottom: calc(12px * var(--viewport-scale));
             background: #000;
             line-height: 1.5;
         }
@@ -181,7 +196,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         .actions {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: calc(6px * var(--viewport-scale));
             justify-content: center;
             align-items: center;
         }
@@ -223,9 +238,9 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         #fleet-visual {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-            padding: 12px;
-            min-height: 180px;
+            gap: calc(10px * var(--viewport-scale));
+            padding: calc(12px * var(--viewport-scale));
+            min-height: var(--fleet-min-height);
             background: #000;
             border: 1px solid var(--green-dim);
             margin: 8px 0;
@@ -240,8 +255,8 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
             background: repeating-linear-gradient(0deg, rgba(0,212,74,0.03) 0px, rgba(0,212,74,0.03) 1px, transparent 1px, transparent 3px);
             pointer-events: none;
         }
-        .ship-container { width: 68px; text-align: center; position: relative; transition: all 0.4s; }
-        .ship-icon { width: 60px; height: 60px; fill: var(--green); }
+        .ship-container { width: var(--ship-box-width); text-align: center; position: relative; transition: all 0.4s; }
+        .ship-icon { width: var(--ship-icon-size); height: var(--ship-icon-size); fill: var(--green); }
         .ship-health-small { width: 100%; height: 4px; background: #222; margin-top: 3px; }
         .ship-health-fill { height: 100%; background: var(--green); transition: width 0.2s; }
         .ship-container.hit { animation: shake 0.25s; filter: brightness(3); }
@@ -321,7 +336,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         /* Port desc */
         #port-desc { font-size: 0.75em; color: var(--green-dim); margin-top: 3px; font-style: italic; min-height: 1em; }
 
-        .trans-input { width: 100px; font-size: 0.9em; padding: 5px; }
+        .trans-input { width: clamp(100px, calc(var(--viewport-height) * 0.12), 136px); font-size: 0.9em; padding: calc(5px * var(--viewport-scale)); }
 
         .section-divider { border: none; border-top: 1px dashed var(--green-dim); margin: 10px 0; }
 
@@ -445,6 +460,8 @@ const ROLE_LABELS = { gunners: 'GUNNER', merchants: 'MERCHANT', carpenters: 'CAR
 
 const commodities = [
     { name: "Opium",   min: 1000, max: 9000, risky: true,  riskMsg: "CUSTOMS SEIZED YOUR OPIUM AND LEVIED A FINE!" },
+    { name: "Jade",    min: 700,  max: 4200, risky: false, riskMsg: "" },
+    { name: "Spices",  min: 450,  max: 2200, risky: false, riskMsg: "" },
     { name: "Silk",    min: 200,  max: 1200, risky: false, riskMsg: "" },
     { name: "Arms",    min: 100,  max: 600,  risky: true,  riskMsg: "PORT AUTHORITIES CONFISCATED YOUR ARMS SHIPMENT!" },
     { name: "General", min: 10,   max: 80,   risky: false, riskMsg: "" },
@@ -1166,7 +1183,7 @@ function renderCombat() {
     const html = `
         <div id="fleet-visual">${fleetHTML}</div>
         <div id="combat-stats">
-            ENEMY FLEET: ${alive.length} SHIPS REMAINING &nbsp;|&nbsp; SUNK: ${c.totalSunk}<br>
+            ENEMY FLEET: ${alive.length} SHIPS REMAINING &nbsp;|&nbsp; SUNK: ${c.totalSunk} &nbsp;|&nbsp; FLED: ${c.totalFled}<br>
             YOUR HULL: ${Math.round(state.health)}%
             <div id="player-combat-hull-bar"><div id="player-combat-hull-fill" style="width:${state.health}%;background:${hullColor}"></div></div>
             GUNS: ${state.guns} &nbsp;|&nbsp; GUNNERS: ${state.crew.gunners || 0} (+${crewBonus}% ACC)<br>
