@@ -761,13 +761,13 @@ function calculatePirateFleetSize(multiplier = 1) {
     return Math.max(1, Math.floor(base * multiplier));
 }
 
-function isDebtPressure() {
+function hasDebtPressure() {
     return state.debt > Math.max(MUGGING_DEBT_BASELINE, state.cash * MUGGING_DEBT_RATIO);
 }
 
 function getMuggingChance() {
     const cashFactor = Math.min(0.30, state.cash / MUGGING_CASH_SCALE);
-    const debtDefault = isDebtPressure();
+    const debtDefault = hasDebtPressure();
     const debtFactor = debtDefault ? 0.18 : 0;
     return Math.min(0.75, 0.02 + cashFactor + debtFactor);
 }
@@ -778,13 +778,13 @@ function maybeTriggerMugging(context = 'port') {
     if (context === 'arrival') chance += 0.03;
     chance = Math.min(0.80, chance);
     if (Math.random() >= chance) return false;
-    const debtPressure = isDebtPressure();
+    const debtPressure = hasDebtPressure();
     const pct = MUGGING_MIN_LOSS_PCT + Math.random() * MUGGING_LOSS_SPAN_PCT;
     const lost = Math.floor(state.cash * pct);
     if (lost <= 0) return false;
     state.cash = Math.max(0, state.cash - lost);
     const place = state.currentPort.toUpperCase();
-    const wuLine = debtPressure ? " WORD SPREAD THAT ELDER BROTHER WU ORDERED THE LESSON." : "";
+    const wuLine = debtPressure ? " WORD HAS SPREAD THAT ELDER BROTHER WU ORDERED THE LESSON." : "";
     showModal(
         "BEATEN UP AND ROBBED",
         `<p>YOU WERE BEATEN UP AND ROBBED OF <strong style="color:var(--danger)">${lost.toLocaleString()} GOLD</strong> IN THE DARK ALLEYS OF ${place}!${wuLine}</p>
@@ -1055,7 +1055,7 @@ function stormEvent(intendedDestination) {
         <p><strong style="color:var(--danger)">STORM!</strong> YOUR SHIP IS BLOWN OFF COURSE.</p>
         <p>INTENDED DESTINATION: ${intendedDestination.toUpperCase()}<br>ACTUAL LANDING: <strong>${blownTo.name.toUpperCase()}</strong></p>
         <p>HULL DAMAGE: <strong style="color:var(--danger)">-${dmg}%</strong> (NOW ${Math.round(state.health)}%)</p>
-        <p style="color:var(--green-dim);font-size:0.85em;">THE HARBOURMASTER DEMANDS MANDATORY REPAIRS BEFORE YOU CAN SAIL OR UPGRADE AGAIN.</p>
+        <p style="color:var(--green-dim);font-size:0.85em;">THE HARBORMASTER DEMANDS MANDATORY REPAIRS BEFORE YOU CAN SAIL OR UPGRADE AGAIN.</p>
         <div class="actions"><button class="btn-main" onclick="closeModal();arrive();">LIMP INTO PORT</button></div>`;
     showModal("SEVERE STORM", stormHtml, false);
     log(`STORM! BLOWN OFF COURSE TO ${blownTo.name.toUpperCase()}. HULL DAMAGED BY ${dmg}%.`, "var(--danger)");
@@ -1280,6 +1280,7 @@ async function combatAction(type) {
         const ratio   = getHoldUsed() / state.holdTotal;
         const aliveShips = c.ships.filter(s => s.alive).length;
         const baseChance = 0.45 + 0.25 * (1 - ratio);
+        // Escape probability drops exponentially as more enemy ships remain in firing range.
         const chance  = Math.max(RUN_MIN_ESCAPE_CHANCE, baseChance * Math.exp(-aliveShips / RUN_SHIP_PENALTY_SCALE));
         if (Math.random() < chance) {
             const loot = bountyReward();
