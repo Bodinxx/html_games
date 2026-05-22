@@ -484,6 +484,21 @@ const CREW_QUARTERS_BASE_COST  = 75000;  // minimum cost of first crew limit exp
 const CREW_QUARTERS_MULTIPLIER = 8000;   // per-current-slot cost multiplier
 const CHAIN_SHOT_MIN_DMG       = 55;     // minimum damage per chain-shot hit
 const CHAIN_SHOT_DAMAGE_RANGE  = 30;     // added range; max dmg = MIN + RANGE = 85
+const STORM_TRIGGER_CHANCE     = 0.10;
+const STORM_MIN_DAMAGE         = 10;
+const STORM_MAX_DAMAGE         = 40;
+const STORM_REPAIR_COST_PER_HP = 120;
+const ENEMY_HIT_CHANCE         = 0.15;
+const MUGGING_CASH_SCALE       = 120000; // cash level where mugging risk reaches its cap component
+const MUGGING_DEBT_BASELINE    = 5000;   // minimum debt level before debt pressure is considered
+const MUGGING_DEBT_RATIO       = 2;      // debt pressure when debt exceeds this multiple of current cash
+const MUGGING_MIN_LOSS_PCT     = 0.80;   // minimum percent of cash lost during mugging
+const MUGGING_LOSS_SPAN_PCT    = 0.20;   // adds random 0-20% to reach 80-100% loss
+const RUN_MIN_ESCAPE_CHANCE    = 0.02;   // floor so escape is never impossible
+const RUN_SHIP_PENALTY_SCALE   = 22;     // exponential scale for escape penalty by enemy ship count
+const EVENT_ENCOUNTER_CHANCE   = 0.38;
+const EVENT_CUSTOMS_CHANCE     = 0.46;
+const EVENT_LIYUEN_CHANCE      = 0.52;
 
 // =============================================
 //  GAME STATE
@@ -510,7 +525,8 @@ let state = {
     crewLimit: 10,
     ammo: { explosive: 0, electric: 0, chain: 0 },
     liYuenProtected: 0,   // remaining voyages of Li Yuen protection
-    settings: { showAvgPrices: false, soundEnabled: false }
+    settings: { showAvgPrices: false, soundEnabled: false },
+    stormRepairRequired: false
 };
 
 // =============================================
@@ -649,6 +665,7 @@ function applyLoadedState(parsed) {
     if (state.ammo.chain === undefined)       state.ammo.chain = 0;
     if (state.liYuenProtected === undefined) state.liYuenProtected = 0;
     if (state.crewLimit === undefined)       state.crewLimit = 10;
+    if (state.stormRepairRequired === undefined) state.stormRepairRequired = false;
     if (!state.settings)                     state.settings = { showAvgPrices: false, soundEnabled: false };
     if (state.settings.showAvgPrices === undefined) state.settings.showAvgPrices = false;
     if (state.settings.soundEnabled === undefined)  state.settings.soundEnabled = false;
@@ -727,6 +744,82 @@ function getCarpenterRepair() {
     return Math.min(12, (state.crew.carpenters || 0) * 2);
 }
 
+function getCargoValue() {
+    return commodities.reduce((sum, c) => sum + (state.inventory[c.name] || 0) * (state.prices[c.name] || 0), 0);
+}
+
+function getNetWorth() {
+    // Net worth can be negative when debt outweighs assets; encounter scaling clamps it to zero.
+    return state.cash + state.bank + getCargoValue() - state.debt;
+}
+
+function calculatePirateFleetSize(multiplier = 1) {
+    const wealthBonus = Math.floor(Math.max(0, getNetWorth()) / 150000);
+    const base = (
+        1
+        + Math.floor(state.guns * 0.8)
+        + Math.floor(state.voyageCount * 0.6)
+        + wealthBonus
+        + Math.floor(Math.random() * 5)
+    );
+    return Math.max(1, Math.floor(base * multiplier));
+}
+
+function hasDebtPressure() {
+    return state.debt > Math.max(MUGGING_DEBT_BASELINE, state.cash * MUGGING_DEBT_RATIO);
+}
+
+function getMuggingChance() {
+    const cashFactor = Math.min(0.30, state.cash / MUGGING_CASH_SCALE);
+    const debtDefault = hasDebtPressure();
+    const debtFactor = debtDefault ? 0.18 : 0;
+    return Math.min(0.75, 0.02 + cashFactor + debtFactor);
+}
+
+function maybeTriggerMugging(context = 'port') {
+    if (state.combat || state.cash <= 0) return false;
+    let chance = getMuggingChance();
+    if (context === 'arrival') chance += 0.03;
+    chance = Math.min(0.80, chance);
+    if (Math.random() >= chance) return false;
+    const debtPressure = hasDebtPressure();
+    const pct = MUGGING_MIN_LOSS_PCT + Math.random() * MUGGING_LOSS_SPAN_PCT;
+    const lost = Math.floor(state.cash * pct);
+    if (lost <= 0) return false;
+    state.cash = Math.max(0, state.cash - lost);
+    const place = state.currentPort.toUpperCase();
+    const wuLine = debtPressure ? " WORD HAS SPREAD THAT ELDER BROTHER WU ORDERED THE LESSON." : "";
+    showModal(
+        "BEATEN UP AND ROBBED",
+        `<p>YOU WERE BEATEN UP AND ROBBED OF <strong style="color:var(--danger)">${lost.toLocaleString()} GOLD</strong> IN THE DARK ALLEYS OF ${place}!${wuLine}</p>
+         <p style="color:var(--green-dim);font-size:0.85em;">YOUR BANKED SAVINGS REMAIN SAFE.</p>`,
+        true
+    );
+    log(`THUGS ROBBED YOU OF ${lost.toLocaleString()} GOLD IN ${place}.`, "var(--danger)");
+    return true;
+}
+
+function payStormRepairs() {
+    if (!state.stormRepairRequired) return;
+    const needed = Math.max(0, Math.ceil(100 - state.health));
+    if (needed <= 0) {
+        state.stormRepairRequired = false;
+        render();
+        return;
+    }
+    const cost = needed * STORM_REPAIR_COST_PER_HP;
+    if (state.cash < cost) {
+        log(`INSUFFICIENT GOLD FOR MANDATORY STORM REPAIRS (${cost.toLocaleString()} REQUIRED).`, "var(--danger)");
+        return;
+    }
+    state.cash -= cost;
+    state.health = 100;
+    state.stormRepairRequired = false;
+    log(`EMERGENCY DRYDOCK COMPLETE. PAID ${cost.toLocaleString()} GOLD TO RESTORE THE HULL TO 100%.`, "var(--gold)");
+    closeModal();
+    render();
+}
+
 function updatePrices() {
     const port = getPortData(state.currentPort);
     commodities.forEach(c => {
@@ -766,6 +859,9 @@ function render() {
     document.getElementById('ammo-chain').innerText     = state.ammo.chain;
     document.getElementById('location-display').innerText = `PORT: ${state.currentPort.toUpperCase()}`;
     document.getElementById('port-desc').innerText   = portData.desc;
+    if (state.stormRepairRequired) {
+        document.getElementById('port-desc').innerText += " ⚠ MANDATORY STORM REPAIRS PENDING.";
+    }
 
     // Market — optionally show average prices
     let mHtml = '';
@@ -884,6 +980,7 @@ function executeTrade(item, price, dir) {
     }
     playSound('purchase');
     closeModal();
+    maybeTriggerMugging('transaction');
     render();
 }
 
@@ -891,6 +988,20 @@ function executeTrade(item, price, dir) {
 //  NAVIGATION
 // =============================================
 function showTravel() {
+    if (state.stormRepairRequired) {
+        const needed = Math.max(0, Math.ceil(100 - state.health));
+        const cost = needed * STORM_REPAIR_COST_PER_HP;
+        showModal(
+            "REPAIRS REQUIRED",
+            `<p>THE SHIPYARD INSPECTOR REFUSES CLEARANCE AFTER THE LAST STORM.</p>
+             <p>MANDATORY REPAIR: <strong>${needed}% HULL</strong> &nbsp;|&nbsp; COST: <strong style="color:var(--gold)">${cost.toLocaleString()} GOLD</strong></p>
+             <p style="color:var(--green-dim);font-size:0.85em;">NO FURTHER VOYAGES OR UPGRADES UNTIL THESE REPAIRS ARE PAID.</p>
+             <div class="actions"><button class="btn-main" onclick="payStormRepairs()" ${state.cash < cost ? 'disabled' : ''}>PAY MANDATORY REPAIRS</button></div>
+             ${state.cash < cost ? '<p style="color:var(--danger);font-size:0.85em;">YOU NEED MORE GOLD ON HAND.</p>' : ''}`,
+            true
+        );
+        return;
+    }
     const holdUsed = getHoldUsed();
     const overCap  = holdUsed > state.holdTotal;
     let html = '';
@@ -922,23 +1033,36 @@ function travel(dest) {
         return;
     }
 
+    if (Math.random() < STORM_TRIGGER_CHANCE) {
+        stormEvent(dest);
+        return;
+    }
+
     const roll = Math.random();
-    if      (roll < 0.38) startEncounter();
-    else if (roll < 0.44) stormEvent();
-    else if (roll < 0.50) customsEvent();
-    else if (roll < 0.54) liYuenOffer();
+    if      (roll < EVENT_ENCOUNTER_CHANCE) startEncounter();
+    else if (roll < EVENT_CUSTOMS_CHANCE) customsEvent();
+    else if (roll < EVENT_LIYUEN_CHANCE) liYuenOffer();
     else                  arrive();
 }
 
 // =============================================
 //  RANDOM EVENTS
 // =============================================
-function stormEvent() {
-    const dmg = Math.floor(Math.random() * 14) + 4;
+function stormEvent(intendedDestination) {
+    const dmg = Math.floor(Math.random() * (STORM_MAX_DAMAGE - STORM_MIN_DAMAGE + 1)) + STORM_MIN_DAMAGE;
     state.health = Math.max(1, state.health - dmg);
-    log(`A VIOLENT STORM BATTERED THE HULL. INTEGRITY REDUCED BY ${dmg}%.`, "var(--danger)");
-    if (state.health <= 15) log("THE SHIP IS BARELY SEAWORTHY! SEEK REPAIRS IMMEDIATELY!", "var(--danger)");
-    arrive();
+    state.stormRepairRequired = true;
+    const alternatePorts = PORTS.filter(p => p.name !== intendedDestination);
+    const blownTo = alternatePorts[Math.floor(Math.random() * alternatePorts.length)];
+    state.currentPort = blownTo.name;
+    const stormHtml = `
+        <p><strong style="color:var(--danger)">STORM!</strong> YOUR SHIP IS BLOWN OFF COURSE.</p>
+        <p>INTENDED DESTINATION: ${intendedDestination.toUpperCase()}<br>ACTUAL LANDING: <strong>${blownTo.name.toUpperCase()}</strong></p>
+        <p>HULL DAMAGE: <strong style="color:var(--danger)">-${dmg}%</strong> (NOW ${Math.round(state.health)}%)</p>
+        <p style="color:var(--green-dim);font-size:0.85em;">THE HARBORMASTER DEMANDS MANDATORY REPAIRS BEFORE YOU CAN SAIL OR UPGRADE AGAIN.</p>
+        <div class="actions"><button class="btn-main" onclick="closeModal();arrive();">LIMP INTO PORT</button></div>`;
+    showModal("SEVERE STORM", stormHtml, false);
+    log(`STORM! BLOWN OFF COURSE TO ${blownTo.name.toUpperCase()}. HULL DAMAGED BY ${dmg}%.`, "var(--danger)");
 }
 
 function customsEvent() {
@@ -983,8 +1107,7 @@ function payLiYuen(tribute) {
 
 function closeLiYuenFight() {
     closeModal();
-    // Li Yuen's fleet is larger
-    const fleet = Math.floor(Math.random() * 20) + 15 + Math.floor(state.voyageCount / 3);
+    const fleet = calculatePirateFleetSize(1.35);
     startEncounterWithFleet(fleet);
 }
 
@@ -995,7 +1118,7 @@ function closeLiYuenFlee() {
         arrive();
     } else {
         log("LI YUEN'S JUNKS ARE TOO FAST! THEY PURSUE!", "var(--danger)");
-        const fleet = Math.floor(Math.random() * 15) + 10;
+        const fleet = calculatePirateFleetSize(1.2);
         startEncounterWithFleet(fleet);
     }
 }
@@ -1004,21 +1127,20 @@ function closeLiYuenFlee() {
 //  COMBAT
 // =============================================
 function startEncounter() {
-    const base  = Math.floor(Math.random() * 30) + 5;
-    const bonus = Math.floor(state.voyageCount / 4);
-    startEncounterWithFleet(base + bonus);
+    startEncounterWithFleet(calculatePirateFleetSize(1));
 }
 
 function startEncounterWithFleet(fleetSize) {
     state.combat = {
         fleetSize,
         initialFleetSize: fleetSize,
-        status: "PIRATES ON THE HORIZON! PREPARE FOR BATTLE!",
+        status: `PIRATE FLEET SPOTTED! ${fleetSize} HOSTILE SHIPS AHEAD!`,
         logs: [],
         busy: false,
         ships: Array.from({ length: fleetSize }, (_, i) => ({ id: i, health: 100, alive: true })),
         totalSunk: 0,
-        totalFled: 0
+        totalFled: 0,
+        roundSummary: "ROUND REPORT WILL APPEAR AFTER YOUR FIRST EXCHANGE."
     };
     state.autoCombat = false;
     state.lastCombatAction = null;
@@ -1051,6 +1173,7 @@ function renderCombat() {
             AMMO — EXP: ${state.ammo.explosive} &nbsp;·&nbsp; ELEC: ${state.ammo.electric} &nbsp;·&nbsp; CHAIN: ${state.ammo.chain}
         </div>
         <p id="combat-status" style="font-size:0.85em;margin:4px 0;">${c.status}</p>
+        <p style="font-size:0.8em;margin:4px 0;color:var(--green-bright);">${c.roundSummary || ''}</p>
         <div id="combat-log-small">${c.logs.slice(-3).join('<br>')}</div>`;
 
     const busy = c.busy;
@@ -1094,6 +1217,17 @@ function toggleAuto(el) {
     }
 }
 
+function setCombatRoundSummary(c, roundStart) {
+    if (!c || !roundStart) return;
+    const sunkDelta = c.totalSunk - roundStart.sunk;
+    const fledDelta = c.totalFled - roundStart.fled;
+    const sunkOnly = Math.max(0, sunkDelta - fledDelta);
+    const hullLoss = Math.max(0, Math.round(roundStart.health - state.health));
+    const crewLoss = Math.max(0, roundStart.crew - getTotalCrew());
+    const gunsLost = Math.max(0, roundStart.guns - state.guns);
+    c.roundSummary = `ROUND REPORT — SUNK: ${sunkOnly}, FLED: ${fledDelta}, HULL DAMAGE: ${hullLoss}%, CREW LOST: ${crewLoss}, GUNS DESTROYED: ${gunsLost}.`;
+}
+
 async function combatAction(type) {
     if (state.combat.busy) return;
     state.combat.busy = true;
@@ -1104,55 +1238,66 @@ async function combatAction(type) {
 
     const c = state.combat;
     c.logs = [];
+    const roundStart = {
+        sunk: c.totalSunk,
+        fled: c.totalFled,
+        health: state.health,
+        crew: getTotalCrew(),
+        guns: state.guns
+    };
 
     if (type === 'broadside') {
         if (state.guns === 0) {
             c.status = "WE HAVE NO GUNS! THE CREW IS IN DESPAIR!";
         } else {
             await fireBroadside('standard');
-            if (checkVictory()) return;
+            if (checkVictory(roundStart)) return;
         }
         await enemyVolley();
-        checkMoraleBreak();
+        checkMoraleBreak(roundStart);
     }
     else if (type === 'explosive') {
         state.ammo.explosive--;
         playSound('explosion');
         await fireBroadside('explosive');
-        if (checkVictory()) return;
+        if (checkVictory(roundStart)) return;
         await enemyVolley();
-        checkMoraleBreak();
+        checkMoraleBreak(roundStart);
     }
     else if (type === 'electric') {
         state.ammo.electric--;
         playSound('electric');
         await fireElectric();
-        if (checkVictory()) return;
+        if (checkVictory(roundStart)) return;
         await enemyVolley();
-        checkMoraleBreak();
+        checkMoraleBreak(roundStart);
     }
     else if (type === 'chain') {
         state.ammo.chain--;
         playSound('cannon');
         await fireChainShot();
-        if (checkVictory()) return;
+        if (checkVictory(roundStart)) return;
         await enemyVolley();
-        checkMoraleBreak();
+        checkMoraleBreak(roundStart);
     }
     else if (type === 'run') {
         const ratio   = getHoldUsed() / state.holdTotal;
-        const chance  = 0.38 + 0.32 * (1 - ratio);
+        const aliveShips = c.ships.filter(s => s.alive).length;
+        const baseChance = 0.45 + 0.25 * (1 - ratio);
+        // Escape probability drops exponentially as more enemy ships remain in firing range.
+        const chance  = Math.max(RUN_MIN_ESCAPE_CHANCE, baseChance * Math.exp(-aliveShips / RUN_SHIP_PENALTY_SCALE));
         if (Math.random() < chance) {
             const loot = bountyReward();
             const fledNote = c.totalFled > 0 ? ` (${c.totalFled} FLED, ${c.totalSunk - c.totalFled} SUNK)` : '';
             c.status = `ESCAPED! BOUNTY FOR ${c.totalSunk} DEFEATED SHIPS${fledNote}: ${loot.toLocaleString()} GOLD.`;
+            setCombatRoundSummary(c, roundStart);
             state.combat.busy = false;
             endCombat();
             return;
         } else {
             c.status = "THEY MATCH OUR SPEED! WE CANNOT OUTRUN THEM!";
             await enemyVolley();
-            checkMoraleBreak();
+            checkMoraleBreak(roundStart);
         }
     }
     else if (type === 'throw') {
@@ -1171,6 +1316,7 @@ async function combatAction(type) {
 
     state.combat.busy = false;
     if (!state.combat) return; // ended during volley
+    setCombatRoundSummary(c, roundStart);
     renderCombat();
 
     if (state.autoCombat && state.combat && (type === 'broadside' || type === 'run')) {
@@ -1180,12 +1326,13 @@ async function combatAction(type) {
     }
 }
 
-function checkVictory() {
+function checkVictory(roundStart) {
     const c = state.combat;
     if (c.ships.filter(s => s.alive).length <= 0) {
         const loot = bountyReward();
         const fledNote = c.totalFled > 0 ? ` (${c.totalFled} FLED, ${c.totalSunk - c.totalFled} SUNK)` : '';
         c.status = `VICTORY! BOUNTY FOR ${c.totalSunk} DEFEATED SHIPS${fledNote}: ${loot.toLocaleString()} GOLD.`;
+        setCombatRoundSummary(c, roundStart);
         state.combat.busy = false;
         endCombat();
         return true;
@@ -1200,7 +1347,7 @@ function bountyReward() {
     return loot;
 }
 
-function checkMoraleBreak() {
+function checkMoraleBreak(roundStart) {
     const c = state.combat;
     if (!c) return;
     let fled = 0;
@@ -1219,6 +1366,7 @@ function checkMoraleBreak() {
             const loot = bountyReward();
             const fledNote = c.totalFled > 0 ? ` ${c.totalFled} FLED,` : '';
             c.status = `ENEMIES DISPERSED.${fledNote} BOUNTY: ${loot.toLocaleString()} GOLD.`;
+            setCombatRoundSummary(c, roundStart);
             state.combat.busy = false;
             endCombat();
             return;
@@ -1401,11 +1549,13 @@ async function fireChainShot() {
 async function enemyVolley() {
     const c = state.combat;
     if (!c) return;
-    const alive = c.ships.filter(s => s.alive).slice(0, 10);
+    const alive = c.ships.filter(s => s.alive);
     if (alive.length === 0) return;
 
     let hits = 0;
-    for (let i = 0; i < alive.length; i++) { if (Math.random() > 0.87) hits++; }
+    for (let i = 0; i < alive.length; i++) {
+        if (Math.random() < ENEMY_HIT_CHANCE) hits++;
+    }
 
     const dmg = hits * 2;
     state.health = Math.max(0, state.health - dmg);
@@ -1508,8 +1658,9 @@ function arrive() {
 
     log(`ANCHOR DROPPED. ARRIVED IN ${state.currentPort.toUpperCase()}.`);
     saveProgress();
+    const mugged = maybeTriggerMugging('arrival');
 
-    if (Math.random() < 0.12) {
+    if (!mugged && Math.random() < 0.12) {
         offerNewShip();
     } else {
         render();
@@ -1535,6 +1686,7 @@ function acceptShip(cost, cap) {
     state.cash -= cost;
     state.holdTotal = cap;
     state.health = 100;
+    state.stormRepairRequired = false;
     log(`NEW VESSEL ACQUIRED. HOLD NOW ${state.holdTotal}. HULL FULLY RESTORED.`);
     closeModal(); render();
 }
@@ -1584,6 +1736,7 @@ function bankAction(type) {
         state.cash -= a; state.debt -= a;
         if (state.debt <= 0) { state.debt = 0; log("YOUR DEBT TO ELDER BROTHER WU IS FULLY REPAID!", "var(--gold)"); }
     }
+    if (maybeTriggerMugging('transaction')) { render(); return; }
     render(); visitBank();
 }
 
@@ -1639,6 +1792,7 @@ function executeWarehouseTransfer(item, mode) {
         log(`LOADED ${qty} UNITS OF ${item.toUpperCase()} ONTO THE SHIP.`);
     }
     closeModal();
+    if (maybeTriggerMugging('transaction')) { render(); return; }
     visitWarehouse();
 }
 
@@ -1659,6 +1813,7 @@ function visitShipyard() {
     const elecCost   = 4000;
     const crewQtrCost = Math.max(CREW_QUARTERS_BASE_COST, state.crewLimit * CREW_QUARTERS_MULTIPLIER); // very expensive, scales with limit
     const freeHold   = state.holdTotal - getHoldUsed();
+    const repairsLocked = state.stormRepairRequired;
 
     let html = `
         <p>HULL: ${Math.round(state.health)}% &nbsp;|&nbsp; GUNS: ${state.guns} &nbsp;|&nbsp; FREE HOLD: ${freeHold}</p>
@@ -1671,24 +1826,24 @@ function visitShipyard() {
         </div>
         <hr class="section-divider">
         <button class="btn-main" onclick="shipyardAction('gun')"
-            ${(state.cash < gunCost || freeHold < 10) ? 'disabled' : ''}>ADD CANNON — ${gunCost.toLocaleString()} GOLD (10 HOLD)</button>
+            ${(state.cash < gunCost || freeHold < 10 || repairsLocked) ? 'disabled' : ''}>ADD CANNON — ${gunCost.toLocaleString()} GOLD (10 HOLD)</button>
     `;
     if (isFull) {
         html += `
             <button class="btn-main" onclick="shipyardAction('hull')"
-                ${state.cash < hullUpCost ? 'disabled' : ''}>UPGRADE HULL CAPACITY — ${hullUpCost.toLocaleString()} GOLD (+50 HOLD)</button>
+                ${(state.cash < hullUpCost || repairsLocked) ? 'disabled' : ''}>UPGRADE HULL CAPACITY — ${hullUpCost.toLocaleString()} GOLD (+50 HOLD)</button>
             <button class="btn-main" onclick="shipyardAction('warehouse')"
-                ${(state.cash < whCost || state.warehouseTotal >= 10000) ? 'disabled' : ''}>EXPAND WAREHOUSE — ${whCost.toLocaleString()} GOLD (+1000)</button>
+                ${(state.cash < whCost || state.warehouseTotal >= 10000 || repairsLocked) ? 'disabled' : ''}>EXPAND WAREHOUSE — ${whCost.toLocaleString()} GOLD (+1000)</button>
             <button class="btn-main" onclick="shipyardAction('crewqtr')"
-                ${state.cash < crewQtrCost ? 'disabled' : ''}>EXPAND CREW QUARTERS — ${crewQtrCost.toLocaleString()} GOLD (+5 CREW LIMIT)
+                ${(state.cash < crewQtrCost || repairsLocked) ? 'disabled' : ''}>EXPAND CREW QUARTERS — ${crewQtrCost.toLocaleString()} GOLD (+5 CREW LIMIT)
                 <br><small>Current limit: ${state.crewLimit} sailors. Elite captains only.</small></button>
             <hr class="section-divider">
             <p style="color:var(--explosive)">SPECIAL MUNITIONS — HONG KONG ARSENAL</p>
             <button class="btn-main btn-explosive" onclick="shipyardAction('explosive')"
-                ${state.cash < expCost ? 'disabled' : ''}>BUY EXPLOSIVE CHARGE — ${expCost.toLocaleString()} GOLD EACH
+                ${(state.cash < expCost || repairsLocked) ? 'disabled' : ''}>BUY EXPLOSIVE CHARGE — ${expCost.toLocaleString()} GOLD EACH
                 <br><small>High-accuracy, high-damage. AOE splash on kill. ${state.ammo.explosive} OWNED.</small></button>
             <button class="btn-main btn-chain" onclick="shipyardAction('chain')"
-                ${state.cash < chainCost ? 'disabled' : ''}>BUY CHAIN SHOT — ${chainCost.toLocaleString()} GOLD EACH
+                ${(state.cash < chainCost || repairsLocked) ? 'disabled' : ''}>BUY CHAIN SHOT — ${chainCost.toLocaleString()} GOLD EACH
                 <br><small>High damage (${CHAIN_SHOT_MIN_DMG}–${CHAIN_SHOT_MIN_DMG + CHAIN_SHOT_DAMAGE_RANGE}), no splash. 65%+ accuracy. ${state.ammo.chain} OWNED.</small></button>
         `;
     }
@@ -1697,14 +1852,21 @@ function visitShipyard() {
             <hr class="section-divider">
             <p style="color:var(--electric)">SPECIAL MUNITIONS — SINGAPORE DOCK</p>
             <button class="btn-main btn-electric" onclick="shipyardAction('electric')"
-                ${state.cash < elecCost ? 'disabled' : ''}>BUY ELECTRIC CHARGE — ${elecCost.toLocaleString()} GOLD EACH
+                ${(state.cash < elecCost || repairsLocked) ? 'disabled' : ''}>BUY ELECTRIC CHARGE — ${elecCost.toLocaleString()} GOLD EACH
                 <br><small>Damages ALL enemy ships simultaneously. ${state.ammo.electric} OWNED.</small></button>
         `;
+    }
+    if (repairsLocked) {
+        html += `<p style="color:var(--danger);font-size:0.85em;margin-top:10px;">STORM DAMAGE LOCK: UPGRADES AND ARMAMENT PURCHASES ARE BLOCKED UNTIL THE HULL IS FULLY REPAIRED.</p>`;
     }
     showModal(`${state.currentPort.toUpperCase()} SHIPYARD`, html, true);
 }
 
 function shipyardAction(type) {
+    if (state.stormRepairRequired && type !== 'repair') {
+        log("THE HARBORMASTER FORBIDS UPGRADES UNTIL STORM REPAIRS ARE COMPLETED.", "var(--danger)");
+        return;
+    }
     if (type === 'repair') {
         const spent  = Math.min(parseInt(document.getElementById('repair-amt').value) || 0, state.cash);
         const pct    = spent / 50;
@@ -1713,6 +1875,7 @@ function shipyardAction(type) {
         const cost   = Math.ceil(actual * 50);
         state.cash  -= cost;
         state.health = Math.min(100, state.health + actual);
+        if (state.health >= 100) state.stormRepairRequired = false;
         log(`REPAIRS COMPLETED. HULL RESTORED BY ${actual.toFixed(1)}%.`);
         playSound('purchase');
     }
@@ -1763,6 +1926,7 @@ function shipyardAction(type) {
             playSound('purchase');
         }
     }
+    if (maybeTriggerMugging('transaction')) { render(); return; }
     render();
     visitShipyard();
 }
@@ -1834,6 +1998,7 @@ function crewAction(type, role) {
         state.crew[role] = Math.max(0, (state.crew[role] || 0) - qty);
         log(`DISMISSED ${qty} ${ROLE_LABELS[role]}${qty !== 1 ? 'S' : ''}. CREW NOW ${getTotalCrew()}/${maxCrew}.`);
     }
+    if (maybeTriggerMugging('transaction')) { render(); return; }
     render(); visitCrew();
 }
 
@@ -1876,7 +2041,9 @@ function takeLoan() {
     state.debt   += actual;
     log(`BORROWED ${actual.toLocaleString()} GOLD FROM THE SAIGON MONEYLENDER. DEBT NOW ${state.debt.toLocaleString()}.`, "var(--gold)");
     playSound('purchase');
-    closeModal(); visitMoneylender();
+    closeModal();
+    if (maybeTriggerMugging('transaction')) { render(); return; }
+    visitMoneylender();
 }
 
 function repayLoan() {
@@ -1887,7 +2054,9 @@ function repayLoan() {
     state.debt -= actual;
     if (state.debt <= 0) { state.debt = 0; log("YOUR DEBT IS FULLY REPAID!", "var(--gold)"); }
     else log(`REPAID ${actual.toLocaleString()} GOLD. DEBT REMAINING: ${state.debt.toLocaleString()}.`);
-    render(); closeModal(); visitMoneylender();
+    render(); closeModal();
+    if (maybeTriggerMugging('transaction')) { render(); return; }
+    visitMoneylender();
 }
 
 // =============================================
