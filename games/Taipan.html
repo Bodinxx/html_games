@@ -16,7 +16,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
             --ui-padding: clamp(10px, calc(var(--viewport-height) * 0.016), 20px);
             --ui-gap: clamp(6px, calc(var(--viewport-height) * 0.012), 16px);
             --panel-min-height: clamp(120px, calc(var(--viewport-height) * 0.19), 210px);
-            --log-height: clamp(80px, calc(var(--viewport-height) * 0.13), 150px);
+            --log-height: clamp(80px, calc(var(--viewport-height) * 0.25), 150px);
             --fleet-min-height: clamp(180px, calc(var(--viewport-height) * 0.26), 280px);
             --ship-box-width: clamp(68px, calc(var(--viewport-height) * 0.095), 96px);
             --ship-icon-size: clamp(60px, calc(var(--viewport-height) * 0.085), 86px);
@@ -57,7 +57,7 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
             min-height: 100vh;
             margin: 0;
             padding: var(--ui-padding);
-            font-size: clamp(14px, calc(10px + var(--viewport-height) * 0.007), 19px);
+            font-size: clamp(16px, calc(12px + var(--viewport-height) * 0.007), 24px);
             text-transform: uppercase;
         }
 
@@ -156,6 +156,9 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         .market-risky { color: var(--danger); }
 
         button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             background: var(--bg);
             color: var(--green);
             border: 1px solid var(--green-dim);
@@ -168,12 +171,17 @@ TAGS: Strategy, Simulation, Trading, Adventure, Old School
         }
         button:hover:not(:disabled) { background: var(--green); color: var(--bg); }
         button:disabled { border-color: #1a1a1a; color: #333; cursor: not-allowed; }
-
+        
+        #bank-btn { padding: calc(10px * var(--viewport-scale)) calc(14px * var(--viewport-scale)); }
         .btn-main {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             padding: calc(10px * var(--viewport-scale)) calc(14px * var(--viewport-scale));
             font-size: 0.85em;
             font-weight: bold;
             letter-spacing: 1px;
+            min-height: 40px;
         }
         .btn-danger { border-color: var(--danger); color: var(--danger); }
         .btn-danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
@@ -470,7 +478,7 @@ const commodities = [
 ];
 
 const PORTS = [
-    { name: "Hong Kong",  bank: true,  warehouse: true,  shipyard: "full",     desc: "Your home port. Elder Brother Wu's moneylenders hold court here." },
+    { name: "Hong Kong",  bank: true,  warehouse: true,  shipyard: "full",    desc: "Your home port. Elder Brother Wu's moneylenders hold court here." },
     { name: "Shanghai",   bank: false, warehouse: false, shipyard: null,        desc: "A great northern port bustling with silk and tea merchants." },
     { name: "Nagasaki",   bank: false, warehouse: false, shipyard: null,        desc: "A Japanese port famed for arms and fine lacquerware." },
     { name: "Saigon",     bank: false, warehouse: false, shipyard: null,        moneylender: true,  desc: "Dense jungle trade — opium and ivory flow freely here." },
@@ -631,7 +639,7 @@ function downloadSave() {
     const payload = JSON.stringify({ v: 1, d: enc });
     const blob    = new Blob([payload], { type: 'application/json' });
     const url     = URL.createObjectURL(blob);
-    const a       = document.createElement('a');
+    const a        = document.createElement('a');
     a.href        = url;
     a.download    = `taipan_${(state.playerName || 'save').toLowerCase().replace(/\s+/g, '_')}.taipan`;
     document.body.appendChild(a);
@@ -910,12 +918,12 @@ function render() {
     if (!iHtml) iHtml = `<div style="color:var(--green-dim);font-size:0.82em;">HOLD EMPTY</div>`;
     document.getElementById('inventory-container').innerHTML = iHtml;
 
-    // Show/hide context buttons
-    document.getElementById('bank-btn').style.display         = portData.bank         ? 'flex' : 'none';
-    document.getElementById('warehouse-btn').style.display    = portData.warehouse     ? 'flex' : 'none';
-    document.getElementById('yard-btn').style.display         = portData.shipyard      ? 'flex' : 'none';
-    document.getElementById('moneylender-btn').style.display  = portData.moneylender   ? 'flex' : 'none';
-    document.getElementById('retire-btn').style.display       = (portData.bank && state.voyageCount >= 5) ? 'flex' : 'none';
+    // Show/hide context buttons (reverts to standard CSS display rules instead of breaking centering with programmatically forced 'flex')
+    document.getElementById('bank-btn').style.display         = portData.bank          ? '' : 'none';
+    document.getElementById('warehouse-btn').style.display    = portData.warehouse     ? '' : 'none';
+    document.getElementById('yard-btn').style.display         = portData.shipyard      ? '' : 'none';
+    document.getElementById('moneylender-btn').style.display  = portData.moneylender   ? '' : 'none';
+    document.getElementById('retire-btn').style.display       = (portData.bank && state.voyageCount >= 5) ? '' : 'none';
 }
 
 // =============================================
@@ -966,6 +974,39 @@ function openTradeModal(item, mode) {
     showModal(mode === 'buy' ? "MARKET: BUY" : "MARKET: SELL", html, true);
 }
 
+// =============================================
+//  NAVIGATION
+// =============================================
+function showTravel() {
+    if (state.stormRepairRequired) {
+        const needed = Math.max(0, Math.ceil(100 - state.health));
+        const cost = needed * STORM_REPAIR_COST_PER_HP;
+        showModal(
+            "REPAIRS REQUIRED",
+            `<p>THE SHIPYARD INSPECTOR REFUSES CLEARANCE AFTER THE LAST STORM.</p>
+             <p>MANDATORY REPAIR: <strong>${needed}% HULL</strong> &nbsp;|&nbsp; COST: <strong style="color:var(--gold)">${cost.toLocaleString()} GOLD</strong></p>
+             <p style="color:var(--green-dim);font-size:0.85em;">NO FURTHER VOYAGES OR UPGRADES UNTIL THESE REPAIRS ARE PAID.</p>
+             <div class="actions"><button class="btn-main" onclick="payStormRepairs()" ${state.cash < cost ? 'disabled' : ''}>PAY MANDATORY REPAIRS</button></div>
+             ${state.cash < cost ? '<p style="color:var(--danger);font-size:0.85em;">YOU NEED MORE GOLD ON HAND.</p>' : ''}`,
+            true
+        );
+        return;
+    }
+    const holdUsed = getHoldUsed();
+    const overCap  = holdUsed > state.holdTotal;
+    let html = '';
+    if (overCap) {
+        html += `<p style="color:var(--danger);margin-bottom:8px;">⚠ HOLD OVERLOADED (${holdUsed}/${state.holdTotal})! MOVE CARGO TO WAREHOUSE OR SELL BEFORE DEPARTING.</p>`;
+    }
+    html += '<p style="color:var(--green-dim);margin-bottom:8px;">SELECT DESTINATION:</p><div class="actions">';
+    PORTS.forEach(p => {
+        const isCurrent = p.name === state.currentPort;
+        html += `<button class="btn-main" style="min-width:130px" ${(isCurrent || overCap) ? 'disabled' : ''} onclick="travel('${p.name}')">${p.name.toUpperCase()}</button>`;
+    });
+    html += '</div>';
+    showModal("NAVIGATION CHART", html, true);
+}
+
 function executeTrade(item, price, dir) {
     const qty = parseInt(document.getElementById('trade-qty').value) || 0;
     if (qty <= 0) return;
@@ -1001,39 +1042,6 @@ function executeTrade(item, price, dir) {
     render();
 }
 
-// =============================================
-//  NAVIGATION
-// =============================================
-function showTravel() {
-    if (state.stormRepairRequired) {
-        const needed = Math.max(0, Math.ceil(100 - state.health));
-        const cost = needed * STORM_REPAIR_COST_PER_HP;
-        showModal(
-            "REPAIRS REQUIRED",
-            `<p>THE SHIPYARD INSPECTOR REFUSES CLEARANCE AFTER THE LAST STORM.</p>
-             <p>MANDATORY REPAIR: <strong>${needed}% HULL</strong> &nbsp;|&nbsp; COST: <strong style="color:var(--gold)">${cost.toLocaleString()} GOLD</strong></p>
-             <p style="color:var(--green-dim);font-size:0.85em;">NO FURTHER VOYAGES OR UPGRADES UNTIL THESE REPAIRS ARE PAID.</p>
-             <div class="actions"><button class="btn-main" onclick="payStormRepairs()" ${state.cash < cost ? 'disabled' : ''}>PAY MANDATORY REPAIRS</button></div>
-             ${state.cash < cost ? '<p style="color:var(--danger);font-size:0.85em;">YOU NEED MORE GOLD ON HAND.</p>' : ''}`,
-            true
-        );
-        return;
-    }
-    const holdUsed = getHoldUsed();
-    const overCap  = holdUsed > state.holdTotal;
-    let html = '';
-    if (overCap) {
-        html += `<p style="color:var(--danger);margin-bottom:8px;">⚠ HOLD OVERLOADED (${holdUsed}/${state.holdTotal})! MOVE CARGO TO WAREHOUSE OR SELL BEFORE DEPARTING.</p>`;
-    }
-    html += '<p style="color:var(--green-dim);margin-bottom:8px;">SELECT DESTINATION:</p><div class="actions">';
-    PORTS.forEach(p => {
-        const isCurrent = p.name === state.currentPort;
-        html += `<button class="btn-main" style="min-width:130px" ${(isCurrent || overCap) ? 'disabled' : ''} onclick="travel('${p.name}')">${p.name.toUpperCase()}</button>`;
-    });
-    html += '</div>';
-    showModal("NAVIGATION CHART", html, true);
-}
-
 function travel(dest) {
     closeModal();
     log(`SAILS UNFURLED. SETTING COURSE FOR ${dest.toUpperCase()}.`);
@@ -1059,7 +1067,7 @@ function travel(dest) {
     if      (roll < EVENT_ENCOUNTER_CHANCE) startEncounter();
     else if (roll < EVENT_CUSTOMS_CHANCE) customsEvent();
     else if (roll < EVENT_LIYUEN_CHANCE) liYuenOffer();
-    else                  arrive();
+    else       arrive();
 }
 
 // =============================================
@@ -1539,7 +1547,7 @@ async function fireChainShot() {
         if (Math.random() < hitChance) {
             const dmg = Math.floor(Math.random() * CHAIN_SHOT_DAMAGE_RANGE + CHAIN_SHOT_MIN_DMG);
             target.health = Math.max(0, target.health - dmg);
-            const fillEl = document.getElementById(`health-fill-${target.id}`);
+            const fillEl = document.getElementById('health-fill-' + target.id);
             if (fillEl) fillEl.style.width = `${target.health}%`;
             targetEl.classList.add('hit');
             setTimeout(() => targetEl.classList.remove('hit'), 220);
@@ -1712,7 +1720,6 @@ function acceptShip(cost, cap) {
 //  BANK
 // =============================================
 function visitBank() {
-    const portData = getPortData(state.currentPort);
     const bankName = state.currentPort === "Macau" ? "PORTUGUESE BANCO" : "ELDER BROTHER WU'S COUNTING HOUSE";
     let html = `
         <p>GOLD: ${state.cash.toLocaleString()} &nbsp;|&nbsp; BANK: ${state.bank.toLocaleString()} &nbsp;|&nbsp; DEBT: ${state.debt.toLocaleString()}</p>
@@ -1970,7 +1977,6 @@ function visitCrew() {
     let rolesHtml = '';
     roles.forEach(r => {
         const count   = state.crew[r.key] || 0;
-        const canHire = Math.min(canHireAny, maxCrew - total);
         rolesHtml += `
         <div style="background:#050f05;border:1px solid var(--border);padding:8px;margin-bottom:6px;border-radius:2px;">
             <p style="margin:0 0 3px;color:var(--green-bright);">${r.icon} ${r.label} &nbsp;·&nbsp; <span style="color:var(--green);">${count}</span> HIRED</p>
@@ -2232,6 +2238,7 @@ function playSound(type) {
         }
     } catch(e) { console.warn('Audio error:', e.message); }
 }
+
 function showHelp() {
     const html = `
         <div style="text-align:left;line-height:1.7;">
