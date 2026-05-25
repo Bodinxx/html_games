@@ -1,0 +1,1525 @@
+<!-- 
+CATEGORY: Games
+DESCRIPTION: Pro Billiards v2 is an upgraded pool simulator with 8-ball and 9-ball rules, single-player AI with variable difficulty, local two-player mode, persistent win tracking, and optional bumper-table layouts.
+TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pro Billiards v2</title>
+    <style>
+        :root {
+            --bg: #020617;
+            --panel: rgba(15, 23, 42, 0.78);
+            --line: rgba(148, 163, 184, 0.28);
+            --accent: #22d3ee;
+            --accent2: #10b981;
+            --text: #e2e8f0;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 15% 20%, #1e293b 0%, transparent 32%),
+                radial-gradient(circle at 82% 18%, #0f766e 0%, transparent 28%),
+                radial-gradient(circle at 50% 100%, #020617 25%, #01030a 95%);
+            color: var(--text);
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            touch-action: none;
+        }
+        .hud {
+            position: fixed;
+            top: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(1200px, calc(100vw - 28px));
+            display: flex;
+            gap: 12px;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .card {
+            pointer-events: auto;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 10px 14px;
+            background: var(--panel);
+            backdrop-filter: blur(12px);
+            min-width: 160px;
+            box-shadow: 0 12px 28px rgba(2, 6, 23, 0.5);
+        }
+        .tiny { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: #94a3b8; font-weight: 700; }
+        .value { font-size: 24px; font-weight: 900; line-height: 1.05; }
+        #status { color: #fcd34d; text-align: center; min-width: 250px; }
+        #tableCanvas {
+            border-radius: 34px;
+            border: 8px solid #78350f;
+            box-shadow:
+                inset 0 0 0 8px #3f1f08,
+                inset 0 0 80px rgba(0, 0, 0, 0.55),
+                0 30px 90px rgba(2, 6, 23, 0.85),
+                0 0 36px rgba(16, 185, 129, 0.3);
+            cursor: crosshair;
+            max-width: calc(100vw - 36px);
+            max-height: calc(100vh - 220px);
+            touch-action: none;
+        }
+        .controls {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 12;
+        }
+        button, select, input[type="range"] {
+            font: inherit;
+            color: var(--text);
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 10px 14px;
+        }
+        button {
+            cursor: pointer;
+            font-weight: 700;
+            transition: transform .14s, background .14s, border-color .14s;
+        }
+        button:hover { transform: translateY(-1px); border-color: rgba(34, 211, 238, .5); }
+        button:active { transform: translateY(0); }
+        .primary { background: linear-gradient(135deg, rgba(6, 182, 212, .45), rgba(16, 185, 129, .4)); }
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, .72);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            padding: 16px;
+        }
+        .modal.show { display: flex; }
+        .panel {
+            width: min(680px, 100%);
+            border-radius: 24px;
+            border: 1px solid var(--line);
+            background: rgba(15, 23, 42, .95);
+            box-shadow: 0 35px 80px rgba(2, 6, 23, .7);
+            padding: 22px;
+        }
+        .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .row { display: flex; flex-direction: column; gap: 6px; }
+        .slider-wrap { display: flex; align-items: center; gap: 10px; }
+        .message {
+            position: fixed;
+            top: 115px;
+            left: 50%;
+            transform: translate(-50%, -12px);
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(15, 23, 42, .92);
+            font-weight: 700;
+            z-index: 15;
+            opacity: 0;
+            transition: opacity .2s, transform .2s;
+            pointer-events: none;
+        }
+        .message.show { opacity: 1; transform: translate(-50%, 0); }
+        @media (max-width: 880px) {
+            .hud { top: 8px; width: calc(100vw - 16px); gap: 6px; }
+            .card { min-width: 0; padding: 8px 10px; }
+            .value { font-size: 17px; }
+            #status { min-width: 0; }
+            .controls { bottom: 8px; gap: 6px; }
+            button { padding: 9px 11px; font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="hud">
+        <div class="card">
+            <div class="tiny">Mode</div>
+            <div id="modeLabel" class="value">8-Ball</div>
+            <div id="bumpLabel" style="font-size:12px;color:#67e8f9;font-weight:700;">Bumpers: Off</div>
+        </div>
+        <div class="card" style="text-align:center;">
+            <div class="tiny">Turn</div>
+            <div id="turnLabel" class="value">Player 1</div>
+            <div id="targetLabel" style="font-size:12px;color:#facc15;font-weight:700;">Target: Any</div>
+        </div>
+        <div class="card" style="text-align:right;">
+            <div class="tiny">Wins</div>
+            <div id="winsLabel" class="value" style="font-size:18px;">P1 0 • P2 0</div>
+            <div id="status" style="font-size:12px;font-weight:700;">Break shot: place cue ball</div>
+        </div>
+    </div>
+
+    <div id="message" class="message"></div>
+    <canvas id="tableCanvas" width="980" height="520"></canvas>
+
+    <div class="controls">
+        <button id="newRackBtn" class="primary">New Rack</button>
+        <button id="settingsBtn">Settings</button>
+        <button id="resetWinsBtn">Reset Wins</button>
+        <span class="tiny" style="align-self:center;color:#94a3b8;font-weight:700;">Hold <kbd>Shift</kbd> for Fine Aim</span>
+    </div>
+
+    <div id="settingsModal" class="modal">
+        <div class="panel">
+            <h2 style="margin:0 0 14px 0;font-size:28px;">Pro Billiards v2 Setup</h2>
+            <div class="grid">
+                <div class="row">
+                    <label class="tiny">Game Type</label>
+                    <select id="gameTypeSelect">
+                        <option value="8ball">8-Ball</option>
+                        <option value="9ball">9-Ball</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <label class="tiny">Players</label>
+                    <select id="opponentSelect">
+                        <option value="bot">Single Player vs Computer</option>
+                        <option value="local">Two Player Local</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <label class="tiny">Computer Difficulty</label>
+                    <div class="slider-wrap">
+                        <input id="difficultyRange" type="range" min="0" max="3" step="1" value="1" style="width:100%;">
+                        <span id="difficultyLabel" style="font-weight:700;min-width:72px;">Medium</span>
+                    </div>
+                </div>
+                <div class="row">
+                    <label class="tiny">Bumper Mode</label>
+                    <select id="bumpersSelect">
+                        <option value="off">Off</option>
+                        <option value="standard">Standard Pattern</option>
+                        <option value="random">Random Pattern</option>
+                    </select>
+                </div>
+                <div class="row" id="randomBumperCountRow" style="display:none;">
+                    <label class="tiny">Random Bumpers (1-20)</label>
+                    <div class="slider-wrap">
+                        <input id="randomBumperCountRange" type="range" min="1" max="20" step="1" value="10" style="width:100%;">
+                        <span id="randomBumperCountLabel" style="font-weight:700;min-width:28px;">10</span>
+                    </div>
+                </div>
+                <div class="row">
+                    <label class="tiny">Table Mode</label>
+                    <select id="tableModeSelect">
+                        <option value="standard">Standard Table</option>
+                        <option value="random">Random Table</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;">
+                <button id="cancelSettingsBtn">Cancel</button>
+                <button id="applySettingsBtn" class="primary">Apply & Rack</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('tableCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const PREVIOUS_BUMPER_RADIUS = 14;
+        const TABLE = {
+            w: 980,
+            h: 520,
+            rail: 34,
+            playLeft: 34,
+            playTop: 34,
+            playRight: 980 - 34,
+            playBottom: 520 - 34,
+            headX: 250,
+            footX: 700,
+            centerY: 260,
+            pocketR: 26,
+            ballR: 10.8,
+            bumperR: PREVIOUS_BUMPER_RADIUS / 2,
+        };
+
+        const COLORS = ['#f5c542', '#3b82f6', '#ef4444', '#7c3aed', '#f97316', '#16a34a', '#7f1d1d', '#101827', '#f5c542', '#3b82f6', '#ef4444', '#7c3aed', '#f97316', '#16a34a', '#7f1d1d'];
+        const DIFFICULTY = [
+            { name: 'Easy', aimError: 0.2, powerMin: 9, powerMax: 15 },
+            { name: 'Medium', aimError: 0.11, powerMin: 11, powerMax: 18 },
+            { name: 'Hard', aimError: 0.055, powerMin: 12, powerMax: 20 },
+            { name: 'Pro', aimError: 0.018, powerMin: 12, powerMax: 22 },
+        ];
+        const RANDOM_TABLE_X_VARIANCE = 78;
+        const RANDOM_TABLE_Y_VARIANCE = 52;
+        const RANDOM_TABLE_MIN_WIDTH = 640;
+        const RANDOM_TABLE_MIN_HEIGHT = 320;
+        const RANDOM_POCKET_EDGE_MARGIN = 74;
+        const RANDOM_POCKET_MIN_GAP = 120;
+        const MIN_BUMPER_SPACING = 42;
+        const DEFLECTION_EPSILON = 0.05;
+        const HINT_TARGET_LENGTH_SHARE = 0.62;
+        const FINE_AIM_SMOOTH_FACTOR = 0.16;
+        const RANDOM_TABLE_SHAPES = ['square', 'rectangle', 'circle', 'oval', 'triangle', 'multi'];
+        const TABLE_RAY_STEP = 6;
+        const TABLE_RAY_MAX_DISTANCE = 2200;
+
+        let state = {
+            mode: '8ball',
+            opponent: 'bot',
+            difficulty: 1,
+            bumpersMode: 'off',
+            tableMode: 'standard',
+            randomBumperCount: 10,
+            currentPlayer: 1,
+            playerType: null,
+            gameOver: false,
+            isMoving: false,
+            placingCue: true,
+            cueActive: false,
+            cuePower: 0,
+            cueAngle: 0,
+            fineAimActive: false,
+            shotTaken: false,
+            wins: { 1: 0, 2: 0 },
+            turnResult: { pocketed: [], firstHit: null, foul: false },
+            balls: [],
+            pockets: [],
+            bumpers: [],
+            tableShape: 'rectangle',
+            tableShapeData: {},
+            pulse: 0,
+        };
+
+        class Ball {
+            constructor(x, y, number, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.number = number;
+                this.color = color;
+                this.inPocket = false;
+                this.type = this.getType();
+            }
+            getType() {
+                if (this.number === 0) return 'cue';
+                if (this.number === 8) return 'black';
+                return this.number <= 7 ? 'solids' : 'stripes';
+            }
+            draw() {
+                if (this.inPocket) return;
+                const r = TABLE.ballR;
+                const shadow = ctx.createRadialGradient(this.x + 2, this.y + 2, 2, this.x + 2, this.y + 2, r + 2);
+                shadow.addColorStop(0, 'rgba(0,0,0,0.08)');
+                shadow.addColorStop(1, 'rgba(0,0,0,0.48)');
+                ctx.beginPath(); ctx.arc(this.x + 3, this.y + 3, r + 0.8, 0, Math.PI * 2); ctx.fillStyle = shadow; ctx.fill();
+
+                const grad = ctx.createRadialGradient(this.x - 2, this.y - 2, 1, this.x, this.y, r + 2);
+                grad.addColorStop(0, '#fff');
+                grad.addColorStop(0.2, this.number === 0 ? '#f8fafc' : this.color);
+                grad.addColorStop(1, this.number === 0 ? '#dbeafe' : shade(this.color, -26));
+                ctx.beginPath(); ctx.arc(this.x, this.y, r, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+
+                if (this.type === 'stripes' && state.mode === '8ball') {
+                    ctx.save();
+                    ctx.beginPath(); ctx.arc(this.x, this.y, r, 0, Math.PI * 2); ctx.clip();
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(this.x - r, this.y - r * 0.58, r * 2, r * 1.16);
+                    ctx.restore();
+                    ctx.beginPath(); ctx.arc(this.x, this.y, r, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.stroke();
+                }
+
+                if (this.number !== 0) {
+                    ctx.beginPath(); ctx.arc(this.x, this.y, r * 0.48, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fill();
+                    ctx.fillStyle = '#0f172a';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = 'bold 10px Arial';
+                    ctx.fillText(String(this.number), this.x, this.y + 0.3);
+                }
+
+                if (this.number === 0 && state.placingCue) {
+                    ctx.beginPath(); ctx.arc(this.x, this.y, r + 6, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(255,255,255,.4)';
+                    ctx.setLineDash([4, 4]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+            update() {
+                if (this.inPocket || state.placingCue) return;
+                this.prevX = this.x;
+                this.prevY = this.y;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.988;
+                this.vy *= 0.988;
+                if (Math.abs(this.vx) < 0.06) this.vx = 0;
+                if (Math.abs(this.vy) < 0.06) this.vy = 0;
+
+                const r = TABLE.ballR;
+                if (!isInsideTable(this.x, this.y, r)) {
+                    const hit = rayToBoundary(
+                        this.prevX ?? this.x,
+                        this.prevY ?? this.y,
+                        this.x - (this.prevX ?? this.x),
+                        this.y - (this.prevY ?? this.y),
+                        r
+                    );
+                    const fallbackNormal = getTableNormal(this.prevX ?? this.x, this.prevY ?? this.y, r);
+                    const nx = hit ? hit.nx : fallbackNormal.x;
+                    const ny = hit ? hit.ny : fallbackNormal.y;
+                    this.x = hit ? hit.x + nx * 0.55 : (this.prevX ?? this.x);
+                    this.y = hit ? hit.y + ny * 0.55 : (this.prevY ?? this.y);
+                    const dot = this.vx * nx + this.vy * ny;
+                    this.vx = (this.vx - 2 * dot * nx) * 0.82;
+                    this.vy = (this.vy - 2 * dot * ny) * 0.82;
+                }
+
+                for (const p of state.pockets) {
+                    if (Math.hypot(this.x - p.x, this.y - p.y) < TABLE.pocketR - 1.5) {
+                        this.inPocket = true;
+                        this.vx = 0;
+                        this.vy = 0;
+                        state.turnResult.pocketed.push(this);
+                        break;
+                    }
+                }
+            }
+        }
+
+        function shade(hex, amt) {
+            const n = parseInt(hex.slice(1), 16);
+            const r = Math.max(0, Math.min(255, (n >> 16) + amt));
+            const g = Math.max(0, Math.min(255, ((n >> 8) & 255) + amt));
+            const b = Math.max(0, Math.min(255, (n & 255) + amt));
+            return `rgb(${r},${g},${b})`;
+        }
+
+        function getPointer(e) {
+            const rect = canvas.getBoundingClientRect();
+            const p = e.touches ? e.touches[0] : e;
+            return {
+                x: ((p.clientX - rect.left) / rect.width) * TABLE.w,
+                y: ((p.clientY - rect.top) / rect.height) * TABLE.h,
+            };
+        }
+
+        function randomBetween(min, max) {
+            return min + Math.random() * (max - min);
+        }
+
+        function pointToSegmentDistance(x, y, ax, ay, bx, by) {
+            const abx = bx - ax;
+            const aby = by - ay;
+            const lenSq = abx * abx + aby * aby;
+            if (!lenSq) return Math.hypot(x - ax, y - ay);
+            const t = Math.max(0, Math.min(1, ((x - ax) * abx + (y - ay) * aby) / lenSq));
+            const px = ax + abx * t;
+            const py = ay + aby * t;
+            return Math.hypot(x - px, y - py);
+        }
+
+        function pointInTriangle(x, y, tri) {
+            const [a, b, c] = tri;
+            const d1 = (x - b.x) * (a.y - b.y) - (a.x - b.x) * (y - b.y);
+            const d2 = (x - c.x) * (b.y - c.y) - (b.x - c.x) * (y - c.y);
+            const d3 = (x - a.x) * (c.y - a.y) - (c.x - a.x) * (y - a.y);
+            const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+            const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+            return !(hasNeg && hasPos);
+        }
+
+        function getTableCenter() {
+            return {
+                x: (TABLE.playLeft + TABLE.playRight) / 2,
+                y: (TABLE.playTop + TABLE.playBottom) / 2,
+            };
+        }
+
+        function isInsideShapeCircle(x, y, data, margin) {
+            const rx = Math.max(1, data.rx - margin);
+            const ry = Math.max(1, data.ry - margin);
+            const dx = (x - data.cx) / rx;
+            const dy = (y - data.cy) / ry;
+            return dx * dx + dy * dy <= 1;
+        }
+
+        function isInsideTable(x, y, margin = 0) {
+            const shape = state.tableShape;
+            const data = state.tableShapeData;
+            if (shape === 'rectangle') {
+                return x >= TABLE.playLeft + margin && x <= TABLE.playRight - margin
+                    && y >= TABLE.playTop + margin && y <= TABLE.playBottom - margin;
+            }
+            if (shape === 'square') {
+                return x >= data.left + margin && x <= data.right - margin
+                    && y >= data.top + margin && y <= data.bottom - margin;
+            }
+            if (shape === 'circle' || shape === 'oval') {
+                return isInsideShapeCircle(x, y, data, margin);
+            }
+            if (shape === 'triangle') {
+                if (!pointInTriangle(x, y, data.points)) return false;
+                if (margin <= 0) return true;
+                for (let i = 0; i < data.points.length; i++) {
+                    const a = data.points[i];
+                    const b = data.points[(i + 1) % data.points.length];
+                    if (pointToSegmentDistance(x, y, a.x, a.y, b.x, b.y) < margin) return false;
+                }
+                return true;
+            }
+            if (shape === 'multi') {
+                const insideBridge = x >= data.bridge.left + margin && x <= data.bridge.right - margin
+                    && y >= data.bridge.top + margin && y <= data.bridge.bottom - margin;
+                return insideBridge
+                    || isInsideShapeCircle(x, y, data.leftLobe, margin)
+                    || isInsideShapeCircle(x, y, data.rightLobe, margin);
+            }
+            return false;
+        }
+
+        function getTableNormal(x, y, margin = 0) {
+            const eps = 1.4;
+            const fx = (isInsideTable(x + eps, y, margin) ? 1 : 0) - (isInsideTable(x - eps, y, margin) ? 1 : 0);
+            const fy = (isInsideTable(x, y + eps, margin) ? 1 : 0) - (isInsideTable(x, y - eps, margin) ? 1 : 0);
+            const len = Math.hypot(fx, fy);
+            if (len > 0.001) return { x: fx / len, y: fy / len };
+            const c = getTableCenter();
+            const dx = c.x - x;
+            const dy = c.y - y;
+            const m = Math.hypot(dx, dy) || 1;
+            return { x: dx / m, y: dy / m };
+        }
+
+        function randomPointInTable(margin = 0, constraints = {}) {
+            const minX = Math.max(TABLE.playLeft + margin, constraints.minX ?? -Infinity);
+            const maxX = Math.min(TABLE.playRight - margin, constraints.maxX ?? Infinity);
+            const minY = Math.max(TABLE.playTop + margin, constraints.minY ?? -Infinity);
+            const maxY = Math.min(TABLE.playBottom - margin, constraints.maxY ?? Infinity);
+            if (minX > maxX || minY > maxY) {
+                return {
+                    x: getTableCenter().x,
+                    y: getTableCenter().y,
+                };
+            }
+            for (let i = 0; i < 900; i++) {
+                const x = randomBetween(minX, maxX);
+                const y = randomBetween(minY, maxY);
+                if (isInsideTable(x, y, margin)) return { x, y };
+            }
+            const c = getTableCenter();
+            const fallback = {
+                x: Math.max(minX, Math.min(maxX, c.x)),
+                y: Math.max(minY, Math.min(maxY, c.y)),
+            };
+            if (isInsideTable(fallback.x, fallback.y, margin)) return fallback;
+            return { x: TABLE.headX, y: TABLE.centerY };
+        }
+
+        function constrainPointToTable(x, y, margin = 0, constraints = {}) {
+            const minX = Math.max(TABLE.playLeft + margin, constraints.minX ?? -Infinity);
+            const maxX = Math.min(TABLE.playRight - margin, constraints.maxX ?? Infinity);
+            const minY = Math.max(TABLE.playTop + margin, constraints.minY ?? -Infinity);
+            const maxY = Math.min(TABLE.playBottom - margin, constraints.maxY ?? Infinity);
+            let cx = Math.max(minX, Math.min(maxX, x));
+            let cy = Math.max(minY, Math.min(maxY, y));
+            if (isInsideTable(cx, cy, margin)) return { x: cx, y: cy };
+            const center = getTableCenter();
+            for (let i = 1; i <= 50; i++) {
+                const t = i / 50;
+                const px = cx + (center.x - cx) * t;
+                const py = cy + (center.y - cy) * t;
+                if (px < minX || px > maxX || py < minY || py > maxY) continue;
+                if (isInsideTable(px, py, margin)) return { x: px, y: py };
+            }
+            return randomPointInTable(margin, constraints);
+        }
+
+        function buildTablePath(path, margin = 0) {
+            const shape = state.tableShape;
+            const data = state.tableShapeData;
+            if (shape === 'rectangle') {
+                path.rect(
+                    TABLE.playLeft + margin,
+                    TABLE.playTop + margin,
+                    Math.max(1, TABLE.playRight - TABLE.playLeft - margin * 2),
+                    Math.max(1, TABLE.playBottom - TABLE.playTop - margin * 2),
+                );
+                return;
+            }
+            if (shape === 'square') {
+                path.rect(
+                    data.left + margin,
+                    data.top + margin,
+                    Math.max(1, data.right - data.left - margin * 2),
+                    Math.max(1, data.bottom - data.top - margin * 2),
+                );
+                return;
+            }
+            if (shape === 'circle' || shape === 'oval') {
+                path.ellipse(data.cx, data.cy, Math.max(1, data.rx - margin), Math.max(1, data.ry - margin), 0, 0, Math.PI * 2);
+                return;
+            }
+            if (shape === 'triangle') {
+                path.moveTo(data.points[0].x, data.points[0].y);
+                path.lineTo(data.points[1].x, data.points[1].y);
+                path.lineTo(data.points[2].x, data.points[2].y);
+                path.closePath();
+                return;
+            }
+            if (shape === 'multi') {
+                path.rect(
+                    data.bridge.left + margin,
+                    data.bridge.top + margin,
+                    Math.max(1, data.bridge.right - data.bridge.left - margin * 2),
+                    Math.max(1, data.bridge.bottom - data.bridge.top - margin * 2),
+                );
+                path.ellipse(data.leftLobe.cx, data.leftLobe.cy, Math.max(1, data.leftLobe.rx - margin), Math.max(1, data.leftLobe.ry - margin), 0, 0, Math.PI * 2);
+                path.ellipse(data.rightLobe.cx, data.rightLobe.cy, Math.max(1, data.rightLobe.rx - margin), Math.max(1, data.rightLobe.ry - margin), 0, 0, Math.PI * 2);
+            }
+        }
+
+        function sampleBoundaryPoint(angle) {
+            const center = getTableCenter();
+            const dirX = Math.cos(angle);
+            const dirY = Math.sin(angle);
+            const hit = rayToBoundary(center.x, center.y, dirX, dirY, 0);
+            if (hit) return { x: hit.x, y: hit.y };
+            return { x: center.x + dirX * 10, y: center.y + dirY * 10 };
+        }
+
+        function assignDefaultPocketsFromShape() {
+            if (state.tableShape === 'triangle') {
+                const [a, b, c] = state.tableShapeData.points;
+                state.pockets = [
+                    { x: a.x, y: a.y },
+                    { x: b.x, y: b.y },
+                    { x: c.x, y: c.y },
+                    { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+                    { x: (b.x + c.x) / 2, y: (b.y + c.y) / 2 },
+                    { x: (c.x + a.x) / 2, y: (c.y + a.y) / 2 },
+                ];
+                return;
+            }
+            const angles = [-Math.PI, -Math.PI / 2, -Math.PI / 4, 0, Math.PI / 2, Math.PI * 3 / 4];
+            state.pockets = angles.map(sampleBoundaryPoint);
+        }
+
+        function configureTableGeometry() {
+            if (state.tableMode === 'standard') {
+                TABLE.playLeft = TABLE.rail;
+                TABLE.playTop = TABLE.rail;
+                TABLE.playRight = TABLE.w - TABLE.rail;
+                TABLE.playBottom = TABLE.h - TABLE.rail;
+                state.tableShape = 'rectangle';
+                state.tableShapeData = {};
+            } else {
+                const left = TABLE.rail + Math.round(randomBetween(0, RANDOM_TABLE_X_VARIANCE));
+                const right = TABLE.w - TABLE.rail - Math.round(randomBetween(0, RANDOM_TABLE_X_VARIANCE));
+                const top = TABLE.rail + Math.round(randomBetween(0, RANDOM_TABLE_Y_VARIANCE));
+                const bottom = TABLE.h - TABLE.rail - Math.round(randomBetween(0, RANDOM_TABLE_Y_VARIANCE));
+                TABLE.playLeft = left;
+                TABLE.playRight = Math.max(left + RANDOM_TABLE_MIN_WIDTH, right);
+                TABLE.playTop = top;
+                TABLE.playBottom = Math.max(top + RANDOM_TABLE_MIN_HEIGHT, bottom);
+                state.tableShape = RANDOM_TABLE_SHAPES[Math.floor(Math.random() * RANDOM_TABLE_SHAPES.length)];
+                state.tableShapeData = {};
+
+                const width = TABLE.playRight - TABLE.playLeft;
+                const height = TABLE.playBottom - TABLE.playTop;
+                const cx = (TABLE.playLeft + TABLE.playRight) / 2;
+                const cy = (TABLE.playTop + TABLE.playBottom) / 2;
+                if (state.tableShape === 'square') {
+                    const side = Math.min(width, height);
+                    TABLE.playLeft = cx - side / 2;
+                    TABLE.playRight = cx + side / 2;
+                    TABLE.playTop = cy - side / 2;
+                    TABLE.playBottom = cy + side / 2;
+                    state.tableShapeData = {
+                        left: TABLE.playLeft,
+                        right: TABLE.playRight,
+                        top: TABLE.playTop,
+                        bottom: TABLE.playBottom,
+                    };
+                } else if (state.tableShape === 'circle') {
+                    const radius = Math.min(width, height) / 2;
+                    TABLE.playLeft = cx - radius;
+                    TABLE.playRight = cx + radius;
+                    TABLE.playTop = cy - radius;
+                    TABLE.playBottom = cy + radius;
+                    state.tableShapeData = { cx, cy, rx: radius, ry: radius };
+                } else if (state.tableShape === 'oval') {
+                    state.tableShapeData = {
+                        cx,
+                        cy,
+                        rx: width / 2,
+                        ry: height / 2,
+                    };
+                } else if (state.tableShape === 'triangle') {
+                    const points = [
+                        { x: TABLE.playLeft + 20, y: cy },
+                        { x: TABLE.playRight - 18, y: TABLE.playTop + 18 },
+                        { x: TABLE.playRight - 18, y: TABLE.playBottom - 18 },
+                    ];
+                    state.tableShapeData = { points };
+                } else if (state.tableShape === 'multi') {
+                    const bridge = {
+                        left: TABLE.playLeft + width * 0.23,
+                        right: TABLE.playRight - width * 0.23,
+                        top: TABLE.playTop + height * 0.22,
+                        bottom: TABLE.playBottom - height * 0.22,
+                    };
+                    state.tableShapeData = {
+                        bridge,
+                        leftLobe: {
+                            cx: bridge.left,
+                            cy,
+                            rx: width * 0.27,
+                            ry: height * 0.33,
+                        },
+                        rightLobe: {
+                            cx: bridge.right,
+                            cy,
+                            rx: width * 0.27,
+                            ry: height * 0.33,
+                        },
+                    };
+                }
+            }
+
+            TABLE.centerY = (TABLE.playTop + TABLE.playBottom) / 2;
+            const spanX = TABLE.playRight - TABLE.playLeft;
+            TABLE.headX = TABLE.playLeft + spanX * 0.24;
+            TABLE.footX = TABLE.playLeft + spanX * 0.74;
+            const cueSeed = constrainPointToTable(TABLE.headX, TABLE.centerY, TABLE.ballR, { maxX: TABLE.playLeft + spanX * 0.46 });
+            TABLE.headX = cueSeed.x;
+            const rackSeed = constrainPointToTable(TABLE.footX, TABLE.centerY, TABLE.ballR * 2.5, { minX: TABLE.playLeft + spanX * 0.52 });
+            TABLE.footX = rackSeed.x;
+        }
+
+        function setPockets() {
+            if (state.tableMode === 'standard') {
+                state.pockets = [
+                    { x: TABLE.playLeft, y: TABLE.playTop },
+                    { x: (TABLE.playLeft + TABLE.playRight) / 2, y: TABLE.playTop - 3 },
+                    { x: TABLE.playRight, y: TABLE.playTop },
+                    { x: TABLE.playLeft, y: TABLE.playBottom },
+                    { x: (TABLE.playLeft + TABLE.playRight) / 2, y: TABLE.playBottom + 3 },
+                    { x: TABLE.playRight, y: TABLE.playBottom },
+                ];
+                return;
+            }
+            if (state.tableShape === 'rectangle' || state.tableShape === 'square') {
+                const edge = RANDOM_POCKET_EDGE_MARGIN;
+                const minGap = RANDOM_POCKET_MIN_GAP;
+                const topFirst = randomBetween(TABLE.playLeft + edge, TABLE.playRight - edge - minGap);
+                const topSecond = randomBetween(topFirst + minGap, TABLE.playRight - edge);
+                const bottomFirst = randomBetween(TABLE.playLeft + edge, TABLE.playRight - edge - minGap);
+                const bottomSecond = randomBetween(bottomFirst + minGap, TABLE.playRight - edge);
+                const leftY = randomBetween(TABLE.playTop + edge, TABLE.playBottom - edge);
+                const rightY = randomBetween(TABLE.playTop + edge, TABLE.playBottom - edge);
+
+                state.pockets = [
+                    { x: topFirst, y: TABLE.playTop },
+                    { x: topSecond, y: TABLE.playTop },
+                    { x: bottomFirst, y: TABLE.playBottom },
+                    { x: bottomSecond, y: TABLE.playBottom },
+                    { x: TABLE.playLeft, y: leftY },
+                    { x: TABLE.playRight, y: rightY },
+                ];
+                return;
+            }
+            assignDefaultPocketsFromShape();
+        }
+
+        function getStandardBumperPattern() {
+            const cx = (TABLE.playLeft + TABLE.playRight) / 2;
+            const cy = (TABLE.playTop + TABLE.playBottom) / 2;
+            return [
+                { x: cx - 90, y: cy }, { x: cx - 60, y: cy - 42 }, { x: cx - 60, y: cy + 42 },
+                { x: cx - 28, y: cy - 84 }, { x: cx - 28, y: cy + 84 },
+                { x: cx + 90, y: cy }, { x: cx + 60, y: cy - 42 }, { x: cx + 60, y: cy + 42 },
+                { x: cx + 28, y: cy - 84 }, { x: cx + 28, y: cy + 84 },
+            ];
+        }
+
+        function getRandomBumpers(count = 10) {
+            const spots = [];
+            let attempts = 0;
+            while (spots.length < count && attempts < 2000) {
+                attempts++;
+                const p = randomPointInTable(TABLE.bumperR + TABLE.ballR + 6);
+                const x = p.x;
+                const y = p.y;
+                if (Math.abs(x - TABLE.headX) < 90) continue;
+                if (Math.abs(x - TABLE.footX) < 70 && Math.abs(y - TABLE.centerY) < 95) continue;
+                if (state.pockets.some(p => Math.hypot(x - p.x, y - p.y) < 78)) continue;
+                if (spots.some(s => Math.hypot(x - s.x, y - s.y) < MIN_BUMPER_SPACING)) continue;
+                spots.push({ x, y });
+            }
+            if (spots.length < count) {
+                const fallback = getStandardBumperPattern();
+                for (const point of fallback) {
+                    if (spots.length >= count) break;
+                    if (!spots.some(s => Math.hypot(point.x - s.x, point.y - s.y) < MIN_BUMPER_SPACING)) {
+                        spots.push(point);
+                    }
+                }
+            }
+            return spots;
+        }
+
+        function setupBumpers() {
+            if (state.bumpersMode === 'off') {
+                state.bumpers = [];
+                return;
+            }
+            state.bumpers = state.bumpersMode === 'standard'
+                ? getStandardBumperPattern()
+                : getRandomBumpers(state.randomBumperCount);
+        }
+
+        function rackBalls() {
+            configureTableGeometry();
+            setPockets();
+            setupBumpers();
+            state.balls = [];
+            const cueSpot = constrainPointToTable(TABLE.headX, TABLE.centerY, TABLE.ballR, { maxX: TABLE.headX });
+            state.balls.push(new Ball(cueSpot.x, cueSpot.y, 0, '#ffffff'));
+
+            const rackX = TABLE.footX;
+            const rackY = TABLE.centerY;
+
+            if (state.mode === '8ball') {
+                const layout = [[1], [2, 9], [3, 8, 10], [4, 11, 12, 5], [13, 14, 15, 6, 7]];
+                layout.forEach((row, i) => {
+                    row.forEach((num, j) => {
+                        state.balls.push(new Ball(rackX + i * 19.5, rackY + (j - i / 2) * 22.2, num, COLORS[num - 1]));
+                    });
+                });
+            } else {
+                const layout = [[1], [2, 3], [4, 9, 5], [6, 7], [8]];
+                layout.forEach((row, i) => {
+                    row.forEach((num, j) => {
+                        state.balls.push(new Ball(rackX + i * 19.5, rackY + (j - (row.length - 1) / 2) * 22.2, num, COLORS[num - 1]));
+                    });
+                });
+            }
+
+            state.currentPlayer = 1;
+            state.playerType = null;
+            state.gameOver = false;
+            state.isMoving = false;
+            state.placingCue = true;
+            state.cueActive = false;
+            state.cuePower = 0;
+            state.shotTaken = false;
+            state.turnResult = { pocketed: [], firstHit: null, foul: false };
+
+            updateHud();
+            setStatus('Break shot: place cue ball');
+            toast('New rack ready');
+        }
+
+        function setStatus(text) {
+            document.getElementById('status').textContent = text;
+        }
+
+        function updateHud() {
+            document.getElementById('modeLabel').textContent = state.mode === '8ball' ? '8-Ball' : '9-Ball';
+            document.getElementById('turnLabel').textContent = state.opponent === 'bot'
+                ? (state.currentPlayer === 1 ? 'Player' : 'Computer')
+                : `Player ${state.currentPlayer}`;
+            const target = getCurrentTargetText();
+            document.getElementById('targetLabel').textContent = `Target: ${target}`;
+            document.getElementById('winsLabel').textContent = state.opponent === 'bot'
+                ? `Player ${state.wins[1]} • CPU ${state.wins[2]}`
+                : `P1 ${state.wins[1]} • P2 ${state.wins[2]}`;
+            const bumperText = state.bumpersMode === 'off' ? 'Off' : (state.bumpersMode === 'standard' ? 'Standard' : 'Random');
+            document.getElementById('bumpLabel').textContent = `Bumpers: ${bumperText}`;
+        }
+
+        function getCurrentTargetType() {
+            if (!state.playerType) return null;
+            return state.currentPlayer === 1 ? state.playerType : (state.playerType === 'solids' ? 'stripes' : 'solids');
+        }
+
+        function getCurrentTargetText() {
+            if (state.mode === '9ball') {
+                const low = state.balls.filter(b => !b.inPocket && b.number !== 0).sort((a, b) => a.number - b.number)[0];
+                return low ? `Ball ${low.number}` : 'None';
+            }
+            const t = getCurrentTargetType();
+            return t ? t.toUpperCase() : 'Any';
+        }
+
+        function resolveBallCollisions() {
+            const r2 = TABLE.ballR * 2;
+            for (let i = 0; i < state.balls.length; i++) {
+                for (let j = i + 1; j < state.balls.length; j++) {
+                    const a = state.balls[i];
+                    const b = state.balls[j];
+                    if (a.inPocket || b.inPocket) continue;
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist >= r2 || dist === 0) continue;
+
+                    if (a.number === 0 && !state.turnResult.firstHit) state.turnResult.firstHit = b;
+                    if (b.number === 0 && !state.turnResult.firstHit) state.turnResult.firstHit = a;
+
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    const overlap = r2 - dist;
+                    a.x -= nx * overlap * 0.5;
+                    a.y -= ny * overlap * 0.5;
+                    b.x += nx * overlap * 0.5;
+                    b.y += ny * overlap * 0.5;
+
+                    const va = a.vx * nx + a.vy * ny;
+                    const vb = b.vx * nx + b.vy * ny;
+                    const impulse = vb - va;
+                    a.vx += impulse * nx;
+                    a.vy += impulse * ny;
+                    b.vx -= impulse * nx;
+                    b.vy -= impulse * ny;
+                }
+            }
+        }
+
+        function resolveBumperCollisions() {
+            if (!state.bumpers.length) return;
+            const hitR = TABLE.ballR + TABLE.bumperR;
+            for (const b of state.balls) {
+                if (b.inPocket) continue;
+                for (const bumper of state.bumpers) {
+                    const dx = b.x - bumper.x;
+                    const dy = b.y - bumper.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist >= hitR || dist === 0) continue;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    b.x = bumper.x + nx * hitR;
+                    b.y = bumper.y + ny * hitR;
+                    const vn = b.vx * nx + b.vy * ny;
+                    if (vn < 0) {
+                        b.vx -= 1.72 * vn * nx;
+                        b.vy -= 1.72 * vn * ny;
+                    }
+                    b.vx *= 0.96;
+                    b.vy *= 0.96;
+                }
+            }
+        }
+
+        function foulResetCueBall() {
+            const cue = state.balls[0];
+            cue.inPocket = false;
+            cue.vx = 0;
+            cue.vy = 0;
+            cue.x = TABLE.headX;
+            cue.y = TABLE.centerY;
+            state.placingCue = true;
+        }
+
+        function endGame(winnerPlayer, reason) {
+            state.gameOver = true;
+            if (winnerPlayer) state.wins[winnerPlayer] += 1;
+            updateHud();
+            setStatus(reason);
+            toast(reason);
+            setTimeout(rackBalls, 3000);
+        }
+
+        function resolveTurn() {
+            if (!state.shotTaken || state.gameOver) return;
+            const cue = state.balls[0];
+            let foul = false;
+            let keepTurn = false;
+
+            if (cue.inPocket) {
+                foul = true;
+                foulResetCueBall();
+                toast('Scratch foul: cue ball in hand');
+            }
+
+            if (state.mode === '8ball') {
+                const mySet = getCurrentTargetType();
+                const eightPocketed = state.turnResult.pocketed.some(b => b.number === 8);
+                const ownPocketed = state.turnResult.pocketed.filter(b => b.number !== 0 && b.number !== 8 && (!mySet || b.type === mySet));
+
+                if (!state.turnResult.firstHit) foul = true;
+                else if (mySet && state.turnResult.firstHit.number !== 8 && state.turnResult.firstHit.type !== mySet) foul = true;
+
+                if (eightPocketed) {
+                    const targetType = mySet || getCurrentTargetType();
+                    const remain = state.balls.some(b => !b.inPocket && b.number !== 0 && b.number !== 8 && (!targetType || b.type === targetType));
+                    if (!foul && !remain) {
+                        endGame(state.currentPlayer, `${playerName(state.currentPlayer)} wins by pocketing the 8-ball`);
+                    } else {
+                        const winner = state.currentPlayer === 1 ? 2 : 1;
+                        endGame(winner, `${playerName(state.currentPlayer)} fouled on the 8-ball`);
+                    }
+                    return;
+                }
+
+                if (!foul && ownPocketed.length) {
+                    keepTurn = true;
+                    if (!state.playerType) {
+                        state.playerType = state.currentPlayer === 1
+                            ? ownPocketed[0].type
+                            : (ownPocketed[0].type === 'solids' ? 'stripes' : 'solids');
+                        toast(`Sets assigned: P1 is ${state.playerType}`);
+                    }
+                }
+            } else {
+                const active = state.balls.filter(b => b.number !== 0 && (!b.inPocket || state.turnResult.pocketed.includes(b))).sort((a, b) => a.number - b.number);
+                const lowest = active[0];
+                const ninePocketed = state.turnResult.pocketed.some(b => b.number === 9);
+                if (!state.turnResult.firstHit || (lowest && state.turnResult.firstHit.number !== lowest.number)) {
+                    foul = true;
+                    if (ninePocketed) {
+                        const nine = state.balls.find(b => b.number === 9);
+                        if (nine) {
+                            nine.inPocket = false;
+                            nine.x = TABLE.footX;
+                            nine.y = TABLE.centerY;
+                        }
+                    }
+                    toast('Foul: wrong ball first');
+                } else {
+                    if (ninePocketed) {
+                        endGame(state.currentPlayer, `${playerName(state.currentPlayer)} wins by sinking the 9-ball`);
+                        return;
+                    }
+                    keepTurn = state.turnResult.pocketed.some(b => b.number !== 0);
+                }
+            }
+
+            if (foul && !cue.inPocket) {
+                foulResetCueBall();
+            }
+
+            if (!keepTurn || foul) state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
+
+            state.turnResult = { pocketed: [], firstHit: null, foul: false };
+            state.shotTaken = false;
+            updateHud();
+            setStatus(foul ? `${playerName(state.currentPlayer)} to play (ball in hand)` : `${playerName(state.currentPlayer)} to shoot`);
+
+            if (state.opponent === 'bot' && state.currentPlayer === 2 && !state.gameOver) {
+                setTimeout(botTakeTurn, 850);
+            }
+        }
+
+        function playerName(p) {
+            if (state.opponent === 'bot') return p === 1 ? 'Player' : 'Computer';
+            return `Player ${p}`;
+        }
+
+        function canShootHuman() {
+            if (state.gameOver || state.isMoving || state.shotTaken) return false;
+            if (state.opponent === 'bot' && state.currentPlayer !== 1) return false;
+            return true;
+        }
+
+        function pickAiTarget() {
+            const active = state.balls.filter(b => !b.inPocket && b.number !== 0);
+            if (!active.length) return null;
+            if (state.mode === '9ball') return active.sort((a, b) => a.number - b.number)[0];
+
+            const mySet = getCurrentTargetType();
+            if (!mySet) {
+                const nonEight = active.filter(b => b.number !== 8);
+                return nonEight[Math.floor(Math.random() * nonEight.length)] || active[0];
+            }
+            const mine = active.filter(b => b.type === mySet);
+            return mine.length ? mine[Math.floor(Math.random() * mine.length)] : active.find(b => b.number === 8);
+        }
+
+        function botTakeTurn() {
+            if (state.gameOver || state.currentPlayer !== 2 || state.isMoving) return;
+            const cue = state.balls[0];
+            if (state.placingCue) {
+                const botSpot = constrainPointToTable(
+                    TABLE.headX - 8,
+                    TABLE.centerY + (Math.random() - 0.5) * 110,
+                    TABLE.ballR,
+                    { maxX: TABLE.headX }
+                );
+                cue.x = botSpot.x;
+                cue.y = botSpot.y;
+                state.placingCue = false;
+            }
+            const target = pickAiTarget();
+            if (!target) {
+                state.currentPlayer = 1;
+                updateHud();
+                return;
+            }
+
+            const d = DIFFICULTY[state.difficulty];
+            let angle = Math.atan2(target.y - cue.y, target.x - cue.x);
+            angle += (Math.random() - 0.5) * d.aimError;
+            const power = d.powerMin + Math.random() * (d.powerMax - d.powerMin);
+
+            cue.vx = Math.cos(angle) * power;
+            cue.vy = Math.sin(angle) * power;
+            state.shotTaken = true;
+            setStatus('Computer shot in motion');
+        }
+
+        function drawTable() {
+            const g = ctx.createLinearGradient(0, TABLE.playTop, 0, TABLE.playBottom);
+            g.addColorStop(0, '#166534');
+            g.addColorStop(0.5, '#14532d');
+            g.addColorStop(1, '#052e16');
+            ctx.fillStyle = '#3f1f08';
+            ctx.fillRect(0, 0, TABLE.w, TABLE.h);
+            const clothPath = new Path2D();
+            buildTablePath(clothPath);
+            ctx.save();
+            ctx.clip(clothPath);
+            ctx.fillStyle = g;
+            ctx.fillRect(TABLE.playLeft, TABLE.playTop, TABLE.playRight - TABLE.playLeft, TABLE.playBottom - TABLE.playTop);
+
+            ctx.strokeStyle = 'rgba(255,255,255,.08)';
+            ctx.lineWidth = 1;
+            for (let x = TABLE.playLeft + 18; x < TABLE.playRight; x += 22) {
+                ctx.beginPath();
+                ctx.moveTo(x, TABLE.playTop);
+                ctx.lineTo(x, TABLE.playBottom);
+                ctx.stroke();
+            }
+
+            const shine = ctx.createLinearGradient(0, 0, 0, TABLE.h);
+            shine.addColorStop(0, 'rgba(255,255,255,.12)');
+            shine.addColorStop(0.35, 'rgba(255,255,255,.02)');
+            shine.addColorStop(1, 'rgba(0,0,0,.18)');
+            ctx.fillStyle = shine;
+            ctx.fillRect(TABLE.playLeft, TABLE.playTop, TABLE.playRight - TABLE.playLeft, TABLE.playBottom - TABLE.playTop);
+            ctx.restore();
+
+            ctx.strokeStyle = 'rgba(255,255,255,.14)';
+            ctx.lineWidth = 3;
+            ctx.stroke(clothPath);
+
+            ctx.strokeStyle = state.placingCue ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.16)';
+            ctx.lineWidth = state.placingCue ? 2 : 1;
+            ctx.setLineDash(state.placingCue ? [6, 6] : []);
+            ctx.save();
+            ctx.clip(clothPath);
+            ctx.beginPath();
+            ctx.moveTo(TABLE.headX, TABLE.playTop + 2);
+            ctx.lineTo(TABLE.headX, TABLE.playBottom - 2);
+            ctx.stroke();
+            ctx.restore();
+            ctx.setLineDash([]);
+
+            for (const p of state.pockets) {
+                const pg = ctx.createRadialGradient(p.x, p.y, 3, p.x, p.y, TABLE.pocketR + 8);
+                pg.addColorStop(0, '#020617');
+                pg.addColorStop(0.75, '#000');
+                pg.addColorStop(1, 'rgba(0,0,0,.7)');
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, TABLE.pocketR, 0, Math.PI * 2);
+                ctx.fillStyle = pg;
+                ctx.fill();
+            }
+
+            for (const bumper of state.bumpers) {
+                const bg = ctx.createRadialGradient(bumper.x - 3, bumper.y - 4, 2, bumper.x, bumper.y, TABLE.bumperR + 3);
+                bg.addColorStop(0, '#fde68a');
+                bg.addColorStop(0.35, '#f59e0b');
+                bg.addColorStop(1, '#7c2d12');
+                ctx.beginPath();
+                ctx.arc(bumper.x, bumper.y, TABLE.bumperR, 0, Math.PI * 2);
+                ctx.fillStyle = bg;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,.38)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        function normalize(v) {
+            const m = Math.hypot(v.x, v.y);
+            if (!m) return { x: 1, y: 0 };
+            return { x: v.x / m, y: v.y / m };
+        }
+
+        function getHintLength() {
+            return [420, 520, 640, 760][state.difficulty] ?? 520;
+        }
+
+        function rayToBoundary(x, y, dx, dy, margin = TABLE.ballR) {
+            const mag = Math.hypot(dx, dy);
+            if (!mag) return null;
+            const ux = dx / mag;
+            const uy = dy / mag;
+            let t = 0;
+            let prevT = 0;
+            while (t <= TABLE_RAY_MAX_DISTANCE) {
+                t += TABLE_RAY_STEP;
+                const px = x + ux * t;
+                const py = y + uy * t;
+                if (!isInsideTable(px, py, margin)) {
+                    let lo = prevT;
+                    let hi = t;
+                    for (let i = 0; i < 10; i++) {
+                        const mid = (lo + hi) / 2;
+                        const mx = x + ux * mid;
+                        const my = y + uy * mid;
+                        if (isInsideTable(mx, my, margin)) lo = mid;
+                        else hi = mid;
+                    }
+                    const bx = x + ux * lo;
+                    const by = y + uy * lo;
+                    const n = getTableNormal(bx, by, margin);
+                    return { t: lo, x: bx, y: by, nx: n.x, ny: n.y };
+                }
+                prevT = t;
+            }
+            return null;
+        }
+
+        function traceRay(start, dir, maxLen, maxBounces = 4) {
+            const points = [{ x: start.x, y: start.y }];
+            let d = normalize(dir);
+            let x = start.x;
+            let y = start.y;
+            let remaining = maxLen;
+            let bounces = 0;
+
+            while (remaining > 0.2) {
+                const hit = rayToBoundary(x, y, d.x, d.y);
+                if (!hit) {
+                    points.push({ x: x + d.x * remaining, y: y + d.y * remaining });
+                    break;
+                }
+                if (hit.t >= remaining) {
+                    points.push({ x: x + d.x * remaining, y: y + d.y * remaining });
+                    break;
+                }
+                points.push({ x: hit.x, y: hit.y });
+                remaining -= hit.t;
+                if (bounces >= maxBounces) break;
+                const dot = d.x * hit.nx + d.y * hit.ny;
+                d = normalize({ x: d.x - 2 * dot * hit.nx, y: d.y - 2 * dot * hit.ny });
+                x = hit.x + d.x * 0.2;
+                y = hit.y + d.y * 0.2;
+                remaining -= 0.2;
+                bounces++;
+            }
+
+            return points;
+        }
+
+        function findFirstBallHit(origin, dir, maxLen) {
+            let best = null;
+            const hitRadius = TABLE.ballR * 2;
+            for (const b of state.balls) {
+                if (b.number === 0 || b.inPocket) continue;
+                const ocx = origin.x - b.x;
+                const ocy = origin.y - b.y;
+                const q = 2 * (ocx * dir.x + ocy * dir.y);
+                const c = ocx * ocx + ocy * ocy - hitRadius * hitRadius;
+                const disc = q * q - 4 * c;
+                if (disc < 0) continue;
+                const t = (-q - Math.sqrt(disc)) / 2;
+                if (t > 0.01 && t <= maxLen && (!best || t < best.t)) {
+                    best = {
+                        t,
+                        ball: b,
+                        point: { x: origin.x + dir.x * t, y: origin.y + dir.y * t },
+                    };
+                }
+            }
+            return best;
+        }
+
+        function drawPath(points, color, width, dash = []) {
+            if (!points || points.length < 2) return;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.setLineDash(dash);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function drawHintLine(cue) {
+            const dir = normalize({ x: Math.cos(state.cueAngle), y: Math.sin(state.cueAngle) });
+            const maxLen = getHintLength();
+            const wallHit = rayToBoundary(cue.x, cue.y, dir.x, dir.y);
+            const nearestWall = wallHit ? wallHit.t : maxLen;
+            const firstBall = findFirstBallHit(cue, dir, Math.min(maxLen, nearestWall));
+
+            if (!firstBall) {
+                const path = traceRay(cue, dir, maxLen, 4);
+                drawPath(path, 'rgba(56,189,248,.78)', 2.1, [8, 6]);
+                return;
+            }
+
+            drawPath([cue, firstBall.point], 'rgba(56,189,248,.88)', 2.2, [8, 6]);
+            let remaining = maxLen - firstBall.t;
+            if (remaining <= 0) return;
+
+            const n = normalize({ x: firstBall.ball.x - firstBall.point.x, y: firstBall.ball.y - firstBall.point.y });
+            const proj = dir.x * n.x + dir.y * n.y;
+            let cueDeflect = { x: dir.x - proj * n.x, y: dir.y - proj * n.y };
+            if (Math.hypot(cueDeflect.x, cueDeflect.y) < DEFLECTION_EPSILON) {
+                cueDeflect = { x: dir.x - 2 * proj * n.x, y: dir.y - 2 * proj * n.y };
+            }
+            cueDeflect = normalize(cueDeflect);
+
+            const targetLen = remaining * HINT_TARGET_LENGTH_SHARE;
+            const cueLen = remaining - targetLen;
+            const targetPath = traceRay({ x: firstBall.ball.x, y: firstBall.ball.y }, n, targetLen, 3);
+            const cuePath = traceRay(
+                { x: firstBall.point.x + cueDeflect.x * 0.2, y: firstBall.point.y + cueDeflect.y * 0.2 },
+                cueDeflect,
+                cueLen,
+                3
+            );
+
+            drawPath(targetPath, 'rgba(250,204,21,.88)', 2);
+            drawPath(cuePath, 'rgba(244,114,182,.82)', 1.8);
+        }
+
+        function drawCue() {
+            if (!state.cueActive || state.shotTaken || state.placingCue) return;
+            const cue = state.balls[0];
+            const offset = TABLE.ballR + 7 + state.cuePower * 2.5;
+
+            drawHintLine(cue);
+
+            ctx.save();
+            ctx.translate(cue.x, cue.y);
+            ctx.rotate(state.cueAngle);
+
+            const grad = ctx.createLinearGradient(-offset, 0, -offset - 300, 0);
+            grad.addColorStop(0, '#fef3c7');
+            grad.addColorStop(0.28, '#d97706');
+            grad.addColorStop(1, '#3f1f08');
+            ctx.fillStyle = grad;
+            ctx.fillRect(-offset - 300, -3.4, 300, 6.8);
+
+            ctx.restore();
+        }
+
+        function drawTargetPulse() {
+            if (state.isMoving || state.gameOver || state.placingCue) return;
+            if (state.opponent === 'bot' && state.currentPlayer !== 1) return;
+
+            let targets = [];
+            const active = state.balls.filter(b => !b.inPocket && b.number !== 0);
+            if (state.mode === '9ball') {
+                const low = active.sort((a, b) => a.number - b.number)[0];
+                if (low) targets = [low];
+            } else {
+                const t = getCurrentTargetType();
+                targets = !t ? active.filter(b => b.number !== 8) : active.filter(b => b.type === t);
+                if (!targets.length) {
+                    const eight = active.find(b => b.number === 8);
+                    if (eight) targets = [eight];
+                }
+            }
+
+            state.pulse += 0.09;
+            const r = TABLE.ballR + 4 + Math.sin(state.pulse) * 2.4;
+            ctx.strokeStyle = 'rgba(250,204,21,.45)';
+            ctx.lineWidth = 2;
+            targets.forEach(t => {
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+        }
+
+        function updatePhysics() {
+            let moving = false;
+            for (const b of state.balls) {
+                b.update();
+                if (Math.abs(b.vx) > 0 || Math.abs(b.vy) > 0) moving = true;
+            }
+            resolveBallCollisions();
+            resolveBumperCollisions();
+            state.isMoving = moving;
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, TABLE.w, TABLE.h);
+            drawTable();
+            for (const b of state.balls) b.draw();
+            drawTargetPulse();
+            drawCue();
+        }
+
+        function loop() {
+            updatePhysics();
+            render();
+            if (!state.isMoving && state.shotTaken) resolveTurn();
+            requestAnimationFrame(loop);
+        }
+
+        function pointerDown(e) {
+            if (!canShootHuman()) return;
+            const cue = state.balls[0];
+            if (!cue || cue.inPocket) return;
+
+            if (state.placingCue) {
+                if (!overlapsAnyBall(cue.x, cue.y, cue)) {
+                    state.placingCue = false;
+                    setStatus(`${playerName(state.currentPlayer)} aiming`);
+                } else {
+                    toast('Cannot place cue ball on another ball');
+                }
+                return;
+            }
+            state.cueActive = true;
+            moveAim(e);
+        }
+
+        function overlapsAnyBall(x, y, self) {
+            return state.balls.some(b => b !== self && !b.inPocket && Math.hypot(x - b.x, y - b.y) < TABLE.ballR * 2.05);
+        }
+
+        function moveAim(e) {
+            if (!state.balls.length) return;
+            const cue = state.balls[0];
+            const p = getPointer(e);
+            if (state.placingCue) {
+                const safe = constrainPointToTable(p.x, p.y, TABLE.ballR, { maxX: TABLE.headX });
+                cue.x = safe.x;
+                cue.y = safe.y;
+                return;
+            }
+            if (!state.cueActive) return;
+            const dx = cue.x - p.x;
+            const dy = cue.y - p.y;
+            const targetAngle = Math.atan2(dy, dx);
+            const targetPower = Math.min(36, Math.hypot(dx, dy) / 8);
+            if (!state.fineAimActive) {
+                state.cueAngle = targetAngle;
+                state.cuePower = targetPower;
+                return;
+            }
+            const delta = Math.atan2(Math.sin(targetAngle - state.cueAngle), Math.cos(targetAngle - state.cueAngle));
+            state.cueAngle += delta * FINE_AIM_SMOOTH_FACTOR;
+            state.cuePower += (targetPower - state.cuePower) * FINE_AIM_SMOOTH_FACTOR;
+        }
+
+        function pointerUp() {
+            if (!state.cueActive) return;
+            const cue = state.balls[0];
+            if (state.cuePower > 1.9) {
+                cue.vx = Math.cos(state.cueAngle) * state.cuePower;
+                cue.vy = Math.sin(state.cueAngle) * state.cuePower;
+                state.shotTaken = true;
+                setStatus(`${playerName(state.currentPlayer)} shot in motion`);
+            }
+            state.cueActive = false;
+            state.cuePower = 0;
+        }
+
+        function toast(text) {
+            const m = document.getElementById('message');
+            m.textContent = text;
+            m.classList.add('show');
+            clearTimeout(toast.t);
+            toast.t = setTimeout(() => m.classList.remove('show'), 1700);
+        }
+
+        function openSettings() {
+            document.getElementById('gameTypeSelect').value = state.mode;
+            document.getElementById('opponentSelect').value = state.opponent;
+            document.getElementById('difficultyRange').value = String(state.difficulty);
+            document.getElementById('difficultyLabel').textContent = DIFFICULTY[state.difficulty].name;
+            document.getElementById('bumpersSelect').value = state.bumpersMode;
+            document.getElementById('randomBumperCountRange').value = String(state.randomBumperCount);
+            document.getElementById('randomBumperCountLabel').textContent = String(state.randomBumperCount);
+            document.getElementById('tableModeSelect').value = state.tableMode;
+            syncSettingsVisibility();
+            document.getElementById('settingsModal').classList.add('show');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('show');
+        }
+
+        function applySettings() {
+            state.mode = document.getElementById('gameTypeSelect').value;
+            state.opponent = document.getElementById('opponentSelect').value;
+            state.difficulty = Number(document.getElementById('difficultyRange').value);
+            state.bumpersMode = document.getElementById('bumpersSelect').value;
+            state.randomBumperCount = Number(document.getElementById('randomBumperCountRange').value);
+            state.tableMode = document.getElementById('tableModeSelect').value;
+            closeSettings();
+            rackBalls();
+        }
+
+        function syncSettingsVisibility() {
+            const randomRow = document.getElementById('randomBumperCountRow');
+            const isRandomBumpers = document.getElementById('bumpersSelect').value === 'random';
+            randomRow.style.display = isRandomBumpers ? 'flex' : 'none';
+        }
+
+        function onKeyDown(e) {
+            if (e.key === 'Shift') state.fineAimActive = true;
+        }
+
+        function onKeyUp(e) {
+            if (e.key === 'Shift') state.fineAimActive = false;
+        }
+
+        canvas.addEventListener('mousedown', pointerDown);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); pointerDown(e); }, { passive: false });
+        window.addEventListener('mousemove', moveAim);
+        window.addEventListener('touchmove', (e) => { e.preventDefault(); moveAim(e); }, { passive: false });
+        window.addEventListener('mouseup', pointerUp);
+        window.addEventListener('touchend', pointerUp);
+        window.addEventListener('keydown', onKeyDown);
+        window.addEventListener('keyup', onKeyUp);
+        window.addEventListener('blur', () => {
+            state.fineAimActive = false;
+            state.cueActive = false;
+            state.cuePower = 0;
+        });
+
+        document.getElementById('settingsBtn').onclick = openSettings;
+        document.getElementById('cancelSettingsBtn').onclick = closeSettings;
+        document.getElementById('applySettingsBtn').onclick = applySettings;
+        document.getElementById('newRackBtn').onclick = rackBalls;
+        document.getElementById('resetWinsBtn').onclick = () => {
+            state.wins[1] = 0;
+            state.wins[2] = 0;
+            updateHud();
+            toast('Wins reset');
+        };
+
+        document.getElementById('difficultyRange').addEventListener('input', (e) => {
+            document.getElementById('difficultyLabel').textContent = DIFFICULTY[Number(e.target.value)].name;
+        });
+        document.getElementById('bumpersSelect').addEventListener('change', syncSettingsVisibility);
+        document.getElementById('randomBumperCountRange').addEventListener('input', (e) => {
+            document.getElementById('randomBumperCountLabel').textContent = e.target.value;
+        });
+
+        rackBalls();
+        loop();
+    </script>
+    <a href="https://web-mage.ca/games/"><img src="WebMage-sm.webp" alt="Visit Web Mage games" style="position: fixed; right: 12px; bottom: 12px; height: 48px; z-index: 9999; pointer-events: auto;"></a>
+</body>
+</html>
