@@ -171,6 +171,7 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
         <button id="newRackBtn" class="primary">New Rack</button>
         <button id="settingsBtn">Settings</button>
         <button id="resetWinsBtn">Reset Wins</button>
+        <div class="tiny" style="align-self:center;color:#94a3b8;font-weight:700;">Hold Shift for Fine Aim</div>
     </div>
 
     <div id="settingsModal" class="modal">
@@ -284,6 +285,7 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             cueActive: false,
             cuePower: 0,
             cueAngle: 0,
+            fineAimActive: false,
             shotTaken: false,
             wins: { 1: 0, 2: 0 },
             turnResult: { pocketed: [], firstHit: null, foul: false },
@@ -1406,8 +1408,17 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             if (!state.cueActive) return;
             const dx = cue.x - p.x;
             const dy = cue.y - p.y;
-            state.cueAngle = Math.atan2(dy, dx);
-            state.cuePower = Math.min(36, Math.hypot(dx, dy) / 8);
+            const targetAngle = Math.atan2(dy, dx);
+            const targetPower = Math.min(36, Math.hypot(dx, dy) / 8);
+            if (!state.fineAimActive) {
+                state.cueAngle = targetAngle;
+                state.cuePower = targetPower;
+                return;
+            }
+            const delta = Math.atan2(Math.sin(targetAngle - state.cueAngle), Math.cos(targetAngle - state.cueAngle));
+            const smooth = 0.16;
+            state.cueAngle += delta * smooth;
+            state.cuePower += (targetPower - state.cuePower) * smooth;
         }
 
         function pointerUp() {
@@ -1465,12 +1476,23 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             randomRow.style.display = isRandomBumpers ? 'flex' : 'none';
         }
 
+        function onKeyDown(e) {
+            if (e.key === 'Shift') state.fineAimActive = true;
+        }
+
+        function onKeyUp(e) {
+            if (e.key === 'Shift') state.fineAimActive = false;
+        }
+
         canvas.addEventListener('mousedown', pointerDown);
         canvas.addEventListener('touchstart', (e) => { e.preventDefault(); pointerDown(e); }, { passive: false });
         window.addEventListener('mousemove', moveAim);
         window.addEventListener('touchmove', (e) => { e.preventDefault(); moveAim(e); }, { passive: false });
         window.addEventListener('mouseup', pointerUp);
         window.addEventListener('touchend', pointerUp);
+        window.addEventListener('keydown', onKeyDown);
+        window.addEventListener('keyup', onKeyUp);
+        window.addEventListener('blur', () => { state.fineAimActive = false; });
 
         document.getElementById('settingsBtn').onclick = openSettings;
         document.getElementById('cancelSettingsBtn').onclick = closeSettings;
