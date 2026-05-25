@@ -171,7 +171,7 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
         <button id="newRackBtn" class="primary">New Rack</button>
         <button id="settingsBtn">Settings</button>
         <button id="resetWinsBtn">Reset Wins</button>
-        <div class="tiny" style="align-self:center;color:#94a3b8;font-weight:700;">Hold Shift for Fine Aim</div>
+        <span class="tiny" style="align-self:center;color:#94a3b8;font-weight:700;">Hold <kbd>Shift</kbd> for Fine Aim</span>
     </div>
 
     <div id="settingsModal" class="modal">
@@ -266,6 +266,7 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
         const MIN_BUMPER_SPACING = 42;
         const DEFLECTION_EPSILON = 0.05;
         const HINT_TARGET_LENGTH_SHARE = 0.62;
+        const FINE_AIM_SMOOTH_FACTOR = 0.16;
         const RANDOM_TABLE_SHAPES = ['square', 'rectangle', 'circle', 'oval', 'triangle', 'multi'];
         const TABLE_RAY_STEP = 6;
         const TABLE_RAY_MAX_DISTANCE = 2200;
@@ -1416,9 +1417,8 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
                 return;
             }
             const delta = Math.atan2(Math.sin(targetAngle - state.cueAngle), Math.cos(targetAngle - state.cueAngle));
-            const smooth = 0.16;
-            state.cueAngle += delta * smooth;
-            state.cuePower += (targetPower - state.cuePower) * smooth;
+            state.cueAngle += delta * FINE_AIM_SMOOTH_FACTOR;
+            state.cuePower += (targetPower - state.cuePower) * FINE_AIM_SMOOTH_FACTOR;
         }
 
         function pointerUp() {
@@ -1492,7 +1492,11 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
         window.addEventListener('touchend', pointerUp);
         window.addEventListener('keydown', onKeyDown);
         window.addEventListener('keyup', onKeyUp);
-        window.addEventListener('blur', () => { state.fineAimActive = false; });
+        window.addEventListener('blur', () => {
+            state.fineAimActive = false;
+            state.cueActive = false;
+            state.cuePower = 0;
+        });
 
         document.getElementById('settingsBtn').onclick = openSettings;
         document.getElementById('cancelSettingsBtn').onclick = closeSettings;
