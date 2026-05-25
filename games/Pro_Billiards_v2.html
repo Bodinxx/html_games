@@ -232,6 +232,7 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
         const canvas = document.getElementById('tableCanvas');
         const ctx = canvas.getContext('2d');
 
+        const ORIGINAL_BUMPER_RADIUS = 14;
         const TABLE = {
             w: 980,
             h: 520,
@@ -245,7 +246,7 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             centerY: 260,
             pocketR: 26,
             ballR: 10.8,
-            bumperR: 7,
+            bumperR: ORIGINAL_BUMPER_RADIUS / 2,
         };
 
         const COLORS = ['#f5c542', '#3b82f6', '#ef4444', '#7c3aed', '#f97316', '#16a34a', '#7f1d1d', '#101827', '#f5c542', '#3b82f6', '#ef4444', '#7c3aed', '#f97316', '#16a34a', '#7f1d1d'];
@@ -257,8 +258,12 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
         ];
         const RANDOM_TABLE_X_VARIANCE = 78;
         const RANDOM_TABLE_Y_VARIANCE = 52;
+        const RANDOM_TABLE_MIN_WIDTH = 640;
+        const RANDOM_TABLE_MIN_HEIGHT = 320;
         const RANDOM_POCKET_EDGE_MARGIN = 74;
         const RANDOM_POCKET_MIN_GAP = 120;
+        const MIN_BUMPER_SPACING = 42;
+        const DEFLECTION_EPSILON = 0.05;
         const HINT_TARGET_LENGTH_SHARE = 0.62;
 
         let state = {
@@ -411,9 +416,9 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
                 const top = 34 + Math.round(randomBetween(0, RANDOM_TABLE_Y_VARIANCE));
                 const bottom = TABLE.h - 34 - Math.round(randomBetween(0, RANDOM_TABLE_Y_VARIANCE));
                 TABLE.playLeft = left;
-                TABLE.playRight = Math.max(left + 640, right);
+                TABLE.playRight = Math.max(left + RANDOM_TABLE_MIN_WIDTH, right);
                 TABLE.playTop = top;
-                TABLE.playBottom = Math.max(top + 320, bottom);
+                TABLE.playBottom = Math.max(top + RANDOM_TABLE_MIN_HEIGHT, bottom);
             }
 
             TABLE.centerY = (TABLE.playTop + TABLE.playBottom) / 2;
@@ -475,14 +480,14 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
                 if (Math.abs(x - TABLE.headX) < 90) continue;
                 if (Math.abs(x - TABLE.footX) < 70 && Math.abs(y - TABLE.centerY) < 95) continue;
                 if (state.pockets.some(p => Math.hypot(x - p.x, y - p.y) < 78)) continue;
-                if (spots.some(s => Math.hypot(x - s.x, y - s.y) < 42)) continue;
+                if (spots.some(s => Math.hypot(x - s.x, y - s.y) < MIN_BUMPER_SPACING)) continue;
                 spots.push({ x, y });
             }
             if (spots.length < count) {
                 const fallback = getStandardBumperPattern();
                 for (const point of fallback) {
                     if (spots.length >= count) break;
-                    if (!spots.some(s => Math.hypot(point.x - s.x, point.y - s.y) < 42)) {
+                    if (!spots.some(s => Math.hypot(point.x - s.x, point.y - s.y) < MIN_BUMPER_SPACING)) {
                         spots.push(point);
                     }
                 }
@@ -959,7 +964,7 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             const n = normalize({ x: firstBall.ball.x - firstBall.point.x, y: firstBall.ball.y - firstBall.point.y });
             const proj = dir.x * n.x + dir.y * n.y;
             let cueDeflect = { x: dir.x - proj * n.x, y: dir.y - proj * n.y };
-            if (Math.hypot(cueDeflect.x, cueDeflect.y) < 0.05) {
+            if (Math.hypot(cueDeflect.x, cueDeflect.y) < DEFLECTION_EPSILON) {
                 cueDeflect = { x: dir.x - 2 * proj * n.x, y: dir.y - 2 * proj * n.y };
             }
             cueDeflect = normalize(cueDeflect);
