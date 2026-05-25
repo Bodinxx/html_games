@@ -206,6 +206,20 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
                         <option value="random">Random Pattern</option>
                     </select>
                 </div>
+                <div class="row" id="randomBumperCountRow" style="display:none;">
+                    <label class="tiny">Random Bumpers (1-20)</label>
+                    <div class="slider-wrap">
+                        <input id="randomBumperCountRange" type="range" min="1" max="20" step="1" value="10" style="width:100%;">
+                        <span id="randomBumperCountLabel" style="font-weight:700;min-width:28px;">10</span>
+                    </div>
+                </div>
+                <div class="row">
+                    <label class="tiny">Table Mode</label>
+                    <select id="tableModeSelect">
+                        <option value="standard">Standard Table</option>
+                        <option value="random">Random Table</option>
+                    </select>
+                </div>
             </div>
             <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;">
                 <button id="cancelSettingsBtn">Cancel</button>
@@ -231,7 +245,7 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             centerY: 260,
             pocketR: 26,
             ballR: 10.8,
-            bumperR: 14,
+            bumperR: 7,
         };
 
         const COLORS = ['#f5c542', '#3b82f6', '#ef4444', '#7c3aed', '#f97316', '#16a34a', '#7f1d1d', '#101827', '#f5c542', '#3b82f6', '#ef4444', '#7c3aed', '#f97316', '#16a34a', '#7f1d1d'];
@@ -247,6 +261,8 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             opponent: 'bot',
             difficulty: 1,
             bumpersMode: 'off',
+            tableMode: 'standard',
+            randomBumperCount: 10,
             currentPlayer: 1,
             playerType: null,
             gameOver: false,
@@ -374,20 +390,68 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             };
         }
 
+        function randomBetween(min, max) {
+            return min + Math.random() * (max - min);
+        }
+
+        function configureTableGeometry() {
+            if (state.tableMode === 'standard') {
+                TABLE.playLeft = 34;
+                TABLE.playTop = 34;
+                TABLE.playRight = TABLE.w - 34;
+                TABLE.playBottom = TABLE.h - 34;
+            } else {
+                const left = 34 + Math.round(randomBetween(0, 78));
+                const right = TABLE.w - 34 - Math.round(randomBetween(0, 78));
+                const top = 34 + Math.round(randomBetween(0, 52));
+                const bottom = TABLE.h - 34 - Math.round(randomBetween(0, 52));
+                TABLE.playLeft = left;
+                TABLE.playRight = Math.max(left + 640, right);
+                TABLE.playTop = top;
+                TABLE.playBottom = Math.max(top + 320, bottom);
+            }
+
+            TABLE.centerY = (TABLE.playTop + TABLE.playBottom) / 2;
+            const spanX = TABLE.playRight - TABLE.playLeft;
+            TABLE.headX = TABLE.playLeft + spanX * 0.24;
+            TABLE.footX = TABLE.playLeft + spanX * 0.74;
+        }
+
         function setPockets() {
+            if (state.tableMode === 'standard') {
+                state.pockets = [
+                    { x: TABLE.playLeft, y: TABLE.playTop },
+                    { x: (TABLE.playLeft + TABLE.playRight) / 2, y: TABLE.playTop - 3 },
+                    { x: TABLE.playRight, y: TABLE.playTop },
+                    { x: TABLE.playLeft, y: TABLE.playBottom },
+                    { x: (TABLE.playLeft + TABLE.playRight) / 2, y: TABLE.playBottom + 3 },
+                    { x: TABLE.playRight, y: TABLE.playBottom },
+                ];
+                return;
+            }
+
+            const edge = 74;
+            const minGap = 120;
+            const topFirst = randomBetween(TABLE.playLeft + edge, TABLE.playRight - edge - minGap);
+            const topSecond = randomBetween(topFirst + minGap, TABLE.playRight - edge);
+            const bottomFirst = randomBetween(TABLE.playLeft + edge, TABLE.playRight - edge - minGap);
+            const bottomSecond = randomBetween(bottomFirst + minGap, TABLE.playRight - edge);
+            const leftY = randomBetween(TABLE.playTop + edge, TABLE.playBottom - edge);
+            const rightY = randomBetween(TABLE.playTop + edge, TABLE.playBottom - edge);
+
             state.pockets = [
-                { x: TABLE.playLeft, y: TABLE.playTop },
-                { x: TABLE.w / 2, y: TABLE.playTop - 3 },
-                { x: TABLE.playRight, y: TABLE.playTop },
-                { x: TABLE.playLeft, y: TABLE.playBottom },
-                { x: TABLE.w / 2, y: TABLE.playBottom + 3 },
-                { x: TABLE.playRight, y: TABLE.playBottom },
+                { x: topFirst, y: TABLE.playTop },
+                { x: topSecond, y: TABLE.playTop },
+                { x: bottomFirst, y: TABLE.playBottom },
+                { x: bottomSecond, y: TABLE.playBottom },
+                { x: TABLE.playLeft, y: leftY },
+                { x: TABLE.playRight, y: rightY },
             ];
         }
 
         function getStandardBumperPattern() {
-            const cx = TABLE.w / 2;
-            const cy = TABLE.h / 2;
+            const cx = (TABLE.playLeft + TABLE.playRight) / 2;
+            const cy = (TABLE.playTop + TABLE.playBottom) / 2;
             return [
                 { x: cx - 90, y: cy }, { x: cx - 60, y: cy - 42 }, { x: cx - 60, y: cy + 42 },
                 { x: cx - 28, y: cy - 84 }, { x: cx - 28, y: cy + 84 },
@@ -426,10 +490,15 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
                 state.bumpers = [];
                 return;
             }
-            state.bumpers = state.bumpersMode === 'standard' ? getStandardBumperPattern() : getRandomBumpers(10);
+            state.bumpers = state.bumpersMode === 'standard'
+                ? getStandardBumperPattern()
+                : getRandomBumpers(state.randomBumperCount);
         }
 
         function rackBalls() {
+            configureTableGeometry();
+            setPockets();
+            setupBumpers();
             state.balls = [];
             state.balls.push(new Ball(TABLE.headX, TABLE.centerY, 0, '#ffffff'));
 
@@ -462,8 +531,6 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             state.shotTaken = false;
             state.turnResult = { pocketed: [], firstHit: null, foul: false };
 
-            setPockets();
-            setupBumpers();
             updateHud();
             setStatus('Break shot: place cue ball');
             toast('New rack ready');
@@ -772,10 +839,146 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             }
         }
 
+        function normalize(v) {
+            const m = Math.hypot(v.x, v.y);
+            if (!m) return { x: 1, y: 0 };
+            return { x: v.x / m, y: v.y / m };
+        }
+
+        function getHintLength() {
+            return [420, 520, 640, 760][state.difficulty] ?? 520;
+        }
+
+        function rayToBoundary(x, y, dx, dy) {
+            const left = TABLE.playLeft + TABLE.ballR;
+            const right = TABLE.playRight - TABLE.ballR;
+            const top = TABLE.playTop + TABLE.ballR;
+            const bottom = TABLE.playBottom - TABLE.ballR;
+            let tx = Infinity;
+            let ty = Infinity;
+            if (dx > 0) tx = (right - x) / dx;
+            else if (dx < 0) tx = (left - x) / dx;
+            if (dy > 0) ty = (bottom - y) / dy;
+            else if (dy < 0) ty = (top - y) / dy;
+            const t = Math.min(tx > 0 ? tx : Infinity, ty > 0 ? ty : Infinity);
+            if (!Number.isFinite(t)) return null;
+            const nx = t === tx ? (dx > 0 ? -1 : 1) : 0;
+            const ny = t === ty ? (dy > 0 ? -1 : 1) : 0;
+            return { t, x: x + dx * t, y: y + dy * t, nx, ny };
+        }
+
+        function traceRay(start, dir, maxLen, maxBounces = 4) {
+            const points = [{ x: start.x, y: start.y }];
+            let d = normalize(dir);
+            let x = start.x;
+            let y = start.y;
+            let remaining = maxLen;
+            let bounces = 0;
+
+            while (remaining > 0.2) {
+                const hit = rayToBoundary(x, y, d.x, d.y);
+                if (!hit) {
+                    points.push({ x: x + d.x * remaining, y: y + d.y * remaining });
+                    break;
+                }
+                if (hit.t >= remaining) {
+                    points.push({ x: x + d.x * remaining, y: y + d.y * remaining });
+                    break;
+                }
+                points.push({ x: hit.x, y: hit.y });
+                remaining -= hit.t;
+                if (bounces >= maxBounces) break;
+                const dot = d.x * hit.nx + d.y * hit.ny;
+                d = normalize({ x: d.x - 2 * dot * hit.nx, y: d.y - 2 * dot * hit.ny });
+                x = hit.x + d.x * 0.2;
+                y = hit.y + d.y * 0.2;
+                remaining -= 0.2;
+                bounces++;
+            }
+
+            return points;
+        }
+
+        function findFirstBallHit(origin, dir, maxLen) {
+            let best = null;
+            const hitRadius = TABLE.ballR * 2;
+            for (const b of state.balls) {
+                if (b.number === 0 || b.inPocket) continue;
+                const ocx = origin.x - b.x;
+                const ocy = origin.y - b.y;
+                const q = 2 * (ocx * dir.x + ocy * dir.y);
+                const c = ocx * ocx + ocy * ocy - hitRadius * hitRadius;
+                const disc = q * q - 4 * c;
+                if (disc < 0) continue;
+                const t = (-q - Math.sqrt(disc)) / 2;
+                if (t > 0.01 && t <= maxLen && (!best || t < best.t)) {
+                    best = {
+                        t,
+                        ball: b,
+                        point: { x: origin.x + dir.x * t, y: origin.y + dir.y * t },
+                    };
+                }
+            }
+            return best;
+        }
+
+        function drawPath(points, color, width, dash = []) {
+            if (!points || points.length < 2) return;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.setLineDash(dash);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function drawHintLine(cue) {
+            const dir = normalize({ x: Math.cos(state.cueAngle), y: Math.sin(state.cueAngle) });
+            const maxLen = getHintLength();
+            const wallHit = rayToBoundary(cue.x, cue.y, dir.x, dir.y);
+            const nearestWall = wallHit ? wallHit.t : maxLen;
+            const firstBall = findFirstBallHit(cue, dir, Math.min(maxLen, nearestWall));
+
+            if (!firstBall) {
+                const path = traceRay(cue, dir, maxLen, 4);
+                drawPath(path, 'rgba(56,189,248,.78)', 2.1, [8, 6]);
+                return;
+            }
+
+            drawPath([cue, firstBall.point], 'rgba(56,189,248,.88)', 2.2, [8, 6]);
+            let remaining = maxLen - firstBall.t;
+            if (remaining <= 0) return;
+
+            const n = normalize({ x: firstBall.ball.x - firstBall.point.x, y: firstBall.ball.y - firstBall.point.y });
+            const proj = dir.x * n.x + dir.y * n.y;
+            let cueDeflect = { x: dir.x - proj * n.x, y: dir.y - proj * n.y };
+            if (Math.hypot(cueDeflect.x, cueDeflect.y) < 0.05) {
+                cueDeflect = { x: dir.x - 2 * proj * n.x, y: dir.y - 2 * proj * n.y };
+            }
+            cueDeflect = normalize(cueDeflect);
+
+            const targetLen = remaining * 0.62;
+            const cueLen = remaining - targetLen;
+            const targetPath = traceRay({ x: firstBall.ball.x, y: firstBall.ball.y }, n, targetLen, 3);
+            const cuePath = traceRay(
+                { x: firstBall.point.x + cueDeflect.x * 0.2, y: firstBall.point.y + cueDeflect.y * 0.2 },
+                cueDeflect,
+                cueLen,
+                3
+            );
+
+            drawPath(targetPath, 'rgba(250,204,21,.88)', 2);
+            drawPath(cuePath, 'rgba(244,114,182,.82)', 1.8);
+        }
+
         function drawCue() {
             if (!state.cueActive || state.shotTaken || state.placingCue) return;
             const cue = state.balls[0];
             const offset = TABLE.ballR + 7 + state.cuePower * 2.5;
+
+            drawHintLine(cue);
 
             ctx.save();
             ctx.translate(cue.x, cue.y);
@@ -788,13 +991,6 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             ctx.fillStyle = grad;
             ctx.fillRect(-offset - 300, -3.4, 300, 6.8);
 
-            ctx.strokeStyle = 'rgba(255,255,255,.35)';
-            ctx.setLineDash([8, 8]);
-            ctx.beginPath();
-            ctx.moveTo(TABLE.ballR + 3, 0);
-            ctx.lineTo(TABLE.ballR + 260, 0);
-            ctx.stroke();
-            ctx.setLineDash([]);
             ctx.restore();
         }
 
@@ -918,6 +1114,10 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             document.getElementById('difficultyRange').value = String(state.difficulty);
             document.getElementById('difficultyLabel').textContent = DIFFICULTY[state.difficulty].name;
             document.getElementById('bumpersSelect').value = state.bumpersMode;
+            document.getElementById('randomBumperCountRange').value = String(state.randomBumperCount);
+            document.getElementById('randomBumperCountLabel').textContent = String(state.randomBumperCount);
+            document.getElementById('tableModeSelect').value = state.tableMode;
+            syncSettingsVisibility();
             document.getElementById('settingsModal').classList.add('show');
         }
 
@@ -930,8 +1130,16 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             state.opponent = document.getElementById('opponentSelect').value;
             state.difficulty = Number(document.getElementById('difficultyRange').value);
             state.bumpersMode = document.getElementById('bumpersSelect').value;
+            state.randomBumperCount = Number(document.getElementById('randomBumperCountRange').value);
+            state.tableMode = document.getElementById('tableModeSelect').value;
             closeSettings();
             rackBalls();
+        }
+
+        function syncSettingsVisibility() {
+            const randomRow = document.getElementById('randomBumperCountRow');
+            const isRandomBumpers = document.getElementById('bumpersSelect').value === 'random';
+            randomRow.style.display = isRandomBumpers ? 'flex' : 'none';
         }
 
         canvas.addEventListener('mousedown', pointerDown);
@@ -954,6 +1162,10 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
 
         document.getElementById('difficultyRange').addEventListener('input', (e) => {
             document.getElementById('difficultyLabel').textContent = DIFFICULTY[Number(e.target.value)].name;
+        });
+        document.getElementById('bumpersSelect').addEventListener('change', syncSettingsVisibility);
+        document.getElementById('randomBumperCountRange').addEventListener('input', (e) => {
+            document.getElementById('randomBumperCountLabel').textContent = e.target.value;
         });
 
         rackBalls();
