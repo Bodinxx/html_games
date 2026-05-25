@@ -232,7 +232,7 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
         const canvas = document.getElementById('tableCanvas');
         const ctx = canvas.getContext('2d');
 
-        const ORIGINAL_BUMPER_RADIUS = 14;
+        const PREVIOUS_BUMPER_RADIUS = 14;
         const TABLE = {
             w: 980,
             h: 520,
@@ -246,7 +246,7 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             centerY: 260,
             pocketR: 26,
             ballR: 10.8,
-            bumperR: ORIGINAL_BUMPER_RADIUS / 2,
+            bumperR: PREVIOUS_BUMPER_RADIUS / 2,
         };
 
         const COLORS = ['#f5c542', '#3b82f6', '#ef4444', '#7c3aed', '#f97316', '#16a34a', '#7f1d1d', '#101827', '#f5c542', '#3b82f6', '#ef4444', '#7c3aed', '#f97316', '#16a34a', '#7f1d1d'];
@@ -406,15 +406,15 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
 
         function configureTableGeometry() {
             if (state.tableMode === 'standard') {
-                TABLE.playLeft = 34;
-                TABLE.playTop = 34;
-                TABLE.playRight = TABLE.w - 34;
-                TABLE.playBottom = TABLE.h - 34;
+                TABLE.playLeft = TABLE.rail;
+                TABLE.playTop = TABLE.rail;
+                TABLE.playRight = TABLE.w - TABLE.rail;
+                TABLE.playBottom = TABLE.h - TABLE.rail;
             } else {
-                const left = 34 + Math.round(randomBetween(0, RANDOM_TABLE_X_VARIANCE));
-                const right = TABLE.w - 34 - Math.round(randomBetween(0, RANDOM_TABLE_X_VARIANCE));
-                const top = 34 + Math.round(randomBetween(0, RANDOM_TABLE_Y_VARIANCE));
-                const bottom = TABLE.h - 34 - Math.round(randomBetween(0, RANDOM_TABLE_Y_VARIANCE));
+                const left = TABLE.rail + Math.round(randomBetween(0, RANDOM_TABLE_X_VARIANCE));
+                const right = TABLE.w - TABLE.rail - Math.round(randomBetween(0, RANDOM_TABLE_X_VARIANCE));
+                const top = TABLE.rail + Math.round(randomBetween(0, RANDOM_TABLE_Y_VARIANCE));
+                const bottom = TABLE.h - TABLE.rail - Math.round(randomBetween(0, RANDOM_TABLE_Y_VARIANCE));
                 TABLE.playLeft = left;
                 TABLE.playRight = Math.max(left + RANDOM_TABLE_MIN_WIDTH, right);
                 TABLE.playTop = top;
