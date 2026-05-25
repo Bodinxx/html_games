@@ -409,6 +409,15 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
                 if (spots.some(s => Math.hypot(x - s.x, y - s.y) < 42)) continue;
                 spots.push({ x, y });
             }
+            if (spots.length < count) {
+                const fallback = getStandardBumperPattern();
+                for (const point of fallback) {
+                    if (spots.length >= count) break;
+                    if (!spots.some(s => Math.hypot(point.x - s.x, point.y - s.y) < 42)) {
+                        spots.push(point);
+                    }
+                }
+            }
             return spots;
         }
 
@@ -950,6 +959,6 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
         rackBalls();
         loop();
     </script>
-    <a href="http://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 12px; bottom: 12px; height: 48px; z-index: 9999; pointer-events: auto;"></a>
+    <a href="https://web-mage.ca/games/"><img src="WebMage-sm.webp" style="position: fixed; right: 12px; bottom: 12px; height: 48px; z-index: 9999; pointer-events: auto;"></a>
 </body>
 </html>
