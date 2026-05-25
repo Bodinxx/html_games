@@ -255,6 +255,11 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             { name: 'Hard', aimError: 0.055, powerMin: 12, powerMax: 20 },
             { name: 'Pro', aimError: 0.018, powerMin: 12, powerMax: 22 },
         ];
+        const RANDOM_TABLE_X_VARIANCE = 78;
+        const RANDOM_TABLE_Y_VARIANCE = 52;
+        const RANDOM_POCKET_EDGE_MARGIN = 74;
+        const RANDOM_POCKET_MIN_GAP = 120;
+        const HINT_TARGET_LENGTH_SHARE = 0.62;
 
         let state = {
             mode: '8ball',
@@ -401,10 +406,10 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
                 TABLE.playRight = TABLE.w - 34;
                 TABLE.playBottom = TABLE.h - 34;
             } else {
-                const left = 34 + Math.round(randomBetween(0, 78));
-                const right = TABLE.w - 34 - Math.round(randomBetween(0, 78));
-                const top = 34 + Math.round(randomBetween(0, 52));
-                const bottom = TABLE.h - 34 - Math.round(randomBetween(0, 52));
+                const left = 34 + Math.round(randomBetween(0, RANDOM_TABLE_X_VARIANCE));
+                const right = TABLE.w - 34 - Math.round(randomBetween(0, RANDOM_TABLE_X_VARIANCE));
+                const top = 34 + Math.round(randomBetween(0, RANDOM_TABLE_Y_VARIANCE));
+                const bottom = TABLE.h - 34 - Math.round(randomBetween(0, RANDOM_TABLE_Y_VARIANCE));
                 TABLE.playLeft = left;
                 TABLE.playRight = Math.max(left + 640, right);
                 TABLE.playTop = top;
@@ -430,8 +435,8 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
                 return;
             }
 
-            const edge = 74;
-            const minGap = 120;
+            const edge = RANDOM_POCKET_EDGE_MARGIN;
+            const minGap = RANDOM_POCKET_MIN_GAP;
             const topFirst = randomBetween(TABLE.playLeft + edge, TABLE.playRight - edge - minGap);
             const topSecond = randomBetween(topFirst + minGap, TABLE.playRight - edge);
             const bottomFirst = randomBetween(TABLE.playLeft + edge, TABLE.playRight - edge - minGap);
@@ -959,7 +964,7 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             }
             cueDeflect = normalize(cueDeflect);
 
-            const targetLen = remaining * 0.62;
+            const targetLen = remaining * HINT_TARGET_LENGTH_SHARE;
             const cueLen = remaining - targetLen;
             const targetPath = traceRay({ x: firstBall.ball.x, y: firstBall.ball.y }, n, targetLen, 3);
             const cuePath = traceRay(
