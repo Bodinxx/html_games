@@ -265,6 +265,9 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
         const MIN_BUMPER_SPACING = 42;
         const DEFLECTION_EPSILON = 0.05;
         const HINT_TARGET_LENGTH_SHARE = 0.62;
+        const RANDOM_TABLE_SHAPES = ['square', 'rectangle', 'circle', 'oval', 'triangle', 'multi'];
+        const TABLE_RAY_STEP = 6;
+        const TABLE_RAY_MAX_DISTANCE = 2200;
 
         let state = {
             mode: '8ball',
@@ -287,6 +290,8 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             balls: [],
             pockets: [],
             bumpers: [],
+            tableShape: 'rectangle',
+            tableShapeData: {},
             pulse: 0,
         };
 
@@ -348,6 +353,8 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             }
             update() {
                 if (this.inPocket || state.placingCue) return;
+                this.prevX = this.x;
+                this.prevY = this.y;
                 this.x += this.vx;
                 this.y += this.vy;
                 this.vx *= 0.988;
@@ -356,19 +363,22 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
                 if (Math.abs(this.vy) < 0.06) this.vy = 0;
 
                 const r = TABLE.ballR;
-                if (this.x - r < TABLE.playLeft) {
-                    this.x = TABLE.playLeft + r;
-                    this.vx *= -0.82;
-                } else if (this.x + r > TABLE.playRight) {
-                    this.x = TABLE.playRight - r;
-                    this.vx *= -0.82;
-                }
-                if (this.y - r < TABLE.playTop) {
-                    this.y = TABLE.playTop + r;
-                    this.vy *= -0.82;
-                } else if (this.y + r > TABLE.playBottom) {
-                    this.y = TABLE.playBottom - r;
-                    this.vy *= -0.82;
+                if (!isInsideTable(this.x, this.y, r)) {
+                    const hit = rayToBoundary(
+                        this.prevX ?? this.x,
+                        this.prevY ?? this.y,
+                        this.x - (this.prevX ?? this.x),
+                        this.y - (this.prevY ?? this.y),
+                        r
+                    );
+                    const fallbackNormal = getTableNormal(this.prevX ?? this.x, this.prevY ?? this.y, r);
+                    const nx = hit ? hit.nx : fallbackNormal.x;
+                    const ny = hit ? hit.ny : fallbackNormal.y;
+                    this.x = hit ? hit.x + nx * 0.55 : (this.prevX ?? this.x);
+                    this.y = hit ? hit.y + ny * 0.55 : (this.prevY ?? this.y);
+                    const dot = this.vx * nx + this.vy * ny;
+                    this.vx = (this.vx - 2 * dot * nx) * 0.82;
+                    this.vy = (this.vy - 2 * dot * ny) * 0.82;
                 }
 
                 for (const p of state.pockets) {
@@ -404,12 +414,211 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             return min + Math.random() * (max - min);
         }
 
+        function pointToSegmentDistance(x, y, ax, ay, bx, by) {
+            const abx = bx - ax;
+            const aby = by - ay;
+            const lenSq = abx * abx + aby * aby;
+            if (!lenSq) return Math.hypot(x - ax, y - ay);
+            const t = Math.max(0, Math.min(1, ((x - ax) * abx + (y - ay) * aby) / lenSq));
+            const px = ax + abx * t;
+            const py = ay + aby * t;
+            return Math.hypot(x - px, y - py);
+        }
+
+        function pointInTriangle(x, y, tri) {
+            const [a, b, c] = tri;
+            const d1 = (x - b.x) * (a.y - b.y) - (a.x - b.x) * (y - b.y);
+            const d2 = (x - c.x) * (b.y - c.y) - (b.x - c.x) * (y - c.y);
+            const d3 = (x - a.x) * (c.y - a.y) - (c.x - a.x) * (y - a.y);
+            const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+            const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+            return !(hasNeg && hasPos);
+        }
+
+        function getTableCenter() {
+            return {
+                x: (TABLE.playLeft + TABLE.playRight) / 2,
+                y: (TABLE.playTop + TABLE.playBottom) / 2,
+            };
+        }
+
+        function isInsideShapeCircle(x, y, data, margin) {
+            const rx = Math.max(1, data.rx - margin);
+            const ry = Math.max(1, data.ry - margin);
+            const dx = (x - data.cx) / rx;
+            const dy = (y - data.cy) / ry;
+            return dx * dx + dy * dy <= 1;
+        }
+
+        function isInsideTable(x, y, margin = 0) {
+            const shape = state.tableShape;
+            const data = state.tableShapeData;
+            if (shape === 'rectangle') {
+                return x >= TABLE.playLeft + margin && x <= TABLE.playRight - margin
+                    && y >= TABLE.playTop + margin && y <= TABLE.playBottom - margin;
+            }
+            if (shape === 'square') {
+                return x >= data.left + margin && x <= data.right - margin
+                    && y >= data.top + margin && y <= data.bottom - margin;
+            }
+            if (shape === 'circle' || shape === 'oval') {
+                return isInsideShapeCircle(x, y, data, margin);
+            }
+            if (shape === 'triangle') {
+                if (!pointInTriangle(x, y, data.points)) return false;
+                if (margin <= 0) return true;
+                for (let i = 0; i < data.points.length; i++) {
+                    const a = data.points[i];
+                    const b = data.points[(i + 1) % data.points.length];
+                    if (pointToSegmentDistance(x, y, a.x, a.y, b.x, b.y) < margin) return false;
+                }
+                return true;
+            }
+            if (shape === 'multi') {
+                const insideBridge = x >= data.bridge.left + margin && x <= data.bridge.right - margin
+                    && y >= data.bridge.top + margin && y <= data.bridge.bottom - margin;
+                return insideBridge
+                    || isInsideShapeCircle(x, y, data.leftLobe, margin)
+                    || isInsideShapeCircle(x, y, data.rightLobe, margin);
+            }
+            return false;
+        }
+
+        function getTableNormal(x, y, margin = 0) {
+            const eps = 1.4;
+            const fx = (isInsideTable(x + eps, y, margin) ? 1 : 0) - (isInsideTable(x - eps, y, margin) ? 1 : 0);
+            const fy = (isInsideTable(x, y + eps, margin) ? 1 : 0) - (isInsideTable(x, y - eps, margin) ? 1 : 0);
+            const len = Math.hypot(fx, fy);
+            if (len > 0.001) return { x: fx / len, y: fy / len };
+            const c = getTableCenter();
+            const dx = c.x - x;
+            const dy = c.y - y;
+            const m = Math.hypot(dx, dy) || 1;
+            return { x: dx / m, y: dy / m };
+        }
+
+        function randomPointInTable(margin = 0, constraints = {}) {
+            const minX = Math.max(TABLE.playLeft + margin, constraints.minX ?? -Infinity);
+            const maxX = Math.min(TABLE.playRight - margin, constraints.maxX ?? Infinity);
+            const minY = Math.max(TABLE.playTop + margin, constraints.minY ?? -Infinity);
+            const maxY = Math.min(TABLE.playBottom - margin, constraints.maxY ?? Infinity);
+            if (minX > maxX || minY > maxY) {
+                return {
+                    x: getTableCenter().x,
+                    y: getTableCenter().y,
+                };
+            }
+            for (let i = 0; i < 900; i++) {
+                const x = randomBetween(minX, maxX);
+                const y = randomBetween(minY, maxY);
+                if (isInsideTable(x, y, margin)) return { x, y };
+            }
+            const c = getTableCenter();
+            const fallback = {
+                x: Math.max(minX, Math.min(maxX, c.x)),
+                y: Math.max(minY, Math.min(maxY, c.y)),
+            };
+            if (isInsideTable(fallback.x, fallback.y, margin)) return fallback;
+            return { x: TABLE.headX, y: TABLE.centerY };
+        }
+
+        function constrainPointToTable(x, y, margin = 0, constraints = {}) {
+            const minX = Math.max(TABLE.playLeft + margin, constraints.minX ?? -Infinity);
+            const maxX = Math.min(TABLE.playRight - margin, constraints.maxX ?? Infinity);
+            const minY = Math.max(TABLE.playTop + margin, constraints.minY ?? -Infinity);
+            const maxY = Math.min(TABLE.playBottom - margin, constraints.maxY ?? Infinity);
+            let cx = Math.max(minX, Math.min(maxX, x));
+            let cy = Math.max(minY, Math.min(maxY, y));
+            if (isInsideTable(cx, cy, margin)) return { x: cx, y: cy };
+            const center = getTableCenter();
+            for (let i = 1; i <= 50; i++) {
+                const t = i / 50;
+                const px = cx + (center.x - cx) * t;
+                const py = cy + (center.y - cy) * t;
+                if (px < minX || px > maxX || py < minY || py > maxY) continue;
+                if (isInsideTable(px, py, margin)) return { x: px, y: py };
+            }
+            return randomPointInTable(margin, constraints);
+        }
+
+        function buildTablePath(path, margin = 0) {
+            const shape = state.tableShape;
+            const data = state.tableShapeData;
+            if (shape === 'rectangle') {
+                path.rect(
+                    TABLE.playLeft + margin,
+                    TABLE.playTop + margin,
+                    Math.max(1, TABLE.playRight - TABLE.playLeft - margin * 2),
+                    Math.max(1, TABLE.playBottom - TABLE.playTop - margin * 2),
+                );
+                return;
+            }
+            if (shape === 'square') {
+                path.rect(
+                    data.left + margin,
+                    data.top + margin,
+                    Math.max(1, data.right - data.left - margin * 2),
+                    Math.max(1, data.bottom - data.top - margin * 2),
+                );
+                return;
+            }
+            if (shape === 'circle' || shape === 'oval') {
+                path.ellipse(data.cx, data.cy, Math.max(1, data.rx - margin), Math.max(1, data.ry - margin), 0, 0, Math.PI * 2);
+                return;
+            }
+            if (shape === 'triangle') {
+                path.moveTo(data.points[0].x, data.points[0].y);
+                path.lineTo(data.points[1].x, data.points[1].y);
+                path.lineTo(data.points[2].x, data.points[2].y);
+                path.closePath();
+                return;
+            }
+            if (shape === 'multi') {
+                path.rect(
+                    data.bridge.left + margin,
+                    data.bridge.top + margin,
+                    Math.max(1, data.bridge.right - data.bridge.left - margin * 2),
+                    Math.max(1, data.bridge.bottom - data.bridge.top - margin * 2),
+                );
+                path.ellipse(data.leftLobe.cx, data.leftLobe.cy, Math.max(1, data.leftLobe.rx - margin), Math.max(1, data.leftLobe.ry - margin), 0, 0, Math.PI * 2);
+                path.ellipse(data.rightLobe.cx, data.rightLobe.cy, Math.max(1, data.rightLobe.rx - margin), Math.max(1, data.rightLobe.ry - margin), 0, 0, Math.PI * 2);
+            }
+        }
+
+        function sampleBoundaryPoint(angle) {
+            const center = getTableCenter();
+            const dirX = Math.cos(angle);
+            const dirY = Math.sin(angle);
+            const hit = rayToBoundary(center.x, center.y, dirX, dirY, 0);
+            if (hit) return { x: hit.x, y: hit.y };
+            return { x: center.x + dirX * 10, y: center.y + dirY * 10 };
+        }
+
+        function assignDefaultPocketsFromShape() {
+            if (state.tableShape === 'triangle') {
+                const [a, b, c] = state.tableShapeData.points;
+                state.pockets = [
+                    { x: a.x, y: a.y },
+                    { x: b.x, y: b.y },
+                    { x: c.x, y: c.y },
+                    { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+                    { x: (b.x + c.x) / 2, y: (b.y + c.y) / 2 },
+                    { x: (c.x + a.x) / 2, y: (c.y + a.y) / 2 },
+                ];
+                return;
+            }
+            const angles = [-Math.PI, -Math.PI / 2, -Math.PI / 4, 0, Math.PI / 2, Math.PI * 3 / 4];
+            state.pockets = angles.map(sampleBoundaryPoint);
+        }
+
         function configureTableGeometry() {
             if (state.tableMode === 'standard') {
                 TABLE.playLeft = TABLE.rail;
                 TABLE.playTop = TABLE.rail;
                 TABLE.playRight = TABLE.w - TABLE.rail;
                 TABLE.playBottom = TABLE.h - TABLE.rail;
+                state.tableShape = 'rectangle';
+                state.tableShapeData = {};
             } else {
                 const left = TABLE.rail + Math.round(randomBetween(0, RANDOM_TABLE_X_VARIANCE));
                 const right = TABLE.w - TABLE.rail - Math.round(randomBetween(0, RANDOM_TABLE_X_VARIANCE));
@@ -419,12 +628,79 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
                 TABLE.playRight = Math.max(left + RANDOM_TABLE_MIN_WIDTH, right);
                 TABLE.playTop = top;
                 TABLE.playBottom = Math.max(top + RANDOM_TABLE_MIN_HEIGHT, bottom);
+                state.tableShape = RANDOM_TABLE_SHAPES[Math.floor(Math.random() * RANDOM_TABLE_SHAPES.length)];
+                state.tableShapeData = {};
+
+                const width = TABLE.playRight - TABLE.playLeft;
+                const height = TABLE.playBottom - TABLE.playTop;
+                const cx = (TABLE.playLeft + TABLE.playRight) / 2;
+                const cy = (TABLE.playTop + TABLE.playBottom) / 2;
+                if (state.tableShape === 'square') {
+                    const side = Math.min(width, height);
+                    TABLE.playLeft = cx - side / 2;
+                    TABLE.playRight = cx + side / 2;
+                    TABLE.playTop = cy - side / 2;
+                    TABLE.playBottom = cy + side / 2;
+                    state.tableShapeData = {
+                        left: TABLE.playLeft,
+                        right: TABLE.playRight,
+                        top: TABLE.playTop,
+                        bottom: TABLE.playBottom,
+                    };
+                } else if (state.tableShape === 'circle') {
+                    const radius = Math.min(width, height) / 2;
+                    TABLE.playLeft = cx - radius;
+                    TABLE.playRight = cx + radius;
+                    TABLE.playTop = cy - radius;
+                    TABLE.playBottom = cy + radius;
+                    state.tableShapeData = { cx, cy, rx: radius, ry: radius };
+                } else if (state.tableShape === 'oval') {
+                    state.tableShapeData = {
+                        cx,
+                        cy,
+                        rx: width / 2,
+                        ry: height / 2,
+                    };
+                } else if (state.tableShape === 'triangle') {
+                    const points = [
+                        { x: TABLE.playLeft + 20, y: cy },
+                        { x: TABLE.playRight - 18, y: TABLE.playTop + 18 },
+                        { x: TABLE.playRight - 18, y: TABLE.playBottom - 18 },
+                    ];
+                    state.tableShapeData = { points };
+                } else if (state.tableShape === 'multi') {
+                    const bridge = {
+                        left: TABLE.playLeft + width * 0.23,
+                        right: TABLE.playRight - width * 0.23,
+                        top: TABLE.playTop + height * 0.22,
+                        bottom: TABLE.playBottom - height * 0.22,
+                    };
+                    state.tableShapeData = {
+                        bridge,
+                        leftLobe: {
+                            cx: bridge.left,
+                            cy,
+                            rx: width * 0.27,
+                            ry: height * 0.33,
+                        },
+                        rightLobe: {
+                            cx: bridge.right,
+                            cy,
+                            rx: width * 0.27,
+                            ry: height * 0.33,
+                        },
+                    };
+                }
             }
 
             TABLE.centerY = (TABLE.playTop + TABLE.playBottom) / 2;
             const spanX = TABLE.playRight - TABLE.playLeft;
             TABLE.headX = TABLE.playLeft + spanX * 0.24;
             TABLE.footX = TABLE.playLeft + spanX * 0.74;
+            const cueSeed = constrainPointToTable(TABLE.headX, TABLE.centerY, TABLE.ballR, { maxX: TABLE.playLeft + spanX * 0.46 });
+            TABLE.headX = cueSeed.x;
+            const rackSeed = constrainPointToTable(TABLE.footX, TABLE.centerY, TABLE.ballR * 2.5, { minX: TABLE.playLeft + spanX * 0.52 });
+            TABLE.footX = rackSeed.x;
         }
 
         function setPockets() {
@@ -439,24 +715,27 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
                 ];
                 return;
             }
+            if (state.tableShape === 'rectangle' || state.tableShape === 'square') {
+                const edge = RANDOM_POCKET_EDGE_MARGIN;
+                const minGap = RANDOM_POCKET_MIN_GAP;
+                const topFirst = randomBetween(TABLE.playLeft + edge, TABLE.playRight - edge - minGap);
+                const topSecond = randomBetween(topFirst + minGap, TABLE.playRight - edge);
+                const bottomFirst = randomBetween(TABLE.playLeft + edge, TABLE.playRight - edge - minGap);
+                const bottomSecond = randomBetween(bottomFirst + minGap, TABLE.playRight - edge);
+                const leftY = randomBetween(TABLE.playTop + edge, TABLE.playBottom - edge);
+                const rightY = randomBetween(TABLE.playTop + edge, TABLE.playBottom - edge);
 
-            const edge = RANDOM_POCKET_EDGE_MARGIN;
-            const minGap = RANDOM_POCKET_MIN_GAP;
-            const topFirst = randomBetween(TABLE.playLeft + edge, TABLE.playRight - edge - minGap);
-            const topSecond = randomBetween(topFirst + minGap, TABLE.playRight - edge);
-            const bottomFirst = randomBetween(TABLE.playLeft + edge, TABLE.playRight - edge - minGap);
-            const bottomSecond = randomBetween(bottomFirst + minGap, TABLE.playRight - edge);
-            const leftY = randomBetween(TABLE.playTop + edge, TABLE.playBottom - edge);
-            const rightY = randomBetween(TABLE.playTop + edge, TABLE.playBottom - edge);
-
-            state.pockets = [
-                { x: topFirst, y: TABLE.playTop },
-                { x: topSecond, y: TABLE.playTop },
-                { x: bottomFirst, y: TABLE.playBottom },
-                { x: bottomSecond, y: TABLE.playBottom },
-                { x: TABLE.playLeft, y: leftY },
-                { x: TABLE.playRight, y: rightY },
-            ];
+                state.pockets = [
+                    { x: topFirst, y: TABLE.playTop },
+                    { x: topSecond, y: TABLE.playTop },
+                    { x: bottomFirst, y: TABLE.playBottom },
+                    { x: bottomSecond, y: TABLE.playBottom },
+                    { x: TABLE.playLeft, y: leftY },
+                    { x: TABLE.playRight, y: rightY },
+                ];
+                return;
+            }
+            assignDefaultPocketsFromShape();
         }
 
         function getStandardBumperPattern() {
@@ -475,8 +754,9 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             let attempts = 0;
             while (spots.length < count && attempts < 2000) {
                 attempts++;
-                const x = TABLE.playLeft + 130 + Math.random() * (TABLE.playRight - TABLE.playLeft - 260);
-                const y = TABLE.playTop + 38 + Math.random() * (TABLE.playBottom - TABLE.playTop - 76);
+                const p = randomPointInTable(TABLE.bumperR + TABLE.ballR + 6);
+                const x = p.x;
+                const y = p.y;
                 if (Math.abs(x - TABLE.headX) < 90) continue;
                 if (Math.abs(x - TABLE.footX) < 70 && Math.abs(y - TABLE.centerY) < 95) continue;
                 if (state.pockets.some(p => Math.hypot(x - p.x, y - p.y) < 78)) continue;
@@ -510,7 +790,8 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             setPockets();
             setupBumpers();
             state.balls = [];
-            state.balls.push(new Ball(TABLE.headX, TABLE.centerY, 0, '#ffffff'));
+            const cueSpot = constrainPointToTable(TABLE.headX, TABLE.centerY, TABLE.ballR, { maxX: TABLE.headX });
+            state.balls.push(new Ball(cueSpot.x, cueSpot.y, 0, '#ffffff'));
 
             const rackX = TABLE.footX;
             const rackY = TABLE.centerY;
@@ -766,8 +1047,14 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             if (state.gameOver || state.currentPlayer !== 2 || state.isMoving) return;
             const cue = state.balls[0];
             if (state.placingCue) {
-                cue.x = TABLE.headX - 8;
-                cue.y = TABLE.centerY + (Math.random() - 0.5) * 110;
+                const botSpot = constrainPointToTable(
+                    TABLE.headX - 8,
+                    TABLE.centerY + (Math.random() - 0.5) * 110,
+                    TABLE.ballR,
+                    { maxX: TABLE.headX }
+                );
+                cue.x = botSpot.x;
+                cue.y = botSpot.y;
                 state.placingCue = false;
             }
             const target = pickAiTarget();
@@ -795,6 +1082,10 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             g.addColorStop(1, '#052e16');
             ctx.fillStyle = '#3f1f08';
             ctx.fillRect(0, 0, TABLE.w, TABLE.h);
+            const clothPath = new Path2D();
+            buildTablePath(clothPath);
+            ctx.save();
+            ctx.clip(clothPath);
             ctx.fillStyle = g;
             ctx.fillRect(TABLE.playLeft, TABLE.playTop, TABLE.playRight - TABLE.playLeft, TABLE.playBottom - TABLE.playTop);
 
@@ -813,14 +1104,22 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             shine.addColorStop(1, 'rgba(0,0,0,.18)');
             ctx.fillStyle = shine;
             ctx.fillRect(TABLE.playLeft, TABLE.playTop, TABLE.playRight - TABLE.playLeft, TABLE.playBottom - TABLE.playTop);
+            ctx.restore();
+
+            ctx.strokeStyle = 'rgba(255,255,255,.14)';
+            ctx.lineWidth = 3;
+            ctx.stroke(clothPath);
 
             ctx.strokeStyle = state.placingCue ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.16)';
             ctx.lineWidth = state.placingCue ? 2 : 1;
             ctx.setLineDash(state.placingCue ? [6, 6] : []);
+            ctx.save();
+            ctx.clip(clothPath);
             ctx.beginPath();
             ctx.moveTo(TABLE.headX, TABLE.playTop + 2);
             ctx.lineTo(TABLE.headX, TABLE.playBottom - 2);
             ctx.stroke();
+            ctx.restore();
             ctx.setLineDash([]);
 
             for (const p of state.pockets) {
@@ -859,22 +1158,35 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             return [420, 520, 640, 760][state.difficulty] ?? 520;
         }
 
-        function rayToBoundary(x, y, dx, dy) {
-            const left = TABLE.playLeft + TABLE.ballR;
-            const right = TABLE.playRight - TABLE.ballR;
-            const top = TABLE.playTop + TABLE.ballR;
-            const bottom = TABLE.playBottom - TABLE.ballR;
-            let tx = Infinity;
-            let ty = Infinity;
-            if (dx > 0) tx = (right - x) / dx;
-            else if (dx < 0) tx = (left - x) / dx;
-            if (dy > 0) ty = (bottom - y) / dy;
-            else if (dy < 0) ty = (top - y) / dy;
-            const t = Math.min(tx > 0 ? tx : Infinity, ty > 0 ? ty : Infinity);
-            if (!Number.isFinite(t)) return null;
-            const nx = t === tx ? (dx > 0 ? -1 : 1) : 0;
-            const ny = t === ty ? (dy > 0 ? -1 : 1) : 0;
-            return { t, x: x + dx * t, y: y + dy * t, nx, ny };
+        function rayToBoundary(x, y, dx, dy, margin = TABLE.ballR) {
+            const mag = Math.hypot(dx, dy);
+            if (!mag) return null;
+            const ux = dx / mag;
+            const uy = dy / mag;
+            let t = 0;
+            let prevT = 0;
+            while (t <= TABLE_RAY_MAX_DISTANCE) {
+                t += TABLE_RAY_STEP;
+                const px = x + ux * t;
+                const py = y + uy * t;
+                if (!isInsideTable(px, py, margin)) {
+                    let lo = prevT;
+                    let hi = t;
+                    for (let i = 0; i < 10; i++) {
+                        const mid = (lo + hi) / 2;
+                        const mx = x + ux * mid;
+                        const my = y + uy * mid;
+                        if (isInsideTable(mx, my, margin)) lo = mid;
+                        else hi = mid;
+                    }
+                    const bx = x + ux * lo;
+                    const by = y + uy * lo;
+                    const n = getTableNormal(bx, by, margin);
+                    return { t: lo, x: bx, y: by, nx: n.x, ny: n.y };
+                }
+                prevT = t;
+            }
+            return null;
         }
 
         function traceRay(start, dir, maxLen, maxBounces = 4) {
@@ -1086,8 +1398,9 @@ TAGS: Pool, Billiards, 8-Ball, 9-Ball, AI, Two-Player, Physics
             const cue = state.balls[0];
             const p = getPointer(e);
             if (state.placingCue) {
-                cue.x = Math.max(TABLE.playLeft + TABLE.ballR, Math.min(TABLE.headX, p.x));
-                cue.y = Math.max(TABLE.playTop + TABLE.ballR, Math.min(TABLE.playBottom - TABLE.ballR, p.y));
+                const safe = constrainPointToTable(p.x, p.y, TABLE.ballR, { maxX: TABLE.headX });
+                cue.x = safe.x;
+                cue.y = safe.y;
                 return;
             }
             if (!state.cueActive) return;
