@@ -442,6 +442,9 @@
       const SAVE_KEY = 'denseCrosswordSaveV1';
       const AES_PASSPHRASE = 'dense-crossword-instance-key-v1';
       const AES_SALT = 'crossword-static-salt';
+      const MAX_ANSWER_LENGTH = 15;
+      const MAX_WORD_SCAN = 220;
+      const PBKDF2_ITERATIONS = 120000;
 
       const setupScreen = document.getElementById('setupScreen');
       const playScreen = document.getElementById('playScreen');
@@ -519,11 +522,11 @@
           .map((row) => ({
             Theme: String(row.Theme || '').trim(),
             Clue: String(row.Clue || '').trim(),
-            Answer: String(row.Answer || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 15),
+            Answer: String(row.Answer || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, MAX_ANSWER_LENGTH),
             Length: Number(row.Length) || 0,
             Difficulty: Number(row.Difficulty) || 0,
           }))
-          .filter((row) => row.Theme && row.Clue && row.Answer && row.Answer.length <= 15);
+          .filter((row) => row.Theme && row.Clue && row.Answer && row.Answer.length <= MAX_ANSWER_LENGTH);
         themes = [...new Set(cluesDb.map((c) => c.Theme))].sort((a, b) => a.localeCompare(b));
       }
 
@@ -686,7 +689,7 @@
             placedAny = false;
             let bestOption = null;
 
-            const scanWords = candidateOrder.slice(0, Math.min(220, candidateOrder.length));
+            const scanWords = candidateOrder.slice(0, Math.min(MAX_WORD_SCAN, candidateOrder.length));
             for (const item of scanWords) {
               if (used.has(item._id)) continue;
               const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0));
@@ -766,7 +769,7 @@
             if (!loosen) return item.Difficulty === d;
             return Math.abs(item.Difficulty - d) <= 1;
           })
-          .filter((item) => item.Answer.length >= 3 && item.Answer.length <= 15)
+          .filter((item) => item.Answer.length >= 3 && item.Answer.length <= MAX_ANSWER_LENGTH)
           .map((item, idx) => ({ ...item, _id: `${item.Theme}|${item.Clue}|${item.Answer}|${idx}` }));
       }
 
@@ -874,7 +877,7 @@
             const input = document.createElement('input');
             input.className = 'cell';
             input.maxLength = 1;
-            input.autocomplete = 'off';
+            input.setAttribute('autocomplete', 'off');
             input.spellcheck = false;
             input.dataset.r = String(r);
             input.dataset.c = String(c);
@@ -1251,7 +1254,7 @@
           {
             name: 'PBKDF2',
             salt: enc.encode(AES_SALT),
-            iterations: 120000,
+            iterations: PBKDF2_ITERATIONS,
             hash: 'SHA-256',
           },
           keyMat,
@@ -1397,7 +1400,7 @@
         saveToLocalStorage();
 
         if (usedLoosened) {
-          setSetupStatus('Generated with relaxed difficulty due puzzle density limits.', 'warn');
+          setSetupStatus('Generated with relaxed difficulty due to puzzle density limits.', 'warn');
         } else {
           setSetupStatus('Board ready.', 'ok');
         }
@@ -1542,7 +1545,7 @@
 
       saveFileBtn.addEventListener('click', () => {
         exportEncryptedSave().catch(() => {
-          alert('Unable to export encrypted save.');
+          setSetupStatus('Unable to export encrypted save.', 'bad');
         });
       });
 
