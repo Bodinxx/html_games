@@ -46,6 +46,10 @@
       backdrop-filter: blur(4px);
     }
 
+    #setupScreen {
+      min-height: 95vh;
+    }
+
     .setup-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -104,6 +108,10 @@
       align-items: center;
       gap: 8px;
       font-size: 0.9rem;
+    }
+
+    .theme-actions {
+      margin-top: 8px;
     }
 
     .controls-row {
@@ -353,11 +361,14 @@
         <div>
           <label>Themes (pick 2+)</label>
           <div id="themeList" class="theme-list"></div>
+          <div class="theme-actions">
+            <button id="toggleThemesBtn" type="button">Select All Themes</button>
+          </div>
         </div>
 
         <div>
-          <label for="boardSize">Board Size: <span id="boardSizeText">12 x 12</span></label>
-          <input id="boardSize" type="range" min="10" max="15" step="1" value="12">
+          <label for="boardSize">Board Size: <span id="boardSizeText">15 x 15</span></label>
+          <input id="boardSize" type="range" min="10" max="20" step="1" value="15">
 
           <div class="controls-row">
             <button id="newGameBtn">Create New Game</button>
@@ -434,11 +445,14 @@
       const AES_SALT = 'crossword-static-salt';
       const MAX_ANSWER_LENGTH = 15;
       const MAX_WORD_SCAN = 220;
+      const SHORT_WORD_MAX_LENGTH = 5;
+      const DENSE_EMPTY_TARGET_15 = 15;
       const PBKDF2_ITERATIONS = 600000;
 
       const setupScreen = document.getElementById('setupScreen');
       const playScreen = document.getElementById('playScreen');
       const themeListEl = document.getElementById('themeList');
+      const toggleThemesBtn = document.getElementById('toggleThemesBtn');
       const boardSizeEl = document.getElementById('boardSize');
       const boardSizeTextEl = document.getElementById('boardSizeText');
       const setupStatusEl = document.getElementById('setupStatus');
@@ -531,10 +545,28 @@
           frag.append(label);
         });
         themeListEl.append(frag);
+        updateThemeToggleButton();
       }
 
       function getSelectedThemes() {
         return [...themeListEl.querySelectorAll('input[type="checkbox"]:checked')].map((el) => el.value);
+      }
+
+      function updateThemeToggleButton() {
+        const allInputs = [...themeListEl.querySelectorAll('input[type="checkbox"]')];
+        const checkedCount = allInputs.filter((el) => el.checked).length;
+        const allSelected = allInputs.length > 0 && checkedCount === allInputs.length;
+        toggleThemesBtn.textContent = allSelected ? 'Deselect All Themes' : 'Select All Themes';
+      }
+
+      function toggleAllThemes() {
+        const allInputs = [...themeListEl.querySelectorAll('input[type="checkbox"]')];
+        if (!allInputs.length) return;
+        const allSelected = allInputs.every((el) => el.checked);
+        allInputs.forEach((el) => {
+          el.checked = !allSelected;
+        });
+        updateThemeToggleButton();
       }
 
       function getCellKey(r, c) {
@@ -543,6 +575,16 @@
 
       function createEmptyBoard(size) {
         return Array.from({ length: size }, () => Array.from({ length: size }, () => null));
+      }
+
+      function countFilledCells(grid) {
+        let filled = 0;
+        for (let r = 0; r < grid.length; r += 1) {
+          for (let c = 0; c < grid[r].length; c += 1) {
+            if (grid[r][c]) filled += 1;
+          }
+        }
+        return filled;
       }
 
       function isInside(size, r, c) {
@@ -665,15 +707,22 @@
       function tryBuildDenseBoard(size, pool, minWords, timeLimitMs) {
         const start = performance.now();
         let best = null;
+        const totalCells = size * size;
+        const targetEmptyCells = size === 15
+          ? DENSE_EMPTY_TARGET_15
+          : Math.max(12, Math.floor(totalCells * 0.08));
+        const targetFilledCells = Math.max(0, totalCells - targetEmptyCells);
 
         while (performance.now() - start < timeLimitMs) {
           const grid = createEmptyBoard(size);
           const entries = [];
           const used = new Set();
           const candidateOrder = shuffle(pool);
+          const shortWordCandidates = candidateOrder.filter((item) => item.Answer.length <= SHORT_WORD_MAX_LENGTH);
+          const maxEntries = Math.min(pool.length, size * 4);
 
           let placedAny = true;
-          while (placedAny && entries.length < Math.min(pool.length, size * 2)) {
+          while (placedAny && entries.length < maxEntries) {
             placedAny = false;
             let bestOption = null;
 
@@ -686,8 +735,10 @@
               placements.sort((a, b) => b.score - a.score);
               const top = placements.slice(0, Math.min(4, placements.length));
               const pick = top[rand(top.length)];
-              bestOption = { item, place: pick };
-              break;
+              const score = pick.score * 6 + Math.min(item.Answer.length, 8);
+              if (!bestOption || score > bestOption.score) {
+                bestOption = { item, place: pick, score };
+              }
             }
 
             if (bestOption) {
@@ -718,9 +769,52 @@
             }
           }
 
-          if (!best || entries.length > best.entries.length) {
+          let shortFill = true;
+          while (shortFill && entries.length < maxEntries && countFilledCells(grid) < targetFilledCells) {
+            shortFill = false;
+
+            const shortScan = shuffle(shortWordCandidates).slice(0, Math.min(MAX_WORD_SCAN, shortWordCandidates.length));
+            for (const item of shortScan) {
+              if (used.has(item._id)) continue;
+              const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0));
+              if (!placements.length) continue;
+
+              placements.sort((a, b) => a.score - b.score);
+              const top = placements.slice(0, Math.min(4, placements.length));
+              const pick = top[rand(top.length)];
+              const entryId = entries.length;
+              const cells = placeWord(
+                grid,
+                item.Answer,
+                pick.row,
+                pick.col,
+                pick.dir,
+                entryId
+              );
+
+              entries.push({
+                id: entryId,
+                clue: item.Clue,
+                theme: item.Theme,
+                answer: item.Answer,
+                row: pick.row,
+                col: pick.col,
+                dir: pick.dir,
+                cells,
+                locked: false,
+                number: 0,
+              });
+              used.add(item._id);
+              shortFill = true;
+              break;
+            }
+          }
+
+          const filledCells = countFilledCells(grid);
+          const bestFilled = best ? countFilledCells(best.grid) : -1;
+          if (!best || filledCells > bestFilled || (filledCells === bestFilled && entries.length > best.entries.length)) {
             best = { grid, entries };
-            if (entries.length >= minWords) break;
+            if (entries.length >= minWords && filledCells >= targetFilledCells) break;
           }
         }
 
@@ -1333,8 +1427,8 @@
           return;
         }
 
-        const desiredWords = Math.max(8, Math.floor(size * 1.3));
-        const result = tryBuildDenseBoard(size, pool, desiredWords, 4000);
+        const desiredWords = Math.max(10, Math.floor(size * 1.8));
+        const result = tryBuildDenseBoard(size, pool, desiredWords, 5500);
 
         if (!result || !result.entries.length) {
           setSetupStatus('Unable to generate a board right now. Adjust settings and try again.', 'bad');
@@ -1543,6 +1637,9 @@
       boardSizeEl.addEventListener('input', () => {
         boardSizeTextEl.textContent = `${boardSizeEl.value} x ${boardSizeEl.value}`;
       });
+
+      toggleThemesBtn.addEventListener('click', toggleAllThemes);
+      themeListEl.addEventListener('change', updateThemeToggleButton);
 
       document.addEventListener('keydown', (event) => {
         if (!game || playScreen.style.display === 'none') return;
