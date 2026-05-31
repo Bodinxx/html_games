@@ -513,7 +513,6 @@
             Clue: String(row.Clue || '').trim(),
             Answer: String(row.Answer || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, MAX_ANSWER_LENGTH),
             Length: Number(row.Length) || 0,
-            Difficulty: Number(row.Difficulty) || 0,
           }))
           .filter((row) => row.Theme && row.Clue && row.Answer && row.Answer.length <= MAX_ANSWER_LENGTH);
         themes = [...new Set(cluesDb.map((c) => c.Theme))].sort((a, b) => a.localeCompare(b));
@@ -1132,7 +1131,6 @@
           savedAt: new Date().toISOString(),
           size: game.size,
           selectedThemes: game.selectedThemes,
-          difficulty: game.difficulty,
           elapsed: game.elapsed,
           hintsUsed: game.hintsUsed,
           direction: game.direction,
@@ -1196,7 +1194,6 @@
         game = {
           size: state.size,
           selectedThemes: state.selectedThemes,
-          difficulty: state.difficulty,
           elapsed: Number(state.elapsed) || 0,
           hintsUsed: Number(state.hintsUsed) || 0,
           direction: state.direction || 'across',
@@ -1287,7 +1284,6 @@
           state: {
             size: game.size,
             selectedThemes: game.selectedThemes,
-            difficulty: game.difficulty,
             elapsed: game.elapsed,
             hintsUsed: game.hintsUsed,
             direction: game.direction,
@@ -1350,7 +1346,6 @@
         game = {
           size,
           selectedThemes,
-          difficulty: 'random',
           elapsed: 0,
           hintsUsed: 0,
           direction: 'across',
