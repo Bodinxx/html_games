@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dense Crossword Puzzle</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #111a33;
+      --panel-2: #182548;
+      --text: #e5ecff;
+      --muted: #9ca8cc;
+      --accent: #60a5fa;
+      --ok: #10b981;
+      --bad: #ef4444;
+      --warn: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(circle at top, #1a2550 0%, var(--bg) 50%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    .app {
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 16px;
+      backdrop-filter: blur(4px);
+    }
+
+    .setup-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    input[type="range"], select {
+      width: 100%;
+    }
+
+    select, button, input[type="file"] {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.95rem;
+    }
+
+    button {
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.2s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      background: var(--panel-2);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .theme-list {
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+      background: rgba(0,0,0,0.2);
+    }
+
+    .theme-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .status {
+      margin-top: 10px;
+      color: var(--muted);
+      min-height: 1.25em;
+      font-size: 0.92rem;
+    }
+
+    .status.warn { color: var(--warn); }
+    .status.bad { color: var(--bad); }
+    .status.ok { color: var(--ok); }
+
+    #playScreen {
+      display: none;
+      gap: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .toolbar-stats {
+      display: flex;
+      gap: 14px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      flex-wrap: wrap;
+    }
+
+    .play-layout {
+      display: grid;
+      grid-template-columns: 1fr minmax(280px, 360px);
+      gap: 14px;
+      align-items: start;
+    }
+
+    #board {
+      display: grid;
+      gap: 2px;
+      justify-content: start;
+      background: rgba(255,255,255,0.08);
+      padding: 2px;
+      border-radius: 8px;
+      overflow: auto;
+      max-height: calc(100vh - 220px);
+    }
+
+    .cell-wrap {
+      width: 36px;
+      height: 36px;
+      position: relative;
+    }
+
+    .cell {
+      width: 36px;
+      height: 36px;
+      background: #fff;
+      color: #111;
+      border: none;
+      text-transform: uppercase;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1rem;
+      outline: none;
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+
+    .cell.block {
+      background: #091020;
+      border: 1px solid rgba(255,255,255,0.05);
+      pointer-events: none;
+    }
+
+    .cell.active {
+      background: #dbeafe;
+    }
+
+    .cell.selected {
+      box-shadow: inset 0 0 0 2px #2563eb;
+      z-index: 2;
+    }
+
+    .cell.wrong {
+      background: color-mix(in srgb, var(--bad) 30%, #fff);
+    }
+
+    .cell.correct {
+      background: color-mix(in srgb, var(--ok) 24%, #fff);
+    }
+
+    .cell.locked {
+      background: color-mix(in srgb, var(--ok) 60%, #fff);
+      color: #044b2f;
+      font-weight: 800;
+    }
+
+    .cell-num {
+      position: absolute;
+      top: 1px;
+      left: 2px;
+      font-size: 0.58rem;
+      line-height: 1;
+      font-weight: 600;
+      color: #374151;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .panel-title {
+      font-size: 1rem;
+      margin-bottom: 8px;
+    }
+
+    .active-clue {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 10px;
+    }
+
+    .clue-theme {
+      color: var(--accent);
+      font-size: 0.85rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .clue-text {
+      color: var(--text);
+      line-height: 1.35;
+      min-height: 2.4em;
+    }
+
+    .dir-tag {
+      display: inline-block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px;
+      padding: 2px 8px;
+      width: fit-content;
+    }
+
+    .clue-columns {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      max-height: 380px;
+      overflow: auto;
+      font-size: 0.9rem;
+    }
+
+    .clue-line {
+      color: var(--muted);
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+
+    .clue-line.current {
+      color: #fff;
+      border-color: rgba(96,165,250,0.7);
+      background: rgba(37,99,235,0.2);
+    }
+
+    .clue-line.done {
+      color: #8ef3c5;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2,6,23,0.75);
+      z-index: 80;
+    }
+
+    .modal {
+      width: min(500px, calc(100vw - 28px));
+      background: #0f172a;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      color: var(--muted);
+    }
+
+    .fireworks {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 50;
+      display: none;
+    }
+
+    @media (max-width: 960px) {
+      .play-layout { grid-template-columns: 1fr; }
+      #board { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="fireworks" class="fireworks"></canvas>
+
+  <div class="app">
+    <section id="setupScreen" class="card">
+      <h1>Dense Crossword Puzzle</h1>
+      <p style="margin-top:8px;color:var(--muted)">Choose at least two themes, board size, and difficulty to generate a dense crossword board.</p>
+
+      <div class="setup-grid">
+        <div>
+          <label>Themes (pick 2+)</label>
+          <div id="themeList" class="theme-list"></div>
+        </div>
+
+        <div>
+          <label for="boardSize">Board Size: <span id="boardSizeText">12 x 12</span></label>
+          <input id="boardSize" type="range" min="10" max="15" step="1" value="12">
+
+          <label for="difficulty" style="margin-top:12px">Difficulty</label>
+          <select id="difficulty">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="random">Random</option>
+          </select>
+
+          <div class="controls-row">
+            <button id="newGameBtn">Create New Game</button>
+            <button id="resumeBtn" disabled>Resume Last Session</button>
+            <button id="loadFileBtn">Load Encrypted Save File</button>
+            <input id="saveFileInput" type="file" accept=".puz,.dat,.json" style="display:none">
+          </div>
+
+          <div id="setupStatus" class="status"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="playScreen" class="card">
+      <div class="toolbar">
+        <div class="toolbar-stats">
+          <span id="timerText">Time: 00:00</span>
+          <span id="progressText">Progress: 0%</span>
+          <span id="lockText">Locked Words: 0</span>
+        </div>
+        <div class="controls-row" style="margin-top:0">
+          <button id="saveFileBtn">Save to File</button>
+          <button id="backToSetupBtn">New Session</button>
+        </div>
+      </div>
+
+      <div class="play-layout">
+        <div id="board" aria-label="Crossword board"></div>
+
+        <aside class="card" style="padding:12px">
+          <h2 class="panel-title">Active Clue</h2>
+          <div class="active-clue">
+            <span id="activeDirection" class="dir-tag">Across</span>
+            <div id="activeTheme" class="clue-theme">Theme</div>
+            <div id="activeClue" class="clue-text">Select a cell to begin.</div>
+            <button id="helpBtn">Get Help</button>
+          </div>
+
+          <div class="toggle-row">
+            <input id="liveCheck" type="checkbox" checked>
+            <label for="liveCheck" style="margin:0">Highlight wrong letters in real time</label>
+          </div>
+
+          <div class="clue-columns" id="clueList"></div>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+  <div id="victoryOverlay" class="overlay">
+    <div class="modal">
+      <h2>Victory!</h2>
+      <p style="color:var(--muted)">Puzzle solved. Great work.</p>
+      <div class="stat-grid">
+        <div>Total time: <strong id="statTime">00:00</strong></div>
+        <div>Hints used: <strong id="statHints">0</strong></div>
+        <div>Board size: <strong id="statSize">0x0</strong></div>
+        <div>Words locked: <strong id="statLocked">0</strong></div>
+      </div>
+      <div class="controls-row" style="margin-top:2px">
+        <button id="closeVictoryBtn">Close</button>
+        <button id="newFromVictoryBtn">New Session</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const CLUE_PATH = './crossword/clues.json';
+      const SAVE_KEY = 'denseCrosswordSaveV1';
+      const AES_PASSPHRASE = 'dense-crossword-instance-key-v1';
+      const AES_SALT = 'crossword-static-salt';
+
+      const setupScreen = document.getElementById('setupScreen');
+      const playScreen = document.getElementById('playScreen');
+      const themeListEl = document.getElementById('themeList');
+      const boardSizeEl = document.getElementById('boardSize');
+      const boardSizeTextEl = document.getElementById('boardSizeText');
+      const difficultyEl = document.getElementById('difficulty');
+      const setupStatusEl = document.getElementById('setupStatus');
+      const newGameBtn = document.getElementById('newGameBtn');
+      const resumeBtn = document.getElementById('resumeBtn');
+      const loadFileBtn = document.getElementById('loadFileBtn');
+      const saveFileInput = document.getElementById('saveFileInput');
+
+      const boardEl = document.getElementById('board');
+      const timerTextEl = document.getElementById('timerText');
+      const progressTextEl = document.getElementById('progressText');
+      const lockTextEl = document.getElementById('lockText');
+      const saveFileBtn = document.getElementById('saveFileBtn');
+      const backToSetupBtn = document.getElementById('backToSetupBtn');
+      const helpBtn = document.getElementById('helpBtn');
+      const liveCheckEl = document.getElementById('liveCheck');
+
+      const activeDirectionEl = document.getElementById('activeDirection');
+      const activeThemeEl = document.getElementById('activeTheme');
+      const activeClueEl = document.getElementById('activeClue');
+      const clueListEl = document.getElementById('clueList');
+
+      const victoryOverlay = document.getElementById('victoryOverlay');
+      const closeVictoryBtn = document.getElementById('closeVictoryBtn');
+      const newFromVictoryBtn = document.getElementById('newFromVictoryBtn');
+      const statTimeEl = document.getElementById('statTime');
+      const statHintsEl = document.getElementById('statHints');
+      const statSizeEl = document.getElementById('statSize');
+      const statLockedEl = document.getElementById('statLocked');
+
+      const fireworksCanvas = document.getElementById('fireworks');
+      const fireworksCtx = fireworksCanvas.getContext('2d');
+
+      let cluesDb = [];
+      let themes = [];
+      let game = null;
+      let timerInterval = null;
+      let lastTimerTick = 0;
+      let isCelebrating = false;
+      let particles = [];
+
+      const rand = (n) => Math.floor(Math.random() * n);
+      const shuffle = (arr) => {
+        const out = arr.slice();
+        for (let i = out.length - 1; i > 0; i -= 1) {
+          const j = rand(i + 1);
+          [out[i], out[j]] = [out[j], out[i]];
+        }
+        return out;
+      };
+
+      const byStart = (a, b) => (a.row - b.row) || (a.col - b.col) || a.dir.localeCompare(b.dir);
+
+      function setSetupStatus(msg, type = '') {
+        setupStatusEl.textContent = msg;
+        setupStatusEl.className = `status ${type}`.trim();
+      }
+
+      function formatTime(sec) {
+        const minutes = Math.floor(sec / 60).toString().padStart(2, '0');
+        const seconds = Math.floor(sec % 60).toString().padStart(2, '0');
+        return `${minutes}:${seconds}`;
+      }
+
+      async function loadClues() {
+        const response = await fetch(CLUE_PATH, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Could not load clues (${response.status})`);
+        const data = await response.json();
+        cluesDb = data
+          .map((row) => ({
+            Theme: String(row.Theme || '').trim(),
+            Clue: String(row.Clue || '').trim(),
+            Answer: String(row.Answer || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 15),
+            Length: Number(row.Length) || 0,
+            Difficulty: Number(row.Difficulty) || 0,
+          }))
+          .filter((row) => row.Theme && row.Clue && row.Answer && row.Answer.length <= 15);
+        themes = [...new Set(cluesDb.map((c) => c.Theme))].sort((a, b) => a.localeCompare(b));
+      }
+
+      function renderThemes() {
+        themeListEl.innerHTML = '';
+        const frag = document.createDocumentFragment();
+        themes.forEach((theme) => {
+          const label = document.createElement('label');
+          label.className = 'theme-option';
+          const input = document.createElement('input');
+          input.type = 'checkbox';
+          input.value = theme;
+          label.append(input, theme);
+          frag.append(label);
+        });
+        themeListEl.append(frag);
+      }
+
+      function getSelectedThemes() {
+        return [...themeListEl.querySelectorAll('input[type="checkbox"]:checked')].map((el) => el.value);
+      }
+
+      function getCellKey(r, c) {
+        return `${r},${c}`;
+      }
+
+      function createEmptyBoard(size) {
+        return Array.from({ length: size }, () => Array.from({ length: size }, () => null));
+      }
+
+      function isInside(size, r, c) {
+        return r >= 0 && c >= 0 && r < size && c < size;
+      }
+
+      function canPlaceWord(grid, size, answer, row, col, dir) {
+        const dr = dir === 'down' ? 1 : 0;
+        const dc = dir === 'across' ? 1 : 0;
+        let intersections = 0;
+
+        const beforeR = row - dr;
+        const beforeC = col - dc;
+        const afterR = row + dr * answer.length;
+        const afterC = col + dc * answer.length;
+        if (isInside(size, beforeR, beforeC) && grid[beforeR][beforeC]) return null;
+        if (isInside(size, afterR, afterC) && grid[afterR][afterC]) return null;
+
+        for (let i = 0; i < answer.length; i += 1) {
+          const r = row + dr * i;
+          const c = col + dc * i;
+          if (!isInside(size, r, c)) return null;
+          const cell = grid[r][c];
+          const ch = answer[i];
+
+          if (cell && cell.solution !== ch) return null;
+          if (cell && cell.solution === ch) intersections += 1;
+
+          if (!cell) {
+            if (dir === 'across') {
+              if (isInside(size, r - 1, c) && grid[r - 1][c]) return null;
+              if (isInside(size, r + 1, c) && grid[r + 1][c]) return null;
+            } else {
+              if (isInside(size, r, c - 1) && grid[r][c - 1]) return null;
+              if (isInside(size, r, c + 1) && grid[r][c + 1]) return null;
+            }
+          }
+        }
+
+        return { intersections, touchesExisting: intersections > 0 };
+      }
+
+      function placeWord(grid, answer, row, col, dir, entryId) {
+        const dr = dir === 'down' ? 1 : 0;
+        const dc = dir === 'across' ? 1 : 0;
+        const cells = [];
+
+        for (let i = 0; i < answer.length; i += 1) {
+          const r = row + dr * i;
+          const c = col + dc * i;
+          if (!grid[r][c]) {
+            grid[r][c] = {
+              solution: answer[i],
+              guess: '',
+              entries: [],
+              locked: false,
+            };
+          }
+          grid[r][c].entries.push(entryId);
+          cells.push({ r, c, i });
+        }
+
+        return cells;
+      }
+
+      function findPlacementsForWord(grid, size, answer, hasPlacedWords) {
+        const placements = [];
+
+        if (!hasPlacedWords) {
+          const center = Math.floor(size / 2);
+          const starts = [
+            { row: center, col: Math.max(0, center - Math.floor(answer.length / 2)), dir: 'across' },
+            { row: Math.max(0, center - Math.floor(answer.length / 2)), col: center, dir: 'down' },
+          ];
+          starts.forEach((p) => {
+            const valid = canPlaceWord(grid, size, answer, p.row, p.col, p.dir);
+            if (valid) placements.push({ ...p, score: valid.intersections });
+          });
+          return placements;
+        }
+
+        for (let r = 0; r < size; r += 1) {
+          for (let c = 0; c < size; c += 1) {
+            const cell = grid[r][c];
+            if (!cell) continue;
+
+            for (let i = 0; i < answer.length; i += 1) {
+              if (answer[i] !== cell.solution) continue;
+
+              const acrossRow = r;
+              const acrossCol = c - i;
+              const acrossValid = canPlaceWord(grid, size, answer, acrossRow, acrossCol, 'across');
+              if (acrossValid && acrossValid.intersections > 0) {
+                placements.push({ row: acrossRow, col: acrossCol, dir: 'across', score: acrossValid.intersections });
+              }
+
+              const downRow = r - i;
+              const downCol = c;
+              const downValid = canPlaceWord(grid, size, answer, downRow, downCol, 'down');
+              if (downValid && downValid.intersections > 0) {
+                placements.push({ row: downRow, col: downCol, dir: 'down', score: downValid.intersections });
+              }
+            }
+          }
+        }
+
+        return placements;
+      }
+
+      function uniquePlacements(placements) {
+        const seen = new Set();
+        return placements.filter((p) => {
+          const key = `${p.row}|${p.col}|${p.dir}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
+
+      function tryBuildDenseBoard(size, pool, minWords, timeLimitMs) {
+        const start = performance.now();
+        let best = null;
+
+        while (performance.now() - start < timeLimitMs) {
+          const grid = createEmptyBoard(size);
+          const entries = [];
+          const used = new Set();
+          const candidateOrder = shuffle(pool).sort((a, b) => b.Answer.length - a.Answer.length);
+
+          let placedAny = true;
+          while (placedAny && entries.length < Math.min(pool.length, size * 2)) {
+            placedAny = false;
+            let bestOption = null;
+
+            const scanWords = candidateOrder.slice(0, Math.min(220, candidateOrder.length));
+            for (const item of scanWords) {
+              if (used.has(item._id)) continue;
+              const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0));
+              if (!placements.length) continue;
+
+              placements.sort((a, b) => b.score - a.score);
+              const top = placements.slice(0, Math.min(4, placements.length));
+              const pick = top[rand(top.length)];
+              const score = pick.score * 5 + item.Answer.length;
+              if (!bestOption || score > bestOption.score) {
+                bestOption = { item, place: pick, score };
+              }
+            }
+
+            if (bestOption) {
+              const entryId = entries.length;
+              const cells = placeWord(
+                grid,
+                bestOption.item.Answer,
+                bestOption.place.row,
+                bestOption.place.col,
+                bestOption.place.dir,
+                entryId
+              );
+
+              entries.push({
+                id: entryId,
+                clue: bestOption.item.Clue,
+                theme: bestOption.item.Theme,
+                answer: bestOption.item.Answer,
+                row: bestOption.place.row,
+                col: bestOption.place.col,
+                dir: bestOption.place.dir,
+                cells,
+                locked: false,
+                number: 0,
+              });
+              used.add(bestOption.item._id);
+              placedAny = true;
+            }
+          }
+
+          if (!best || entries.length > best.entries.length) {
+            best = { grid, entries };
+            if (entries.length >= minWords) break;
+          }
+        }
+
+        return best;
+      }
+
+      function assignNumbers(entries) {
+        const starts = [];
+        entries.forEach((e) => {
+          starts.push({ row: e.row, col: e.col, entry: e });
+        });
+        starts.sort((a, b) => (a.row - b.row) || (a.col - b.col));
+
+        let current = 1;
+        const seen = new Map();
+        starts.forEach((item) => {
+          const key = `${item.row},${item.col}`;
+          if (!seen.has(key)) seen.set(key, current++);
+          item.entry.number = seen.get(key);
+        });
+      }
+
+      function filterPool(selectedThemes, difficulty, loosen = false) {
+        const themeSet = new Set(selectedThemes);
+
+        return cluesDb
+          .filter((item) => themeSet.has(item.Theme))
+          .filter((item) => {
+            if (difficulty === 'random') return true;
+            if (item.Difficulty === 0) return false;
+            const d = Number(difficulty);
+            if (!loosen) return item.Difficulty === d;
+            return Math.abs(item.Difficulty - d) <= 1;
+          })
+          .filter((item) => item.Answer.length >= 3 && item.Answer.length <= 15)
+          .map((item, idx) => ({ ...item, _id: `${item.Theme}|${item.Clue}|${item.Answer}|${idx}` }));
+      }
+
+      function computeCompletion(grid) {
+        let filled = 0;
+        let total = 0;
+        grid.forEach((row) => row.forEach((cell) => {
+          if (!cell) return;
+          total += 1;
+          if (cell.guess) filled += 1;
+        }));
+        return total ? Math.round((filled / total) * 100) : 0;
+      }
+
+      function setActiveEntryByCell(r, c, forceDirection = null) {
+        if (!game) return;
+        const cell = game.grid[r][c];
+        if (!cell || !cell.entries.length) return;
+
+        if (forceDirection) game.direction = forceDirection;
+        const candidates = cell.entries.map((id) => game.entries[id]);
+        const chosen = candidates.find((e) => e.dir === game.direction) || candidates[0];
+
+        game.activeEntryId = chosen.id;
+        game.activeCell = { r, c };
+        updateActiveClue();
+        renderBoardHighlights();
+      }
+
+      function updateActiveClue() {
+        if (!game) return;
+        const entry = game.entries[game.activeEntryId];
+        if (!entry) {
+          activeDirectionEl.textContent = 'Across';
+          activeThemeEl.textContent = 'Theme';
+          activeClueEl.textContent = 'Select a cell to begin.';
+          return;
+        }
+
+        activeDirectionEl.textContent = entry.dir === 'across' ? 'Across' : 'Down';
+        activeThemeEl.textContent = entry.theme;
+        activeClueEl.textContent = `${entry.number}. ${entry.clue}`;
+
+        clueListEl.querySelectorAll('.clue-line').forEach((line) => {
+          line.classList.toggle('current', Number(line.dataset.entryId) === entry.id);
+        });
+      }
+
+      function findActiveIndex(entry, pos) {
+        return entry.cells.findIndex((c) => c.r === pos.r && c.c === pos.c);
+      }
+
+      function moveWithinActive(step) {
+        const entry = game.entries[game.activeEntryId];
+        if (!entry) return;
+
+        let idx = findActiveIndex(entry, game.activeCell);
+        if (idx < 0) idx = 0;
+
+        for (let i = 1; i <= entry.cells.length; i += 1) {
+          const nextIdx = idx + step * i;
+          if (nextIdx < 0 || nextIdx >= entry.cells.length) break;
+          const target = entry.cells[nextIdx];
+          const targetCell = game.grid[target.r][target.c];
+          if (!targetCell || targetCell.locked) continue;
+          setActiveEntryByCell(target.r, target.c, entry.dir);
+          focusCell(target.r, target.c);
+          return;
+        }
+      }
+
+      function moveArrow(dr, dc) {
+        const r = game.activeCell.r + dr;
+        const c = game.activeCell.c + dc;
+        if (!isInside(game.size, r, c)) return;
+        const cell = game.grid[r][c];
+        if (!cell) return;
+
+        setActiveEntryByCell(r, c);
+        focusCell(r, c);
+      }
+
+      function focusCell(r, c) {
+        const input = boardEl.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+        if (input) input.focus({ preventScroll: true });
+      }
+
+      function renderBoard() {
+        boardEl.innerHTML = '';
+        boardEl.style.gridTemplateColumns = `repeat(${game.size}, 36px)`;
+
+        const startNumberMap = new Map();
+        game.entries.forEach((e) => {
+          const key = getCellKey(e.row, e.col);
+          if (!startNumberMap.has(key)) startNumberMap.set(key, e.number);
+        });
+
+        const frag = document.createDocumentFragment();
+        for (let r = 0; r < game.size; r += 1) {
+          for (let c = 0; c < game.size; c += 1) {
+            const cell = game.grid[r][c];
+            const wrap = document.createElement('div');
+            wrap.className = 'cell-wrap';
+
+            const input = document.createElement('input');
+            input.className = 'cell';
+            input.maxLength = 1;
+            input.autocomplete = 'off';
+            input.spellcheck = false;
+            input.dataset.r = String(r);
+            input.dataset.c = String(c);
+
+            if (!cell) {
+              input.classList.add('block');
+              input.tabIndex = -1;
+              input.disabled = true;
+            } else {
+              input.value = cell.guess;
+              if (cell.locked) input.classList.add('locked');
+
+              const number = startNumberMap.get(getCellKey(r, c));
+              if (number) {
+                const num = document.createElement('span');
+                num.className = 'cell-num';
+                num.textContent = String(number);
+                wrap.appendChild(num);
+              }
+
+              input.addEventListener('focus', () => {
+                setActiveEntryByCell(r, c);
+              });
+
+              input.addEventListener('click', () => {
+                setActiveEntryByCell(r, c);
+              });
+
+              input.addEventListener('keydown', (event) => handleCellKeyDown(event, r, c));
+              input.addEventListener('input', (event) => {
+                event.preventDefault();
+                handleCharacterInput(event, r, c);
+              });
+            }
+
+            wrap.appendChild(input);
+            frag.appendChild(wrap);
+          }
+        }
+        boardEl.append(frag);
+        renderBoardHighlights();
+        updateStats();
+      }
+
+      function renderBoardHighlights() {
+        boardEl.querySelectorAll('.cell').forEach((el) => {
+          el.classList.remove('active', 'selected');
+        });
+
+        const entry = game?.entries?.[game.activeEntryId];
+        if (!entry) return;
+
+        entry.cells.forEach((pos) => {
+          const el = boardEl.querySelector(`[data-r="${pos.r}"][data-c="${pos.c}"]`);
+          if (el) el.classList.add('active');
+        });
+
+        const selected = boardEl.querySelector(`[data-r="${game.activeCell.r}"][data-c="${game.activeCell.c}"]`);
+        if (selected) selected.classList.add('selected');
+      }
+
+      function refreshCellClasses(r, c) {
+        const cell = game.grid[r][c];
+        const input = boardEl.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+        if (!cell || !input) return;
+
+        input.value = cell.guess;
+        input.classList.remove('wrong', 'correct', 'locked');
+        if (cell.locked) {
+          input.classList.add('locked');
+          return;
+        }
+
+        if (!cell.guess) return;
+        if (liveCheckEl.checked) {
+          input.classList.add(cell.guess === cell.solution ? 'correct' : 'wrong');
+        }
+      }
+
+      function updateClueList() {
+        clueListEl.innerHTML = '';
+        const across = game.entries.filter((e) => e.dir === 'across').sort(byStart);
+        const down = game.entries.filter((e) => e.dir === 'down').sort(byStart);
+
+        const makeSection = (title, list) => {
+          const heading = document.createElement('h3');
+          heading.textContent = title;
+          heading.style.margin = '8px 0 2px';
+          heading.style.fontSize = '0.95rem';
+          heading.style.color = '#c7d2fe';
+          clueListEl.append(heading);
+
+          list.forEach((entry) => {
+            const line = document.createElement('div');
+            line.className = 'clue-line';
+            line.dataset.entryId = String(entry.id);
+            if (entry.locked) line.classList.add('done');
+            line.textContent = `${entry.number}. ${entry.clue}`;
+            line.addEventListener('click', () => {
+              game.direction = entry.dir;
+              const start = entry.cells.find((pos) => !game.grid[pos.r][pos.c].locked) || entry.cells[0];
+              setActiveEntryByCell(start.r, start.c, entry.dir);
+              focusCell(start.r, start.c);
+            });
+            clueListEl.append(line);
+          });
+        };
+
+        makeSection('Across', across);
+        makeSection('Down', down);
+        updateActiveClue();
+      }
+
+      function handleCellKeyDown(event, r, c) {
+        if (!game) return;
+
+        const key = event.key;
+        if (key === ' ') {
+          event.preventDefault();
+          game.direction = game.direction === 'across' ? 'down' : 'across';
+          setActiveEntryByCell(r, c, game.direction);
+          return;
+        }
+
+        if (key === 'ArrowLeft') {
+          event.preventDefault();
+          game.direction = 'across';
+          moveArrow(0, -1);
+          return;
+        }
+        if (key === 'ArrowRight') {
+          event.preventDefault();
+          game.direction = 'across';
+          moveArrow(0, 1);
+          return;
+        }
+        if (key === 'ArrowUp') {
+          event.preventDefault();
+          game.direction = 'down';
+          moveArrow(-1, 0);
+          return;
+        }
+        if (key === 'ArrowDown') {
+          event.preventDefault();
+          game.direction = 'down';
+          moveArrow(1, 0);
+          return;
+        }
+
+        if (key === 'Backspace' || key === 'Delete') {
+          event.preventDefault();
+          const cell = game.grid[r][c];
+          if (cell.locked) {
+            moveWithinActive(-1);
+            return;
+          }
+
+          cell.guess = '';
+          refreshCellClasses(r, c);
+          saveToLocalStorage();
+          updateStats();
+          moveWithinActive(-1);
+          return;
+        }
+
+        if (/^[a-zA-Z]$/.test(key)) {
+          event.preventDefault();
+          applyGuess(r, c, key.toUpperCase());
+        }
+      }
+
+      function handleCharacterInput(event, r, c) {
+        const val = String(event.target.value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(-1);
+        event.target.value = game.grid[r][c].guess;
+        if (!val) return;
+        applyGuess(r, c, val);
+      }
+
+      function applyGuess(r, c, letter) {
+        const cell = game.grid[r][c];
+        if (!cell || cell.locked) {
+          moveWithinActive(1);
+          return;
+        }
+
+        cell.guess = letter;
+        refreshCellClasses(r, c);
+
+        cell.entries.forEach((entryId) => tryLockEntry(game.entries[entryId]));
+
+        updateStats();
+        saveToLocalStorage();
+
+        if (isPuzzleFilled()) {
+          if (isPuzzleSolved()) {
+            triggerVictory();
+          }
+        } else {
+          moveWithinActive(1);
+        }
+      }
+
+      function isPuzzleFilled() {
+        for (const row of game.grid) {
+          for (const cell of row) {
+            if (cell && !cell.guess) return false;
+          }
+        }
+        return true;
+      }
+
+      function isPuzzleSolved() {
+        for (const row of game.grid) {
+          for (const cell of row) {
+            if (!cell) continue;
+            if (cell.guess !== cell.solution) return false;
+          }
+        }
+        return true;
+      }
+
+      function tryLockEntry(entry) {
+        if (!entry || entry.locked) return;
+        const solved = entry.cells.every((pos) => {
+          const cell = game.grid[pos.r][pos.c];
+          return cell.guess && cell.guess === cell.solution;
+        });
+        if (!solved) return;
+
+        entry.locked = true;
+        entry.cells.forEach((pos) => {
+          game.grid[pos.r][pos.c].locked = true;
+          refreshCellClasses(pos.r, pos.c);
+        });
+
+        updateClueList();
+        updateStats();
+      }
+
+      function updateStats() {
+        if (!game) return;
+        const completion = computeCompletion(game.grid);
+        progressTextEl.textContent = `Progress: ${completion}%`;
+        const locked = game.entries.filter((e) => e.locked).length;
+        lockTextEl.textContent = `Locked Words: ${locked}`;
+      }
+
+      function startTimer() {
+        stopTimer();
+        lastTimerTick = performance.now();
+        timerInterval = setInterval(() => {
+          const now = performance.now();
+          const delta = Math.max(0, Math.floor((now - lastTimerTick) / 1000));
+          if (delta > 0) {
+            game.elapsed += delta;
+            lastTimerTick += delta * 1000;
+            timerTextEl.textContent = `Time: ${formatTime(game.elapsed)}`;
+          }
+        }, 250);
+      }
+
+      function stopTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+      }
+
+      function saveToLocalStorage() {
+        if (!game) return;
+        const payload = {
+          savedAt: new Date().toISOString(),
+          size: game.size,
+          selectedThemes: game.selectedThemes,
+          difficulty: game.difficulty,
+          elapsed: game.elapsed,
+          hintsUsed: game.hintsUsed,
+          direction: game.direction,
+          activeEntryId: game.activeEntryId,
+          activeCell: game.activeCell,
+          entries: game.entries.map((e) => ({
+            id: e.id,
+            clue: e.clue,
+            theme: e.theme,
+            answer: e.answer,
+            row: e.row,
+            col: e.col,
+            dir: e.dir,
+            cells: e.cells,
+            number: e.number,
+            locked: e.locked,
+          })),
+          grid: game.grid.map((row) => row.map((cell) => {
+            if (!cell) return null;
+            return {
+              solution: cell.solution,
+              guess: cell.guess,
+              entries: cell.entries,
+              locked: cell.locked,
+            };
+          })),
+        };
+
+        localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+      }
+
+      function loadFromLocalStorage() {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return null;
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
+      }
+
+      function updateResumeButton() {
+        const saved = loadFromLocalStorage();
+        if (!saved) {
+          resumeBtn.disabled = true;
+          resumeBtn.textContent = 'Resume Last Session';
+          return;
+        }
+
+        const pct = saved.grid ? computeCompletion(saved.grid.map((row) => row.map((cell) => cell ? { ...cell } : null))) : 0;
+        const date = saved.savedAt ? new Date(saved.savedAt) : null;
+        const formattedDate = date && !Number.isNaN(date.getTime())
+          ? date.toLocaleString()
+          : 'Unknown date';
+
+        resumeBtn.disabled = false;
+        resumeBtn.textContent = `Resume Last Session (${formattedDate}, ${pct}% complete)`;
+      }
+
+      function hydrateGameFromState(state) {
+        game = {
+          size: state.size,
+          selectedThemes: state.selectedThemes,
+          difficulty: state.difficulty,
+          elapsed: Number(state.elapsed) || 0,
+          hintsUsed: Number(state.hintsUsed) || 0,
+          direction: state.direction || 'across',
+          activeEntryId: state.activeEntryId ?? 0,
+          activeCell: state.activeCell || { r: 0, c: 0 },
+          entries: state.entries.map((e) => ({ ...e })),
+          grid: state.grid.map((row) => row.map((cell) => (cell ? { ...cell } : null))),
+          startedAt: Date.now(),
+        };
+
+        timerTextEl.textContent = `Time: ${formatTime(game.elapsed)}`;
+        renderBoard();
+        updateClueList();
+
+        const active = game.activeCell;
+        if (active && isInside(game.size, active.r, active.c) && game.grid[active.r][active.c]) {
+          setActiveEntryByCell(active.r, active.c);
+          focusCell(active.r, active.c);
+        }
+
+        startTimer();
+      }
+
+      async function deriveAesKey() {
+        const enc = new TextEncoder();
+        const keyMat = await crypto.subtle.importKey(
+          'raw',
+          enc.encode(AES_PASSPHRASE),
+          'PBKDF2',
+          false,
+          ['deriveKey']
+        );
+
+        return crypto.subtle.deriveKey(
+          {
+            name: 'PBKDF2',
+            salt: enc.encode(AES_SALT),
+            iterations: 120000,
+            hash: 'SHA-256',
+          },
+          keyMat,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt', 'decrypt']
+        );
+      }
+
+      function toBase64(bytes) {
+        let binary = '';
+        bytes.forEach((b) => { binary += String.fromCharCode(b); });
+        return btoa(binary);
+      }
+
+      function fromBase64(str) {
+        const binary = atob(str);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+      }
+
+      async function encryptJson(jsonString) {
+        const key = await deriveAesKey();
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const data = new TextEncoder().encode(jsonString);
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+
+        return JSON.stringify({
+          iv: toBase64(iv),
+          data: toBase64(new Uint8Array(encrypted)),
+        });
+      }
+
+      async function decryptPayload(payloadText) {
+        const payload = JSON.parse(payloadText);
+        if (!payload || !payload.iv || !payload.data) throw new Error('Invalid save file');
+        const key = await deriveAesKey();
+        const iv = fromBase64(payload.iv);
+        const data = fromBase64(payload.data);
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+        return new TextDecoder().decode(decrypted);
+      }
+
+      async function exportEncryptedSave() {
+        if (!game) return;
+
+        const payload = {
+          version: 1,
+          savedAt: new Date().toISOString(),
+          state: {
+            size: game.size,
+            selectedThemes: game.selectedThemes,
+            difficulty: game.difficulty,
+            elapsed: game.elapsed,
+            hintsUsed: game.hintsUsed,
+            direction: game.direction,
+            activeEntryId: game.activeEntryId,
+            activeCell: game.activeCell,
+            entries: game.entries,
+            grid: game.grid,
+          },
+        };
+
+        const encrypted = await encryptJson(JSON.stringify(payload));
+        const blob = new Blob([encrypted], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'wordpuzzle_save.puz';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function showPlayMode() {
+        setupScreen.style.display = 'none';
+        playScreen.style.display = 'grid';
+      }
+
+      function showSetupMode() {
+        playScreen.style.display = 'none';
+        setupScreen.style.display = 'block';
+        stopTimer();
+        stopFireworks();
+      }
+
+      async function createNewGame() {
+        const selectedThemes = getSelectedThemes();
+        if (selectedThemes.length < 2) {
+          setSetupStatus('Select at least two themes to start.', 'bad');
+          return;
+        }
+
+        setSetupStatus('Generating dense board...', 'ok');
+
+        const size = Number(boardSizeEl.value);
+        const difficulty = difficultyEl.value;
+        const strictPool = filterPool(selectedThemes, difficulty, false);
+
+        if (strictPool.length < 10) {
+          setSetupStatus('Not enough clues for that setup. Try more themes or Random difficulty.', 'bad');
+          return;
+        }
+
+        const desiredWords = Math.max(8, Math.floor(size * 1.3));
+        const strictResult = tryBuildDenseBoard(size, strictPool, desiredWords, 3000);
+
+        let result = strictResult;
+        let usedLoosened = false;
+
+        if (!strictResult || strictResult.entries.length < Math.max(6, desiredWords - 2)) {
+          const loosenPool = filterPool(selectedThemes, difficulty, true);
+          result = tryBuildDenseBoard(size, loosenPool, desiredWords, 3000);
+          usedLoosened = true;
+        }
+
+        if (!result || !result.entries.length) {
+          setSetupStatus('Unable to generate a board right now. Adjust settings and try again.', 'bad');
+          return;
+        }
+
+        assignNumbers(result.entries);
+
+        game = {
+          size,
+          selectedThemes,
+          difficulty,
+          elapsed: 0,
+          hintsUsed: 0,
+          direction: 'across',
+          activeEntryId: result.entries[0]?.id ?? 0,
+          activeCell: result.entries[0]?.cells?.[0] ? { r: result.entries[0].cells[0].r, c: result.entries[0].cells[0].c } : { r: 0, c: 0 },
+          entries: result.entries,
+          grid: result.grid,
+          startedAt: Date.now(),
+        };
+
+        showPlayMode();
+        timerTextEl.textContent = 'Time: 00:00';
+        renderBoard();
+        updateClueList();
+        startTimer();
+        saveToLocalStorage();
+
+        if (usedLoosened) {
+          setSetupStatus('Generated with relaxed difficulty due puzzle density limits.', 'warn');
+        } else {
+          setSetupStatus('Board ready.', 'ok');
+        }
+
+        focusCell(game.activeCell.r, game.activeCell.c);
+      }
+
+      function buildOneAcrossUrl() {
+        if (!game) return null;
+        const entry = game.entries[game.activeEntryId];
+        if (!entry) return null;
+
+        const pattern = entry.cells
+          .map((pos) => game.grid[pos.r][pos.c].guess || '?')
+          .join('');
+
+        const clue = encodeURIComponent(entry.clue);
+        const patt = encodeURIComponent(pattern);
+        return `https://www.oneacross.com/cgi-bin/s.cgi?c0=${clue}&p0=${patt}`;
+      }
+
+      function resizeFireworksCanvas() {
+        fireworksCanvas.width = window.innerWidth;
+        fireworksCanvas.height = window.innerHeight;
+      }
+
+      function spawnBurst() {
+        const count = 35 + rand(30);
+        const x = rand(fireworksCanvas.width);
+        const y = rand(Math.max(120, fireworksCanvas.height * 0.6));
+
+        for (let i = 0; i < count; i += 1) {
+          const angle = (Math.PI * 2 * i) / count;
+          const speed = 1 + Math.random() * 4;
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 40 + rand(40),
+            color: `hsl(${rand(360)} 100% 60%)`,
+          });
+        }
+      }
+
+      function fireworkFrame() {
+        if (!isCelebrating) return;
+
+        fireworksCtx.fillStyle = 'rgba(2,6,23,0.2)';
+        fireworksCtx.fillRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+
+        if (Math.random() < 0.13) spawnBurst();
+
+        particles = particles.filter((p) => p.life > 0);
+        particles.forEach((p) => {
+          p.life -= 1;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.03;
+          fireworksCtx.globalAlpha = Math.max(0, p.life / 80);
+          fireworksCtx.fillStyle = p.color;
+          fireworksCtx.fillRect(p.x, p.y, 3, 3);
+        });
+        fireworksCtx.globalAlpha = 1;
+
+        requestAnimationFrame(fireworkFrame);
+      }
+
+      function startFireworks() {
+        if (isCelebrating) return;
+        isCelebrating = true;
+        resizeFireworksCanvas();
+        particles = [];
+        fireworksCanvas.style.display = 'block';
+        fireworkFrame();
+      }
+
+      function stopFireworks() {
+        isCelebrating = false;
+        fireworksCanvas.style.display = 'none';
+        fireworksCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+      }
+
+      function triggerVictory() {
+        stopTimer();
+        startFireworks();
+
+        const lockedCount = game.entries.filter((e) => e.locked).length;
+        statTimeEl.textContent = formatTime(game.elapsed);
+        statHintsEl.textContent = String(game.hintsUsed);
+        statSizeEl.textContent = `${game.size}x${game.size}`;
+        statLockedEl.textContent = String(lockedCount);
+        victoryOverlay.style.display = 'flex';
+      }
+
+      function clearVictory() {
+        victoryOverlay.style.display = 'none';
+        stopFireworks();
+      }
+
+      newGameBtn.addEventListener('click', () => {
+        createNewGame().catch((err) => {
+          setSetupStatus(err.message || 'Unable to create puzzle.', 'bad');
+        });
+      });
+
+      resumeBtn.addEventListener('click', () => {
+        const state = loadFromLocalStorage();
+        if (!state) {
+          setSetupStatus('No saved game found.', 'bad');
+          updateResumeButton();
+          return;
+        }
+
+        hydrateGameFromState(state);
+        showPlayMode();
+      });
+
+      loadFileBtn.addEventListener('click', () => saveFileInput.click());
+
+      saveFileInput.addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        saveFileInput.value = '';
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          const decrypted = await decryptPayload(text);
+          const parsed = JSON.parse(decrypted);
+          if (!parsed?.state?.grid || !parsed?.state?.entries) {
+            throw new Error('Corrupt save structure');
+          }
+
+          hydrateGameFromState(parsed.state);
+          showPlayMode();
+          setSetupStatus('Encrypted save loaded.', 'ok');
+        } catch {
+          setSetupStatus('Could not decrypt or parse save file. Returning to setup.', 'bad');
+          showSetupMode();
+        }
+      });
+
+      saveFileBtn.addEventListener('click', () => {
+        exportEncryptedSave().catch(() => {
+          alert('Unable to export encrypted save.');
+        });
+      });
+
+      backToSetupBtn.addEventListener('click', () => {
+        showSetupMode();
+        updateResumeButton();
+      });
+
+      helpBtn.addEventListener('click', () => {
+        const url = buildOneAcrossUrl();
+        if (!url) return;
+        game.hintsUsed += 1;
+        saveToLocalStorage();
+        window.open(url, '_blank', 'noopener');
+      });
+
+      closeVictoryBtn.addEventListener('click', clearVictory);
+      newFromVictoryBtn.addEventListener('click', () => {
+        clearVictory();
+        showSetupMode();
+        updateResumeButton();
+      });
+
+      liveCheckEl.addEventListener('change', () => {
+        if (!game) return;
+        for (let r = 0; r < game.size; r += 1) {
+          for (let c = 0; c < game.size; c += 1) {
+            if (game.grid[r][c]) refreshCellClasses(r, c);
+          }
+        }
+      });
+
+      window.addEventListener('resize', resizeFireworksCanvas);
+
+      boardSizeEl.addEventListener('input', () => {
+        boardSizeTextEl.textContent = `${boardSizeEl.value} x ${boardSizeEl.value}`;
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (!game || playScreen.style.display === 'none') return;
+        if (event.code === 'Space' && document.activeElement === document.body) {
+          event.preventDefault();
+          game.direction = game.direction === 'across' ? 'down' : 'across';
+          updateActiveClue();
+          renderBoardHighlights();
+        }
+      });
+
+      (async () => {
+        try {
+          await loadClues();
+          renderThemes();
+          updateResumeButton();
+          setSetupStatus('Ready.', 'ok');
+        } catch (error) {
+          setSetupStatus(error.message || 'Failed to initialize puzzle data.', 'bad');
+        }
+      })();
+    })();
+  </script>
+</body>
+</html>
