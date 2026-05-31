@@ -1494,7 +1494,7 @@
 
         // Yield to the browser so the status message paints before the
         // synchronous generation loop blocks the main thread.
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 50));
 
         const size = Number(boardSizeEl.value);
         const pool = filterPool(selectedThemes);
