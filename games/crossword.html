@@ -444,7 +444,7 @@
       const AES_SALT = 'crossword-static-salt';
       const MAX_ANSWER_LENGTH = 15;
       const MAX_WORD_SCAN = 220;
-      const PBKDF2_ITERATIONS = 120000;
+      const PBKDF2_ITERATIONS = 600000;
 
       const setupScreen = document.getElementById('setupScreen');
       const playScreen = document.getElementById('playScreen');
@@ -515,7 +515,7 @@
       }
 
       async function loadClues() {
-        const response = await fetch(CLUE_PATH, { cache: 'no-store' });
+        const response = await fetch(CLUE_PATH);
         if (!response.ok) throw new Error(`Could not load clues (${response.status})`);
         const data = await response.json();
         cluesDb = data
@@ -1265,8 +1265,7 @@
       }
 
       function toBase64(bytes) {
-        let binary = '';
-        bytes.forEach((b) => { binary += String.fromCharCode(b); });
+        const binary = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
         return btoa(binary);
       }
 
@@ -1559,7 +1558,7 @@
         if (!url) return;
         game.hintsUsed += 1;
         saveToLocalStorage();
-        window.open(url, '_blank', 'noopener');
+        window.open(url, '_blank', 'noopener,noreferrer');
       });
 
       closeVictoryBtn.addEventListener('click', clearVictory);
