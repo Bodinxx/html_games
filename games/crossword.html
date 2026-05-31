@@ -652,7 +652,7 @@
 
           if (cell && cell.solution !== ch) return null;
           if (cell && cell.solution === ch) intersections += 1;
-          if (cell && entriesById && cell.entries.some((entryId) => entriesById[entryId]?.dir === dir)) return null;
+          if (cell && entriesById && cell.entries.some((entryId) => entriesById.get(entryId)?.dir === dir)) return null;
 
           if (!cell) {
             if (dir === 'across') {
@@ -757,6 +757,7 @@
         while (performance.now() - start < timeLimitMs) {
           const grid = createEmptyBoard(size);
           const entries = [];
+          const entryById = new Map();
           const used = new Set();
           const candidateOrder = shuffle(pool);
           const shortWordCandidates = candidateOrder.filter((item) => item.Answer.length <= SHORT_WORD_MAX_LENGTH);
@@ -770,7 +771,7 @@
             const scanWords = candidateOrder.slice(0, Math.min(MAX_WORD_SCAN, candidateOrder.length));
             for (const item of scanWords) {
               if (used.has(item._id)) continue;
-              const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0, entries));
+              const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0, entryById));
               if (!placements.length) continue;
 
               placements.sort((a, b) => b.score - a.score);
@@ -805,6 +806,7 @@
                 locked: false,
                 number: 0,
               });
+              entryById.set(entryId, entries[entries.length - 1]);
               used.add(bestOption.item._id);
               placedAny = true;
             }
@@ -817,7 +819,7 @@
             const shortScan = shuffle(shortWordCandidates).slice(0, Math.min(MAX_WORD_SCAN, shortWordCandidates.length));
             for (const item of shortScan) {
               if (used.has(item._id)) continue;
-              const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0, entries));
+              const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0, entryById));
               if (!placements.length) continue;
 
               placements.sort((a, b) => a.score - b.score);
@@ -845,6 +847,7 @@
                 locked: false,
                 number: 0,
               });
+              entryById.set(entryId, entries[entries.length - 1]);
               used.add(item._id);
               shortFill = true;
               break;
@@ -1327,7 +1330,7 @@
           return;
         }
 
-        const pct = saved.grid ? computeCompletion(saved.grid.map((row) => row.map((cell) => cell ? { ...cell } : null))) : 0;
+        const pct = saved.grid ? computeCompletion(saved.grid) : 0;
         const date = saved.savedAt ? new Date(saved.savedAt) : null;
         const formattedDate = date && !Number.isNaN(date.getTime())
           ? date.toLocaleString()
@@ -1586,6 +1589,14 @@
         checkAndTriggerVictory();
       }
 
+      function openHintFrom(builder) {
+        const url = builder();
+        if (!url) return;
+        game.hintsUsed += 1;
+        saveToLocalStorage();
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+
       function resizeFireworksCanvas() {
         fireworksCanvas.width = window.innerWidth;
         fireworksCanvas.height = window.innerHeight;
@@ -1719,19 +1730,11 @@
       });
 
       oneAcrossBtn.addEventListener('click', () => {
-        const url = buildOneAcrossUrl();
-        if (!url) return;
-        game.hintsUsed += 1;
-        saveToLocalStorage();
-        window.open(url, '_blank', 'noopener,noreferrer');
+        openHintFrom(buildOneAcrossUrl);
       });
 
       googleHintBtn.addEventListener('click', () => {
-        const url = buildGoogleHintUrl();
-        if (!url) return;
-        game.hintsUsed += 1;
-        saveToLocalStorage();
-        window.open(url, '_blank', 'noopener,noreferrer');
+        openHintFrom(buildGoogleHintUrl);
       });
 
       cheatLetterBtn.addEventListener('click', applyCheatLetter);
