@@ -19,7 +19,7 @@
       --cell-size: 40px;
     }
 
-    html { height: 100%; }
+    html { height: 100%; overflow: hidden; }
 
     * { box-sizing: border-box; }
 
@@ -394,28 +394,129 @@
       #board { max-height: 50vh; }
       .hint-actions { grid-template-columns: 1fr; }
     }
+
+    /* ── Scoreboard ─────────────────────────── */
+    #scoreScreen {
+      flex: 1;
+      min-height: 0;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .score-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .score-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .score-table th {
+      color: var(--accent);
+      text-align: left;
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      font-weight: 600;
+    }
+
+    .score-table td {
+      padding: 6px 10px;
+      color: var(--muted);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .score-table tbody tr:first-child td {
+      color: var(--ok);
+      font-weight: 700;
+    }
+
+    .score-empty {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-top: 12px;
+    }
+
+    /* ── Game-mode selector ──────────────────── */
+    .mode-select-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .mode-select-row label { margin: 0; }
+
+    /* ── Puzzle-list (pre-made mode) ─────────── */
+    #puzzleModeSection {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .puzzle-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
   <canvas id="fireworks" class="fireworks"></canvas>
 
   <div class="app">
+    <!-- Scoreboard (shown on launch when scores exist) -->
+    <section id="scoreScreen" class="card">
+      <div class="score-header">
+        <div>
+          <h1>🏆 Scoreboard</h1>
+          <p style="color:var(--muted);margin-top:4px;font-size:0.9rem">Best completed puzzle times, sorted fastest first.</p>
+        </div>
+        <button id="playFromScoreBtn" style="padding:10px 20px;font-size:1rem">Play ▶</button>
+      </div>
+      <div id="scoreList" style="overflow-y:auto;flex:1;min-height:0"></div>
+    </section>
+
     <section id="setupScreen" class="card">
       <h1>Dense Crossword Puzzle</h1>
       <p style="margin-top:8px;color:var(--muted)">Choose at least two themes and board size to generate a dense crossword board.</p>
 
+      <!-- Game mode selector -->
+      <div class="mode-select-row">
+        <label for="gameModeSelect" style="color:var(--muted);font-size:0.9rem">Mode:</label>
+        <select id="gameModeSelect">
+          <option value="classic">Generate from Themes</option>
+          <option value="puzzle">Pre-made Puzzle</option>
+        </select>
+      </div>
+
       <div class="setup-grid">
+        <!-- Left column toggles between theme list (classic) and puzzle list (puzzle) -->
         <div class="setup-theme-column">
-          <label>Themes (pick 2+)</label>
-          <div id="themeList" class="theme-list"></div>
-          <div class="theme-actions">
-            <button id="toggleThemesBtn" type="button">Select All Themes</button>
+          <div id="classicThemeSection" style="display:flex;flex-direction:column;height:100%">
+            <label>Themes (pick 2+)</label>
+            <div id="themeList" class="theme-list"></div>
+            <div class="theme-actions">
+              <button id="toggleThemesBtn" type="button">Select All Themes</button>
+            </div>
+          </div>
+          <div id="puzzleModeSection">
+            <label>Select a Puzzle</label>
+            <div id="puzzleList" class="theme-list" style="flex:1;min-height:0"></div>
           </div>
         </div>
 
         <div>
-          <label for="boardSize">Board Size: <span id="boardSizeText">15 x 15</span></label>
-          <input id="boardSize" type="range" min="10" max="20" step="1" value="15">
+          <div id="classicSizeRow">
+            <label for="boardSize">Board Size: <span id="boardSizeText">15 x 15</span></label>
+            <input id="boardSize" type="range" min="10" max="20" step="1" value="15">
+          </div>
 
           <div class="controls-row">
             <button id="newGameBtn">Create New Game</button>
@@ -492,7 +593,10 @@
       'use strict';
 
       const CLUE_PATH = './crossword/clues.json';
+      const PUZZLE_PATH = './crossword/puzzles.json';
       const SAVE_KEY = 'denseCrosswordSaveV1';
+      const SCORES_KEY = 'crosswordScoresV1';
+      const MAX_SCORES = 20;
       const AES_PASSPHRASE = 'dense-crossword-instance-key-v1';
       const AES_SALT = 'crossword-static-salt';
       const MAX_ANSWER_LENGTH = 15;
@@ -502,6 +606,7 @@
       const PBKDF2_ITERATIONS = 600000;
 
       const setupScreen = document.getElementById('setupScreen');
+      const scoreScreen = document.getElementById('scoreScreen');
       const playScreen = document.getElementById('playScreen');
       const themeListEl = document.getElementById('themeList');
       const toggleThemesBtn = document.getElementById('toggleThemesBtn');
@@ -512,6 +617,12 @@
       const resumeBtn = document.getElementById('resumeBtn');
       const loadFileBtn = document.getElementById('loadFileBtn');
       const saveFileInput = document.getElementById('saveFileInput');
+      const gameModeSelectEl = document.getElementById('gameModeSelect');
+      const classicThemeSectionEl = document.getElementById('classicThemeSection');
+      const puzzleModeSectionEl = document.getElementById('puzzleModeSection');
+      const puzzleListEl = document.getElementById('puzzleList');
+      const classicSizeRowEl = document.getElementById('classicSizeRow');
+      const playFromScoreBtn = document.getElementById('playFromScoreBtn');
 
       const boardEl = document.getElementById('board');
       const timerTextEl = document.getElementById('timerText');
@@ -542,6 +653,7 @@
       const fireworksCtx = fireworksCanvas.getContext('2d');
 
       let cluesDb = [];
+      let puzzlesDb = [];
       let themes = [];
       let game = null;
       let timerInterval = null;
@@ -622,6 +734,202 @@
           el.checked = !allSelected;
         });
         updateThemeToggleButton();
+      }
+
+      // ── Scoreboard ──────────────────────────────────────────────────────
+
+      function loadScores() {
+        try {
+          return JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
+        } catch { return []; }
+      }
+
+      function saveScore(stats) {
+        const scores = loadScores();
+        scores.push({
+          date: new Date().toISOString(),
+          time: stats.time,
+          hints: stats.hints,
+          size: stats.size,
+          locked: stats.locked,
+          mode: stats.mode || 'classic',
+          name: stats.name || '',
+        });
+        scores.sort((a, b) => a.time - b.time);
+        if (scores.length > MAX_SCORES) scores.length = MAX_SCORES;
+        localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
+      }
+
+      function renderScoreboard() {
+        const scoreListEl = document.getElementById('scoreList');
+        const scores = loadScores();
+        scoreListEl.innerHTML = '';
+        if (!scores.length) {
+          const p = document.createElement('p');
+          p.className = 'score-empty';
+          p.textContent = 'No completed games yet. Finish a puzzle to appear here!';
+          scoreListEl.append(p);
+          return;
+        }
+        const table = document.createElement('table');
+        table.className = 'score-table';
+        const thead = document.createElement('thead');
+        thead.innerHTML = '<tr><th>#</th><th>Time</th><th>Hints</th><th>Board</th><th>Puzzle</th><th>Date</th></tr>';
+        table.append(thead);
+        const tbody = document.createElement('tbody');
+        scores.forEach((s, i) => {
+          const tr = document.createElement('tr');
+          const d = new Date(s.date);
+          const dateStr = isNaN(d.getTime()) ? '–' : d.toLocaleDateString();
+          const nameStr = s.name || (s.mode === 'puzzle' ? '–' : 'Custom');
+          tr.innerHTML = `<td>${i + 1}</td><td>${formatTime(s.time)}</td><td>${s.hints}</td><td>${s.size}</td><td>${nameStr}</td><td>${dateStr}</td>`;
+          tbody.append(tr);
+        });
+        table.append(tbody);
+        scoreListEl.append(table);
+      }
+
+      function showScoreScreen() {
+        setupScreen.style.display = 'none';
+        playScreen.style.display = 'none';
+        scoreScreen.style.display = 'flex';
+        renderScoreboard();
+      }
+
+      // ── Pre-made Puzzle Mode ─────────────────────────────────────────────
+
+      async function loadPuzzles() {
+        const response = await fetch(PUZZLE_PATH);
+        if (!response.ok) throw new Error(`Could not load puzzles (${response.status})`);
+        const data = await response.json();
+        puzzlesDb = data.puzzles || [];
+      }
+
+      function renderPuzzleList() {
+        puzzleListEl.innerHTML = '';
+        const frag = document.createDocumentFragment();
+
+        const randomLabel = document.createElement('label');
+        randomLabel.className = 'puzzle-option';
+        const randomInput = document.createElement('input');
+        randomInput.type = 'radio';
+        randomInput.name = 'puzzleChoice';
+        randomInput.value = '-1';
+        randomInput.checked = true;
+        randomLabel.append(randomInput, '\u00A0🎲 Random Puzzle');
+        frag.append(randomLabel);
+
+        puzzlesDb.forEach((p, idx) => {
+          const label = document.createElement('label');
+          label.className = 'puzzle-option';
+          const input = document.createElement('input');
+          input.type = 'radio';
+          input.name = 'puzzleChoice';
+          input.value = String(idx);
+          const info = p.author ? `${p.name} — ${p.author}` : p.name;
+          label.append(input, `\u00A0${info}`);
+          frag.append(label);
+        });
+
+        puzzleListEl.append(frag);
+      }
+
+      function getSelectedPuzzleIdx() {
+        const checked = document.querySelector('input[name="puzzleChoice"]:checked');
+        return checked ? Number(checked.value) : -1;
+      }
+
+      function puzzleToPool(puzzle) {
+        const theme = puzzle.name;
+        const allClues = [...(puzzle.clues.across || []), ...(puzzle.clues.down || [])];
+        return allClues
+          .filter((item) => item.answer && item.clue)
+          .map((item, idx) => ({
+            Theme: theme,
+            Clue: item.clue,
+            Answer: String(item.answer).toUpperCase().replace(/[^A-Z]/g, '').slice(0, MAX_ANSWER_LENGTH),
+            _id: `puzzle|${theme}|${idx}`,
+          }))
+          .filter((item) => item.Answer.length >= 3 && item.Answer.length <= MAX_ANSWER_LENGTH);
+      }
+
+      function autoSizeForPool(pool) {
+        const count = pool.length;
+        if (count >= 50) return 15;
+        if (count >= 30) return 13;
+        return 11;
+      }
+
+      async function startPuzzleGame() {
+        const idx = getSelectedPuzzleIdx();
+        const puzzle = idx === -1
+          ? puzzlesDb[rand(puzzlesDb.length)]
+          : puzzlesDb[idx];
+
+        if (!puzzle) {
+          setSetupStatus('No puzzle selected.', 'bad');
+          return;
+        }
+
+        const pool = puzzleToPool(puzzle);
+        if (pool.length < 10) {
+          setSetupStatus('Not enough clues in this puzzle.', 'bad');
+          return;
+        }
+
+        setSetupStatus('Generating board… please wait.', 'ok');
+        newGameBtn.disabled = true;
+        resumeBtn.disabled = true;
+
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        const size = autoSizeForPool(pool);
+        const desiredWords = Math.max(12, Math.floor(size * 2.2));
+        const result = tryBuildDenseBoard(size, pool, desiredWords, 7000);
+
+        newGameBtn.disabled = false;
+        updateResumeButton();
+
+        if (!result || !result.entries.length) {
+          setSetupStatus('Unable to generate a board. Try again.', 'bad');
+          return;
+        }
+
+        assignNumbers(result.entries);
+
+        game = {
+          size,
+          selectedThemes: [puzzle.name],
+          elapsed: 0,
+          hintsUsed: 0,
+          direction: 'across',
+          activeEntryId: result.entries[0]?.id ?? 0,
+          activeCell: result.entries[0]?.cells?.[0]
+            ? { r: result.entries[0].cells[0].r, c: result.entries[0].cells[0].c }
+            : { r: 0, c: 0 },
+          entries: result.entries,
+          grid: result.grid,
+          startedAt: Date.now(),
+          gameMode: 'puzzle',
+          puzzleName: puzzle.name,
+        };
+
+        showPlayMode();
+        timerTextEl.textContent = 'Time: 00:00';
+        renderBoard();
+        updateClueList();
+        startTimer();
+        saveToLocalStorage();
+        setSetupStatus('Board ready.', 'ok');
+        focusCell(game.activeCell.r, game.activeCell.c);
+      }
+
+      function onGameModeChange() {
+        const isPuzzle = gameModeSelectEl.value === 'puzzle';
+        classicThemeSectionEl.style.display = isPuzzle ? 'none' : 'flex';
+        puzzleModeSectionEl.style.display = isPuzzle ? 'flex' : 'none';
+        classicSizeRowEl.style.display = isPuzzle ? 'none' : '';
+        newGameBtn.textContent = isPuzzle ? 'Start Puzzle' : 'Create New Game';
       }
 
       function getCellKey(r, c) {
@@ -1301,6 +1609,8 @@
           direction: game.direction,
           activeEntryId: game.activeEntryId,
           activeCell: game.activeCell,
+          gameMode: game.gameMode || 'classic',
+          puzzleName: game.puzzleName || '',
           entries: game.entries.map((e) => ({
             id: e.id,
             clue: e.clue,
@@ -1367,6 +1677,8 @@
           entries: state.entries.map((e) => ({ ...e })),
           grid: state.grid.map((row) => row.map((cell) => (cell ? { ...cell } : null))),
           startedAt: Date.now(),
+          gameMode: state.gameMode || 'classic',
+          puzzleName: state.puzzleName || '',
         };
 
         timerTextEl.textContent = `Time: ${formatTime(game.elapsed)}`;
@@ -1476,7 +1788,8 @@
 
       function showSetupMode() {
         playScreen.style.display = 'none';
-        setupScreen.style.display = 'block';
+        scoreScreen.style.display = 'none';
+        setupScreen.style.display = 'flex';
         stopTimer();
         stopFireworks();
       }
@@ -1530,6 +1843,8 @@
           entries: result.entries,
           grid: result.grid,
           startedAt: Date.now(),
+          gameMode: 'classic',
+          puzzleName: selectedThemes.slice(0, 2).join(', '),
         };
 
         showPlayMode();
@@ -1695,6 +2010,15 @@
         statSizeEl.textContent = `${game.size}x${game.size}`;
         statLockedEl.textContent = String(lockedCount);
         victoryOverlay.style.display = 'flex';
+
+        saveScore({
+          time: game.elapsed,
+          hints: game.hintsUsed,
+          size: `${game.size}x${game.size}`,
+          locked: lockedCount,
+          mode: game.gameMode || 'classic',
+          name: game.puzzleName || (game.selectedThemes ? game.selectedThemes.slice(0, 2).join(', ') : 'Custom'),
+        });
       }
 
       function clearVictory() {
@@ -1703,9 +2027,22 @@
       }
 
       newGameBtn.addEventListener('click', () => {
-        createNewGame().catch((err) => {
-          setSetupStatus(err.message || 'Unable to create puzzle.', 'bad');
-        });
+        if (gameModeSelectEl.value === 'puzzle') {
+          startPuzzleGame().catch((err) => {
+            setSetupStatus(err.message || 'Unable to start puzzle.', 'bad');
+          });
+        } else {
+          createNewGame().catch((err) => {
+            setSetupStatus(err.message || 'Unable to create puzzle.', 'bad');
+          });
+        }
+      });
+
+      gameModeSelectEl.addEventListener('change', onGameModeChange);
+
+      playFromScoreBtn.addEventListener('click', () => {
+        showSetupMode();
+        updateResumeButton();
       });
 
       resumeBtn.addEventListener('click', () => {
@@ -1810,6 +2147,17 @@
           renderThemes();
           updateResumeButton();
           setSetupStatus('Ready.', 'ok');
+
+          // Load puzzles for puzzle mode in the background
+          loadPuzzles()
+            .then(() => renderPuzzleList())
+            .catch(() => { /* puzzle mode silently unavailable */ });
+
+          // Show scoreboard on launch if there are saved scores
+          const scores = loadScores();
+          if (scores.length > 0) {
+            showScoreScreen();
+          }
         } catch (error) {
           setSetupStatus(error.message || 'Failed to initialize puzzle data.', 'bad');
         }
