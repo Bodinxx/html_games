@@ -15,6 +15,7 @@
       --ok: #10b981;
       --bad: #ef4444;
       --warn: #f59e0b;
+      --cell-size: 40px;
     }
 
     * { box-sizing: border-box; }
@@ -30,9 +31,11 @@
     h1, h2, h3, p { margin: 0; }
 
     .app {
-      max-width: 1300px;
-      margin: 0 auto;
-      padding: 20px;
+      width: 100vw;
+      min-height: 100vh;
+      max-width: none;
+      margin: 0;
+      padding: 10px;
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -47,14 +50,18 @@
     }
 
     #setupScreen {
-      min-height: 95vh;
+      min-height: calc(100vh - 20px);
+      display: flex;
+      flex-direction: column;
     }
 
     .setup-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.25fr);
       gap: 14px;
       margin-top: 12px;
+      flex: 1;
+      min-height: 0;
     }
 
     label {
@@ -93,7 +100,8 @@
     }
 
     .theme-list {
-      max-height: 180px;
+      max-height: none;
+      height: 100%;
       overflow-y: auto;
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 8px;
@@ -101,6 +109,17 @@
       display: grid;
       gap: 6px;
       background: rgba(0,0,0,0.2);
+    }
+
+    .setup-theme-column {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .setup-theme-column .theme-list {
+      flex: 1;
+      min-height: 0;
     }
 
     .theme-option {
@@ -135,6 +154,8 @@
     #playScreen {
       display: none;
       gap: 14px;
+      min-height: calc(100vh - 20px);
+      grid-template-rows: auto 1fr;
     }
 
     .toolbar {
@@ -155,9 +176,10 @@
 
     .play-layout {
       display: grid;
-      grid-template-columns: 1fr minmax(280px, 360px);
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
       gap: 14px;
       align-items: start;
+      min-height: 0;
     }
 
     #board {
@@ -168,18 +190,19 @@
       padding: 2px;
       border-radius: 8px;
       overflow: auto;
-      max-height: calc(100vh - 220px);
+      max-height: calc(100vh - 170px);
+      min-height: 0;
     }
 
     .cell-wrap {
-      width: 36px;
-      height: 36px;
+      width: var(--cell-size);
+      height: var(--cell-size);
       position: relative;
     }
 
     .cell {
-      width: 36px;
-      height: 36px;
+      width: var(--cell-size);
+      height: var(--cell-size);
       background: #fff;
       color: #111;
       border: none;
@@ -276,9 +299,16 @@
       display: grid;
       grid-template-columns: 1fr;
       gap: 8px;
-      max-height: 380px;
+      max-height: calc(100vh - 360px);
       overflow: auto;
       font-size: 0.9rem;
+    }
+
+    .hint-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 0;
     }
 
     .clue-line {
@@ -344,8 +374,10 @@
     }
 
     @media (max-width: 960px) {
+      .setup-grid { grid-template-columns: 1fr; }
       .play-layout { grid-template-columns: 1fr; }
       #board { max-height: none; }
+      .hint-actions { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -358,7 +390,7 @@
       <p style="margin-top:8px;color:var(--muted)">Choose at least two themes and board size to generate a dense crossword board.</p>
 
       <div class="setup-grid">
-        <div>
+        <div class="setup-theme-column">
           <label>Themes (pick 2+)</label>
           <div id="themeList" class="theme-list"></div>
           <div class="theme-actions">
@@ -404,7 +436,12 @@
             <span id="activeDirection" class="dir-tag">Across</span>
             <div id="activeTheme" class="clue-theme">Theme</div>
             <div id="activeClue" class="clue-text">Select a cell to begin.</div>
-            <button id="helpBtn">Get Help</button>
+            <div class="hint-actions">
+              <button id="oneAcrossBtn">OneAcross Hint</button>
+              <button id="googleHintBtn">Google Hint</button>
+              <button id="cheatLetterBtn">Cheat Letter</button>
+              <button id="cheatWordBtn">Cheat Word</button>
+            </div>
           </div>
 
           <div class="toggle-row">
@@ -444,9 +481,9 @@
       const AES_PASSPHRASE = 'dense-crossword-instance-key-v1';
       const AES_SALT = 'crossword-static-salt';
       const MAX_ANSWER_LENGTH = 15;
-      const MAX_WORD_SCAN = 220;
+      const MAX_WORD_SCAN = 320;
       const SHORT_WORD_MAX_LENGTH = 5;
-      const DENSE_EMPTY_TARGET_15 = 15;
+      const DENSE_EMPTY_TARGET_15 = 10;
       const PBKDF2_ITERATIONS = 600000;
 
       const setupScreen = document.getElementById('setupScreen');
@@ -467,7 +504,10 @@
       const lockTextEl = document.getElementById('lockText');
       const saveFileBtn = document.getElementById('saveFileBtn');
       const backToSetupBtn = document.getElementById('backToSetupBtn');
-      const helpBtn = document.getElementById('helpBtn');
+      const oneAcrossBtn = document.getElementById('oneAcrossBtn');
+      const googleHintBtn = document.getElementById('googleHintBtn');
+      const cheatLetterBtn = document.getElementById('cheatLetterBtn');
+      const cheatWordBtn = document.getElementById('cheatWordBtn');
       const liveCheckEl = document.getElementById('liveCheck');
 
       const activeDirectionEl = document.getElementById('activeDirection');
@@ -591,7 +631,7 @@
         return r >= 0 && c >= 0 && r < size && c < size;
       }
 
-      function canPlaceWord(grid, size, answer, row, col, dir) {
+      function canPlaceWord(grid, size, answer, row, col, dir, entriesById = null) {
         const dr = dir === 'down' ? 1 : 0;
         const dc = dir === 'across' ? 1 : 0;
         let intersections = 0;
@@ -612,6 +652,7 @@
 
           if (cell && cell.solution !== ch) return null;
           if (cell && cell.solution === ch) intersections += 1;
+          if (cell && entriesById && cell.entries.some((entryId) => entriesById[entryId]?.dir === dir)) return null;
 
           if (!cell) {
             if (dir === 'across') {
@@ -650,7 +691,7 @@
         return cells;
       }
 
-      function findPlacementsForWord(grid, size, answer, hasPlacedWords) {
+      function findPlacementsForWord(grid, size, answer, hasPlacedWords, entriesById = null) {
         const placements = [];
 
         if (!hasPlacedWords) {
@@ -660,7 +701,7 @@
             { row: Math.max(0, center - Math.floor(answer.length / 2)), col: center, dir: 'down' },
           ];
           starts.forEach((p) => {
-            const valid = canPlaceWord(grid, size, answer, p.row, p.col, p.dir);
+            const valid = canPlaceWord(grid, size, answer, p.row, p.col, p.dir, entriesById);
             if (valid) placements.push({ ...p, score: valid.intersections });
           });
           return placements;
@@ -676,14 +717,14 @@
 
               const acrossRow = r;
               const acrossCol = c - i;
-              const acrossValid = canPlaceWord(grid, size, answer, acrossRow, acrossCol, 'across');
+              const acrossValid = canPlaceWord(grid, size, answer, acrossRow, acrossCol, 'across', entriesById);
               if (acrossValid && acrossValid.intersections > 0) {
                 placements.push({ row: acrossRow, col: acrossCol, dir: 'across', score: acrossValid.intersections });
               }
 
               const downRow = r - i;
               const downCol = c;
-              const downValid = canPlaceWord(grid, size, answer, downRow, downCol, 'down');
+              const downValid = canPlaceWord(grid, size, answer, downRow, downCol, 'down', entriesById);
               if (downValid && downValid.intersections > 0) {
                 placements.push({ row: downRow, col: downCol, dir: 'down', score: downValid.intersections });
               }
@@ -710,7 +751,7 @@
         const totalCells = size * size;
         const targetEmptyCells = size === 15
           ? DENSE_EMPTY_TARGET_15
-          : Math.max(12, Math.floor(totalCells * 0.08));
+          : Math.max(8, Math.floor(totalCells * 0.06));
         const targetFilledCells = Math.max(0, totalCells - targetEmptyCells);
 
         while (performance.now() - start < timeLimitMs) {
@@ -719,7 +760,7 @@
           const used = new Set();
           const candidateOrder = shuffle(pool);
           const shortWordCandidates = candidateOrder.filter((item) => item.Answer.length <= SHORT_WORD_MAX_LENGTH);
-          const maxEntries = Math.min(pool.length, size * 4);
+          const maxEntries = Math.min(pool.length, size * 5);
 
           let placedAny = true;
           while (placedAny && entries.length < maxEntries) {
@@ -729,7 +770,7 @@
             const scanWords = candidateOrder.slice(0, Math.min(MAX_WORD_SCAN, candidateOrder.length));
             for (const item of scanWords) {
               if (used.has(item._id)) continue;
-              const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0));
+              const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0, entries));
               if (!placements.length) continue;
 
               placements.sort((a, b) => b.score - a.score);
@@ -776,7 +817,7 @@
             const shortScan = shuffle(shortWordCandidates).slice(0, Math.min(MAX_WORD_SCAN, shortWordCandidates.length));
             for (const item of shortScan) {
               if (used.has(item._id)) continue;
-              const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0));
+              const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0, entries));
               if (!placements.length) continue;
 
               placements.sort((a, b) => a.score - b.score);
@@ -932,7 +973,8 @@
 
       function renderBoard() {
         boardEl.innerHTML = '';
-        boardEl.style.gridTemplateColumns = `repeat(${game.size}, 36px)`;
+        updateBoardScale();
+        boardEl.style.gridTemplateColumns = `repeat(${game.size}, var(--cell-size))`;
 
         const startNumberMap = new Map();
         game.entries.forEach((e) => {
@@ -1144,13 +1186,10 @@
         updateStats();
         saveToLocalStorage();
 
-        if (isPuzzleFilled()) {
-          if (isPuzzleSolved()) {
-            triggerVictory();
-          }
-        } else {
+        if (!isPuzzleFilled()) {
           moveWithinActive(1);
         }
+        checkAndTriggerVictory();
       }
 
       function isPuzzleFilled() {
@@ -1196,6 +1235,20 @@
         progressTextEl.textContent = `Progress: ${completion}%`;
         const locked = game.entries.filter((e) => e.locked).length;
         lockTextEl.textContent = `Locked Words: ${locked}`;
+      }
+
+      function checkAndTriggerVictory() {
+        if (!game || victoryOverlay.style.display === 'flex') return;
+        if (isPuzzleFilled() && isPuzzleSolved()) triggerVictory();
+      }
+
+      function updateBoardScale() {
+        if (!game) return;
+        const sidebarWidth = window.innerWidth > 960 ? 460 : 24;
+        const maxByWidth = Math.floor((window.innerWidth - sidebarWidth) / game.size);
+        const maxByHeight = Math.floor((window.innerHeight - 190) / game.size);
+        const size = Math.max(26, Math.min(56, maxByWidth, maxByHeight));
+        boardEl.style.setProperty('--cell-size', `${size}px`);
       }
 
       function startTimer() {
@@ -1427,8 +1480,8 @@
           return;
         }
 
-        const desiredWords = Math.max(10, Math.floor(size * 1.8));
-        const result = tryBuildDenseBoard(size, pool, desiredWords, 5500);
+        const desiredWords = Math.max(12, Math.floor(size * 2.2));
+        const result = tryBuildDenseBoard(size, pool, desiredWords, 7000);
 
         if (!result || !result.entries.length) {
           setSetupStatus('Unable to generate a board right now. Adjust settings and try again.', 'bad');
@@ -1474,6 +1527,63 @@
         const clue = encodeURIComponent(entry.clue);
         const patt = encodeURIComponent(pattern);
         return `https://www.oneacross.com/cgi-bin/s.cgi?c0=${clue}&p0=${patt}`;
+      }
+
+      function buildGoogleHintUrl() {
+        if (!game) return null;
+        const entry = game.entries[game.activeEntryId];
+        if (!entry) return null;
+
+        const pattern = entry.cells
+          .map((pos) => game.grid[pos.r][pos.c].guess || '?')
+          .join('');
+        const query = `${entry.clue} crossword ${entry.answer.length} letters ${pattern}`;
+        return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+      }
+
+      function applyCheatLetter() {
+        if (!game) return;
+        const entry = game.entries[game.activeEntryId];
+        if (!entry) return;
+
+        const target = !game.grid[game.activeCell.r]?.[game.activeCell.c]?.locked
+          ? game.activeCell
+          : entry.cells.find((pos) => !game.grid[pos.r][pos.c].locked);
+        if (!target) return;
+
+        const cell = game.grid[target.r][target.c];
+        cell.guess = cell.solution;
+        refreshCellClasses(target.r, target.c);
+        cell.entries.forEach((entryId) => tryLockEntry(game.entries[entryId]));
+        game.hintsUsed += 1;
+        setActiveEntryByCell(target.r, target.c, entry.dir);
+        updateStats();
+        saveToLocalStorage();
+        checkAndTriggerVictory();
+      }
+
+      function applyCheatWord() {
+        if (!game) return;
+        const entry = game.entries[game.activeEntryId];
+        if (!entry) return;
+
+        let changed = false;
+        entry.cells.forEach((pos) => {
+          const cell = game.grid[pos.r][pos.c];
+          if (!cell || cell.locked) return;
+          if (cell.guess !== cell.solution) {
+            cell.guess = cell.solution;
+            changed = true;
+          }
+          refreshCellClasses(pos.r, pos.c);
+        });
+        if (!changed) return;
+
+        tryLockEntry(entry);
+        game.hintsUsed += 1;
+        updateStats();
+        saveToLocalStorage();
+        checkAndTriggerVictory();
       }
 
       function resizeFireworksCanvas() {
@@ -1608,13 +1718,24 @@
         updateResumeButton();
       });
 
-      helpBtn.addEventListener('click', () => {
+      oneAcrossBtn.addEventListener('click', () => {
         const url = buildOneAcrossUrl();
         if (!url) return;
         game.hintsUsed += 1;
         saveToLocalStorage();
         window.open(url, '_blank', 'noopener,noreferrer');
       });
+
+      googleHintBtn.addEventListener('click', () => {
+        const url = buildGoogleHintUrl();
+        if (!url) return;
+        game.hintsUsed += 1;
+        saveToLocalStorage();
+        window.open(url, '_blank', 'noopener,noreferrer');
+      });
+
+      cheatLetterBtn.addEventListener('click', applyCheatLetter);
+      cheatWordBtn.addEventListener('click', applyCheatWord);
 
       closeVictoryBtn.addEventListener('click', clearVictory);
       newFromVictoryBtn.addEventListener('click', () => {
@@ -1632,7 +1753,10 @@
         }
       });
 
-      window.addEventListener('resize', resizeFireworksCanvas);
+      window.addEventListener('resize', () => {
+        resizeFireworksCanvas();
+        updateBoardScale();
+      });
 
       boardSizeEl.addEventListener('input', () => {
         boardSizeTextEl.textContent = `${boardSizeEl.value} x ${boardSizeEl.value}`;
