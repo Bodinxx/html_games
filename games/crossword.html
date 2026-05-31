@@ -347,7 +347,7 @@
   <div class="app">
     <section id="setupScreen" class="card">
       <h1>Dense Crossword Puzzle</h1>
-      <p style="margin-top:8px;color:var(--muted)">Choose at least two themes, board size, and difficulty to generate a dense crossword board.</p>
+      <p style="margin-top:8px;color:var(--muted)">Choose at least two themes and board size to generate a dense crossword board.</p>
 
       <div class="setup-grid">
         <div>
@@ -358,16 +358,6 @@
         <div>
           <label for="boardSize">Board Size: <span id="boardSizeText">12 x 12</span></label>
           <input id="boardSize" type="range" min="10" max="15" step="1" value="12">
-
-          <label for="difficulty" style="margin-top:12px">Difficulty</label>
-          <select id="difficulty">
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3" selected>3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="random">Random</option>
-          </select>
 
           <div class="controls-row">
             <button id="newGameBtn">Create New Game</button>
@@ -451,7 +441,6 @@
       const themeListEl = document.getElementById('themeList');
       const boardSizeEl = document.getElementById('boardSize');
       const boardSizeTextEl = document.getElementById('boardSizeText');
-      const difficultyEl = document.getElementById('difficulty');
       const setupStatusEl = document.getElementById('setupStatus');
       const newGameBtn = document.getElementById('newGameBtn');
       const resumeBtn = document.getElementById('resumeBtn');
@@ -682,7 +671,7 @@
           const grid = createEmptyBoard(size);
           const entries = [];
           const used = new Set();
-          const candidateOrder = shuffle(pool).sort((a, b) => b.Answer.length - a.Answer.length);
+          const candidateOrder = shuffle(pool);
 
           let placedAny = true;
           while (placedAny && entries.length < Math.min(pool.length, size * 2)) {
@@ -698,10 +687,8 @@
               placements.sort((a, b) => b.score - a.score);
               const top = placements.slice(0, Math.min(4, placements.length));
               const pick = top[rand(top.length)];
-              const score = pick.score * 5 + item.Answer.length;
-              if (!bestOption || score > bestOption.score) {
-                bestOption = { item, place: pick, score };
-              }
+              bestOption = { item, place: pick };
+              break;
             }
 
             if (bestOption) {
@@ -757,18 +744,11 @@
         });
       }
 
-      function filterPool(selectedThemes, difficulty, loosen = false) {
+      function filterPool(selectedThemes) {
         const themeSet = new Set(selectedThemes);
 
         return cluesDb
           .filter((item) => themeSet.has(item.Theme))
-          .filter((item) => {
-            if (difficulty === 'random') return true;
-            if (item.Difficulty === 0) return false;
-            const d = Number(difficulty);
-            if (!loosen) return item.Difficulty === d;
-            return Math.abs(item.Difficulty - d) <= 1;
-          })
           .filter((item) => item.Answer.length >= 3 && item.Answer.length <= MAX_ANSWER_LENGTH)
           .map((item, idx) => ({ ...item, _id: `${item.Theme}|${item.Clue}|${item.Answer}|${idx}` }));
       }
@@ -1350,25 +1330,15 @@
         setSetupStatus('Generating dense board...', 'ok');
 
         const size = Number(boardSizeEl.value);
-        const difficulty = difficultyEl.value;
-        const strictPool = filterPool(selectedThemes, difficulty, false);
+        const pool = filterPool(selectedThemes);
 
-        if (strictPool.length < 10) {
-          setSetupStatus('Not enough clues for that setup. Try more themes or Random difficulty.', 'bad');
+        if (pool.length < 10) {
+          setSetupStatus('Not enough clues for that setup. Try more themes.', 'bad');
           return;
         }
 
         const desiredWords = Math.max(8, Math.floor(size * 1.3));
-        const strictResult = tryBuildDenseBoard(size, strictPool, desiredWords, 3000);
-
-        let result = strictResult;
-        let usedLoosened = false;
-
-        if (!strictResult || strictResult.entries.length < Math.max(6, desiredWords - 2)) {
-          const loosenPool = filterPool(selectedThemes, difficulty, true);
-          result = tryBuildDenseBoard(size, loosenPool, desiredWords, 3000);
-          usedLoosened = true;
-        }
+        const result = tryBuildDenseBoard(size, pool, desiredWords, 4000);
 
         if (!result || !result.entries.length) {
           setSetupStatus('Unable to generate a board right now. Adjust settings and try again.', 'bad');
@@ -1380,7 +1350,7 @@
         game = {
           size,
           selectedThemes,
-          difficulty,
+          difficulty: 'random',
           elapsed: 0,
           hintsUsed: 0,
           direction: 'across',
@@ -1398,11 +1368,7 @@
         startTimer();
         saveToLocalStorage();
 
-        if (usedLoosened) {
-          setSetupStatus('Generated with relaxed difficulty due to puzzle density limits.', 'warn');
-        } else {
-          setSetupStatus('Board ready.', 'ok');
-        }
+        setSetupStatus('Board ready.', 'ok');
 
         focusCell(game.activeCell.r, game.activeCell.c);
       }
