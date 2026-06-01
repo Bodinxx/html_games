@@ -839,6 +839,128 @@
         return checked ? Number(checked.value) : -1;
       }
 
+      function normalizePuzzleAnswer(answer) {
+        return String(answer || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, MAX_ANSWER_LENGTH);
+      }
+
+      function getPuzzleLayoutRows(puzzle) {
+        const raw = Array.isArray(puzzle?.layout)
+          ? puzzle.layout
+          : (Array.isArray(puzzle?.grid) ? puzzle.grid : null);
+        if (!raw || !raw.length) return null;
+
+        const rows = raw.map((row) => {
+          if (typeof row === 'string') return row;
+          if (Array.isArray(row)) return row.join('');
+          return '';
+        });
+        if (!rows.every((row) => typeof row === 'string' && row.length > 0)) return null;
+        return rows;
+      }
+
+      function isPuzzleBlockChar(ch) {
+        return ch === '#' || ch === '.' || ch === '*' || ch === '■' || ch === '█';
+      }
+
+      function buildPresetPuzzle(puzzle) {
+        const rows = getPuzzleLayoutRows(puzzle);
+        if (!rows) return { hasPresetLayout: false, result: null, size: 0, error: '' };
+
+        const size = rows.length;
+        if (!rows.every((row) => row.length === size)) {
+          return { hasPresetLayout: true, result: null, size: 0, error: 'Puzzle layout must be square.' };
+        }
+
+        const fillMask = rows.map((row) => [...row].map((ch) => !isPuzzleBlockChar(ch)));
+        const startsByNumber = new Map();
+        let number = 1;
+        for (let r = 0; r < size; r += 1) {
+          for (let c = 0; c < size; c += 1) {
+            if (!fillMask[r][c]) continue;
+            const acrossStart = c === 0 || !fillMask[r][c - 1];
+            const downStart = r === 0 || !fillMask[r - 1][c];
+            if (!acrossStart && !downStart) continue;
+            startsByNumber.set(number, { r, c, acrossStart, downStart });
+            number += 1;
+          }
+        }
+
+        const runLength = (r, c, dir) => {
+          let len = 0;
+          let rr = r;
+          let cc = c;
+          while (rr >= 0 && cc >= 0 && rr < size && cc < size && fillMask[rr][cc]) {
+            len += 1;
+            if (dir === 'across') cc += 1;
+            else rr += 1;
+          }
+          return len;
+        };
+
+        const canPlaceExact = (grid, answer, row, col, dir) => {
+          const dr = dir === 'down' ? 1 : 0;
+          const dc = dir === 'across' ? 1 : 0;
+          for (let i = 0; i < answer.length; i += 1) {
+            const r = row + dr * i;
+            const c = col + dc * i;
+            const cell = grid[r][c];
+            if (cell && cell.solution !== answer[i]) return false;
+          }
+          return true;
+        };
+
+        const grid = createEmptyBoard(size);
+        const entries = [];
+
+        const placeClueSet = (clues, dir) => {
+          for (const item of clues || []) {
+            const clueNumber = Number(item?.number);
+            const clueText = String(item?.clue || '').trim();
+            const answer = normalizePuzzleAnswer(item?.answer);
+            if (!clueNumber || !clueText || !answer) return false;
+
+            const start = startsByNumber.get(clueNumber);
+            if (!start) return false;
+            if (dir === 'across' && !start.acrossStart) return false;
+            if (dir === 'down' && !start.downStart) return false;
+            if (runLength(start.r, start.c, dir) !== answer.length) return false;
+            if (!canPlaceExact(grid, answer, start.r, start.c, dir)) return false;
+
+            const entryId = entries.length;
+            const cells = placeWord(grid, answer, start.r, start.c, dir, entryId);
+            entries.push({
+              id: entryId,
+              clue: clueText,
+              theme: puzzle.name,
+              answer,
+              row: start.r,
+              col: start.c,
+              dir,
+              cells,
+              locked: false,
+              number: clueNumber,
+            });
+          }
+          return true;
+        };
+
+        const acrossOk = placeClueSet(puzzle?.clues?.across || [], 'across');
+        const downOk = placeClueSet(puzzle?.clues?.down || [], 'down');
+        if (!acrossOk || !downOk || !entries.length) {
+          return { hasPresetLayout: true, result: null, size: 0, error: 'Puzzle layout does not match its clues.' };
+        }
+
+        for (let r = 0; r < size; r += 1) {
+          for (let c = 0; c < size; c += 1) {
+            if (fillMask[r][c] && !grid[r][c]) {
+              return { hasPresetLayout: true, result: null, size: 0, error: 'Puzzle layout has unused open cells.' };
+            }
+          }
+        }
+
+        return { hasPresetLayout: true, result: { grid, entries }, size, error: '' };
+      }
+
       function puzzleToPool(puzzle) {
         const theme = puzzle.name;
         const allClues = [...(puzzle.clues.across || []), ...(puzzle.clues.down || [])];
@@ -847,7 +969,7 @@
           .map((item, idx) => ({
             Theme: theme,
             Clue: item.clue,
-            Answer: String(item.answer).toUpperCase().replace(/[^A-Z]/g, '').slice(0, MAX_ANSWER_LENGTH),
+            Answer: normalizePuzzleAnswer(item.answer),
             _id: `puzzle|${theme}|${idx}`,
           }))
           .filter((item) => item.Answer.length >= 3 && item.Answer.length <= MAX_ANSWER_LENGTH);
@@ -871,21 +993,36 @@
           return;
         }
 
-        const pool = puzzleToPool(puzzle);
-        if (pool.length < 10) {
-          setSetupStatus('Not enough clues in this puzzle.', 'bad');
-          return;
-        }
-
         setSetupStatus('Generating board… please wait.', 'ok');
         newGameBtn.disabled = true;
         resumeBtn.disabled = true;
 
         await new Promise((resolve) => setTimeout(resolve, 50));
 
-        const size = autoSizeForPool(pool);
-        const desiredWords = Math.max(12, Math.floor(size * 2.2));
-        const result = tryBuildDenseBoard(size, pool, desiredWords, 7000);
+        const presetBuild = buildPresetPuzzle(puzzle);
+        let size = presetBuild.size;
+        let result = presetBuild.result;
+
+        if (presetBuild.hasPresetLayout && !result) {
+          newGameBtn.disabled = false;
+          updateResumeButton();
+          setSetupStatus(presetBuild.error || 'Invalid puzzle layout.', 'bad');
+          return;
+        }
+
+        if (!presetBuild.hasPresetLayout) {
+          const pool = puzzleToPool(puzzle);
+          if (pool.length < 10) {
+            newGameBtn.disabled = false;
+            updateResumeButton();
+            setSetupStatus('Not enough clues in this puzzle.', 'bad');
+            return;
+          }
+
+          size = autoSizeForPool(pool);
+          const desiredWords = Math.max(12, Math.floor(size * 2.2));
+          result = tryBuildDenseBoard(size, pool, desiredWords, 7000);
+        }
 
         newGameBtn.disabled = false;
         updateResumeButton();
@@ -895,7 +1032,7 @@
           return;
         }
 
-        assignNumbers(result.entries);
+        if (!presetBuild.hasPresetLayout) assignNumbers(result.entries);
 
         game = {
           size,
