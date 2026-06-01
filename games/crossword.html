@@ -187,10 +187,17 @@
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
       gap: 14px;
-      align-items: start;
+      align-items: stretch;
       min-height: 0;
       flex: 1;
       overflow: hidden;
+    }
+
+    .play-layout > aside {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
     }
 
     #board {
@@ -308,11 +315,17 @@
 
     .clue-columns {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
-      max-height: calc(100vh - 360px);
-      overflow: auto;
-      font-size: 0.9rem;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      font-size: 0.85rem;
+    }
+
+    .clue-section {
+      overflow-y: auto;
+      min-height: 0;
     }
 
     .hint-actions {
@@ -324,7 +337,7 @@
 
     .clue-line {
       color: var(--muted);
-      padding: 4px 6px;
+      padding: 2px 4px;
       border-radius: 6px;
       border: 1px solid transparent;
       cursor: pointer;
@@ -390,6 +403,19 @@
         grid-template-columns: 1fr;
         overflow-y: auto;
         align-items: start;
+      }
+      .play-layout > aside {
+        display: block;
+      }
+      .clue-columns {
+        grid-template-columns: 1fr;
+        max-height: calc(100vh - 360px);
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      .clue-section {
+        max-height: none;
+        overflow-y: visible;
       }
       #board { max-height: 50vh; }
       .hint-actions { grid-template-columns: 1fr; }
@@ -1481,7 +1507,9 @@
         activeClueEl.textContent = `${entry.number}. ${entry.clue}`;
 
         clueListEl.querySelectorAll('.clue-line').forEach((line) => {
-          line.classList.toggle('current', Number(line.dataset.entryId) === entry.id);
+          const isCurrent = Number(line.dataset.entryId) === entry.id;
+          line.classList.toggle('current', isCurrent);
+          if (isCurrent) line.scrollIntoView({ block: 'nearest' });
         });
       }
 
@@ -1631,12 +1659,13 @@
         const down = game.entries.filter((e) => e.dir === 'down').sort(byStart);
 
         const makeSection = (title, list) => {
+          const section = document.createElement('div');
+          section.className = 'clue-section';
+
           const heading = document.createElement('h3');
           heading.textContent = title;
-          heading.style.margin = '8px 0 2px';
-          heading.style.fontSize = '0.95rem';
-          heading.style.color = '#c7d2fe';
-          clueListEl.append(heading);
+          heading.style.cssText = 'margin:0 0 2px;font-size:0.9rem;color:#c7d2fe;position:sticky;top:0;background:var(--panel);padding:4px 4px 4px;z-index:1';
+          section.append(heading);
 
           list.forEach((entry) => {
             const line = document.createElement('div');
@@ -1650,12 +1679,13 @@
               setActiveEntryByCell(start.r, start.c, entry.dir);
               focusCell(start.r, start.c);
             });
-            clueListEl.append(line);
+            section.append(line);
           });
+          return section;
         };
 
-        makeSection('Across', across);
-        makeSection('Down', down);
+        clueListEl.append(makeSection('Across', across));
+        clueListEl.append(makeSection('Down', down));
         updateActiveClue();
       }
 
@@ -1798,8 +1828,9 @@
       function updateBoardScale() {
         if (!game) return;
         const sidebarWidth = window.innerWidth > 960 ? 460 : 24;
-        const maxByWidth = Math.floor((window.innerWidth - sidebarWidth) / game.size);
-        const maxByHeight = Math.floor((window.innerHeight - 190) / game.size);
+        const boardGaps = (game.size - 1) * 2 + 4;
+        const maxByWidth = Math.floor((window.innerWidth - sidebarWidth - boardGaps) / game.size);
+        const maxByHeight = Math.floor((window.innerHeight - 170 - boardGaps) / game.size);
         const size = Math.max(26, Math.min(56, maxByWidth, maxByHeight));
         boardEl.style.setProperty('--cell-size', `${size}px`);
       }
