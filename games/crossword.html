@@ -442,15 +442,27 @@
       margin-top: 12px;
     }
 
-    /* ── Game-mode selector ──────────────────── */
-    .mode-select-row {
+    /* ── Game-mode tabs ──────────────────────── */
+    .mode-tabs {
       display: flex;
-      align-items: center;
-      gap: 10px;
+      gap: 8px;
       margin-top: 10px;
     }
 
-    .mode-select-row label { margin: 0; }
+    .mode-tab {
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: var(--panel);
+      color: var(--muted);
+      padding: 8px 14px;
+      font-weight: 600;
+    }
+
+    .mode-tab.active {
+      background: color-mix(in srgb, var(--accent) 20%, var(--panel));
+      color: var(--text);
+      border-color: color-mix(in srgb, var(--accent) 55%, #ffffff22);
+    }
 
     /* ── Puzzle-list (pre-made mode) ─────────── */
     #puzzleModeSection {
@@ -487,13 +499,14 @@
       <h1>Dense Crossword Puzzle</h1>
       <p style="margin-top:8px;color:var(--muted)">Choose at least two themes and board size to generate a dense crossword board.</p>
 
-      <!-- Game mode selector -->
-      <div class="mode-select-row">
-        <label for="gameModeSelect" style="color:var(--muted);font-size:0.9rem">Mode:</label>
-        <select id="gameModeSelect">
-          <option value="classic">Generate from Themes</option>
-          <option value="puzzle">Pre-made Puzzle</option>
-        </select>
+      <!-- Game mode tabs -->
+      <div class="mode-tabs" role="tablist" aria-label="Game mode">
+        <button id="modeTabClassic" class="mode-tab active" type="button" role="tab" aria-selected="true">
+          Generate from Themes
+        </button>
+        <button id="modeTabPuzzle" class="mode-tab" type="button" role="tab" aria-selected="false">
+          Pre-made Puzzle
+        </button>
       </div>
 
       <div class="setup-grid">
@@ -617,7 +630,8 @@
       const resumeBtn = document.getElementById('resumeBtn');
       const loadFileBtn = document.getElementById('loadFileBtn');
       const saveFileInput = document.getElementById('saveFileInput');
-      const gameModeSelectEl = document.getElementById('gameModeSelect');
+      const modeTabClassicEl = document.getElementById('modeTabClassic');
+      const modeTabPuzzleEl = document.getElementById('modeTabPuzzle');
       const classicThemeSectionEl = document.getElementById('classicThemeSection');
       const puzzleModeSectionEl = document.getElementById('puzzleModeSection');
       const puzzleListEl = document.getElementById('puzzleList');
@@ -660,6 +674,7 @@
       let lastTimerTick = 0;
       let isCelebrating = false;
       let particles = [];
+      let setupMode = 'classic';
 
       const rand = (n) => Math.floor(Math.random() * n);
       const shuffle = (arr) => {
@@ -805,6 +820,15 @@
         puzzlesDb = data.puzzles || [];
       }
 
+      function getPuzzleTitle(puzzle) {
+        const title = puzzle?.metadata?.title ?? puzzle?.name;
+        return String(title || '').trim() || 'Untitled Puzzle';
+      }
+
+      function getPuzzleAuthor(puzzle) {
+        return String(puzzle?.metadata?.author ?? puzzle?.author ?? '').trim();
+      }
+
       function renderPuzzleList() {
         puzzleListEl.innerHTML = '';
         const frag = document.createDocumentFragment();
@@ -819,14 +843,20 @@
         randomLabel.append(randomInput, '\u00A0🎲 Random Puzzle');
         frag.append(randomLabel);
 
-        puzzlesDb.forEach((p, idx) => {
+        const sorted = puzzlesDb
+          .map((p, idx) => ({ puzzle: p, idx }))
+          .sort((a, b) => getPuzzleTitle(a.puzzle).localeCompare(getPuzzleTitle(b.puzzle)));
+
+        sorted.forEach(({ puzzle, idx }) => {
           const label = document.createElement('label');
           label.className = 'puzzle-option';
           const input = document.createElement('input');
           input.type = 'radio';
           input.name = 'puzzleChoice';
           input.value = String(idx);
-          const info = p.author ? `${p.name} — ${p.author}` : p.name;
+          const title = getPuzzleTitle(puzzle);
+          const author = getPuzzleAuthor(puzzle);
+          const info = author ? `${title} — ${author}` : title;
           label.append(input, `\u00A0${info}`);
           frag.append(label);
         });
@@ -839,15 +869,188 @@
         return checked ? Number(checked.value) : -1;
       }
 
+      function normalizePuzzleAnswer(answer) {
+        return String(answer || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, MAX_ANSWER_LENGTH);
+      }
+
+      function getPuzzleLayoutRows(puzzle) {
+        const raw = Array.isArray(puzzle?.layout)
+          ? puzzle.layout
+          : (Array.isArray(puzzle?.grid) ? puzzle.grid : null);
+        if (!raw || !raw.length) return null;
+
+        const rows = raw.map((row) => {
+          if (typeof row === 'string') return row;
+          if (Array.isArray(row)) return row.join('');
+          return '';
+        });
+        if (!rows.every((row) => typeof row === 'string' && row.length > 0)) return null;
+        return rows;
+      }
+
+      function isPuzzleBlockChar(ch) {
+        return ch === '#' || ch === '.' || ch === '*' || ch === '■' || ch === '█';
+      }
+
+      function buildPresetPuzzle(puzzle) {
+        const rows = getPuzzleLayoutRows(puzzle);
+        if (!rows) return { hasPresetLayout: false, result: null, size: 0, error: '' };
+
+        const size = rows.length;
+        if (!rows.every((row) => row.length === size)) {
+          return { hasPresetLayout: true, result: null, size: 0, error: 'Puzzle layout must be square.' };
+        }
+
+        const fillMask = rows.map((row) => [...row].map((ch) => !isPuzzleBlockChar(ch)));
+
+        const runLength = (r, c, dir) => {
+          let len = 0;
+          let rr = r;
+          let cc = c;
+          while (rr >= 0 && cc >= 0 && rr < size && cc < size && fillMask[rr][cc]) {
+            len += 1;
+            if (dir === 'across') cc += 1;
+            else rr += 1;
+          }
+          return len;
+        };
+
+        const canPlaceExact = (grid, answer, row, col, dir) => {
+          const dr = dir === 'down' ? 1 : 0;
+          const dc = dir === 'across' ? 1 : 0;
+          for (let i = 0; i < answer.length; i += 1) {
+            const r = row + dr * i;
+            const c = col + dc * i;
+            const cell = grid[r][c];
+            if (cell && cell.solution !== answer[i]) return false;
+          }
+          return true;
+        };
+
+        const grid = createEmptyBoard(size);
+        const entries = [];
+
+        const placeClueSetByCoords = (clues, dir) => {
+          for (const item of clues || []) {
+            const clueNumber = Number(item?.number);
+            const clueText = String(item?.clue || '').trim();
+            const answer = normalizePuzzleAnswer(item?.answer);
+            const row = Number(item?.row);
+            const col = Number(item?.col);
+            if (!clueNumber || !clueText || !answer || !Number.isInteger(row) || !Number.isInteger(col)) return false;
+            if (!isInside(size, row, col) || !fillMask[row][col]) return false;
+
+            const isAcrossStart = col === 0 || !fillMask[row][col - 1];
+            const isDownStart = row === 0 || !fillMask[row - 1][col];
+            if (dir === 'across' && !isAcrossStart) return false;
+            if (dir === 'down' && !isDownStart) return false;
+            if (runLength(row, col, dir) !== answer.length) return false;
+            if (!canPlaceExact(grid, answer, row, col, dir)) return false;
+
+            const entryId = entries.length;
+            const cells = placeWord(grid, answer, row, col, dir, entryId);
+            entries.push({
+              id: entryId,
+              clue: clueText,
+              theme: getPuzzleTitle(puzzle),
+              answer,
+              row,
+              col,
+              dir,
+              cells,
+              locked: false,
+              number: clueNumber,
+            });
+          }
+          return true;
+        };
+
+        const puzzleAcross = puzzle?.clues?.across || [];
+        const puzzleDown = puzzle?.clues?.down || [];
+        const hasCoordinateClues = [...puzzleAcross, ...puzzleDown].every((item) =>
+          Number.isInteger(Number(item?.row)) && Number.isInteger(Number(item?.col))
+        );
+
+        let acrossOk = false;
+        let downOk = false;
+
+        if (hasCoordinateClues) {
+          acrossOk = placeClueSetByCoords(puzzleAcross, 'across');
+          downOk = placeClueSetByCoords(puzzleDown, 'down');
+        } else {
+          const startsByNumber = new Map();
+          let clueNumber = 1;
+          for (let r = 0; r < size; r += 1) {
+            for (let c = 0; c < size; c += 1) {
+              if (!fillMask[r][c]) continue;
+              const acrossStart = c === 0 || !fillMask[r][c - 1];
+              const downStart = r === 0 || !fillMask[r - 1][c];
+              if (!acrossStart && !downStart) continue;
+              startsByNumber.set(clueNumber, { r, c, acrossStart, downStart });
+              clueNumber += 1;
+            }
+          }
+
+          const placeClueSetByNumber = (clues, dir) => {
+            for (const item of clues || []) {
+              const number = Number(item?.number);
+              const clueText = String(item?.clue || '').trim();
+              const answer = normalizePuzzleAnswer(item?.answer);
+              if (!number || !clueText || !answer) return false;
+
+              const start = startsByNumber.get(number);
+              if (!start) return false;
+              if (dir === 'across' && !start.acrossStart) return false;
+              if (dir === 'down' && !start.downStart) return false;
+              if (runLength(start.r, start.c, dir) !== answer.length) return false;
+              if (!canPlaceExact(grid, answer, start.r, start.c, dir)) return false;
+
+              const entryId = entries.length;
+              const cells = placeWord(grid, answer, start.r, start.c, dir, entryId);
+              entries.push({
+                id: entryId,
+                clue: clueText,
+                theme: getPuzzleTitle(puzzle),
+                answer,
+                row: start.r,
+                col: start.c,
+                dir,
+                cells,
+                locked: false,
+                number,
+              });
+            }
+            return true;
+          };
+
+          acrossOk = placeClueSetByNumber(puzzleAcross, 'across');
+          downOk = placeClueSetByNumber(puzzleDown, 'down');
+        }
+
+        if (!acrossOk || !downOk || !entries.length) {
+          return { hasPresetLayout: true, result: null, size: 0, error: 'Puzzle layout does not match its clues.' };
+        }
+
+        for (let r = 0; r < size; r += 1) {
+          for (let c = 0; c < size; c += 1) {
+            if (fillMask[r][c] && !grid[r][c]) {
+              return { hasPresetLayout: true, result: null, size: 0, error: 'Puzzle layout has unused open cells.' };
+            }
+          }
+        }
+
+        return { hasPresetLayout: true, result: { grid, entries }, size, error: '' };
+      }
+
       function puzzleToPool(puzzle) {
-        const theme = puzzle.name;
+        const theme = getPuzzleTitle(puzzle);
         const allClues = [...(puzzle.clues.across || []), ...(puzzle.clues.down || [])];
         return allClues
           .filter((item) => item.answer && item.clue)
           .map((item, idx) => ({
             Theme: theme,
             Clue: item.clue,
-            Answer: String(item.answer).toUpperCase().replace(/[^A-Z]/g, '').slice(0, MAX_ANSWER_LENGTH),
+            Answer: normalizePuzzleAnswer(item.answer),
             _id: `puzzle|${theme}|${idx}`,
           }))
           .filter((item) => item.Answer.length >= 3 && item.Answer.length <= MAX_ANSWER_LENGTH);
@@ -871,21 +1074,36 @@
           return;
         }
 
-        const pool = puzzleToPool(puzzle);
-        if (pool.length < 10) {
-          setSetupStatus('Not enough clues in this puzzle.', 'bad');
-          return;
-        }
-
         setSetupStatus('Generating board… please wait.', 'ok');
         newGameBtn.disabled = true;
         resumeBtn.disabled = true;
 
         await new Promise((resolve) => setTimeout(resolve, 50));
 
-        const size = autoSizeForPool(pool);
-        const desiredWords = Math.max(12, Math.floor(size * 2.2));
-        const result = tryBuildDenseBoard(size, pool, desiredWords, 7000);
+        const presetBuild = buildPresetPuzzle(puzzle);
+        let size = presetBuild.size;
+        let result = presetBuild.result;
+
+        if (presetBuild.hasPresetLayout && !result) {
+          newGameBtn.disabled = false;
+          updateResumeButton();
+          setSetupStatus(presetBuild.error || 'Invalid puzzle layout.', 'bad');
+          return;
+        }
+
+        if (!presetBuild.hasPresetLayout) {
+          const pool = puzzleToPool(puzzle);
+          if (pool.length < 10) {
+            newGameBtn.disabled = false;
+            updateResumeButton();
+            setSetupStatus('Not enough clues in this puzzle.', 'bad');
+            return;
+          }
+
+          size = autoSizeForPool(pool);
+          const desiredWords = Math.max(12, Math.floor(size * 2.2));
+          result = tryBuildDenseBoard(size, pool, desiredWords, 7000);
+        }
 
         newGameBtn.disabled = false;
         updateResumeButton();
@@ -895,11 +1113,11 @@
           return;
         }
 
-        assignNumbers(result.entries);
+        if (!presetBuild.hasPresetLayout) assignNumbers(result.entries);
 
         game = {
           size,
-          selectedThemes: [puzzle.name],
+          selectedThemes: [getPuzzleTitle(puzzle)],
           elapsed: 0,
           hintsUsed: 0,
           direction: 'across',
@@ -911,7 +1129,7 @@
           grid: result.grid,
           startedAt: Date.now(),
           gameMode: 'puzzle',
-          puzzleName: puzzle.name,
+          puzzleName: getPuzzleTitle(puzzle),
         };
 
         showPlayMode();
@@ -925,11 +1143,20 @@
       }
 
       function onGameModeChange() {
-        const isPuzzle = gameModeSelectEl.value === 'puzzle';
+        const isPuzzle = setupMode === 'puzzle';
+        modeTabClassicEl.classList.toggle('active', !isPuzzle);
+        modeTabPuzzleEl.classList.toggle('active', isPuzzle);
+        modeTabClassicEl.setAttribute('aria-selected', String(!isPuzzle));
+        modeTabPuzzleEl.setAttribute('aria-selected', String(isPuzzle));
         classicThemeSectionEl.style.display = isPuzzle ? 'none' : 'flex';
         puzzleModeSectionEl.style.display = isPuzzle ? 'flex' : 'none';
         classicSizeRowEl.style.display = isPuzzle ? 'none' : '';
         newGameBtn.textContent = isPuzzle ? 'Start Puzzle' : 'Create New Game';
+      }
+
+      function setSetupMode(mode) {
+        setupMode = mode === 'puzzle' ? 'puzzle' : 'classic';
+        onGameModeChange();
       }
 
       function getCellKey(r, c) {
@@ -2027,7 +2254,7 @@
       }
 
       newGameBtn.addEventListener('click', () => {
-        if (gameModeSelectEl.value === 'puzzle') {
+        if (setupMode === 'puzzle') {
           startPuzzleGame().catch((err) => {
             setSetupStatus(err.message || 'Unable to start puzzle.', 'bad');
           });
@@ -2038,7 +2265,8 @@
         }
       });
 
-      gameModeSelectEl.addEventListener('change', onGameModeChange);
+      modeTabClassicEl.addEventListener('click', () => setSetupMode('classic'));
+      modeTabPuzzleEl.addEventListener('click', () => setSetupMode('puzzle'));
 
       playFromScoreBtn.addEventListener('click', () => {
         showSetupMode();
@@ -2145,6 +2373,7 @@
         try {
           await loadClues();
           renderThemes();
+          setSetupMode('classic');
           updateResumeButton();
           setSetupStatus('Ready.', 'ok');
 
