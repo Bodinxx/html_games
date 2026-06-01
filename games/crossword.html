@@ -328,6 +328,17 @@
       min-height: 0;
     }
 
+    .clue-section-heading {
+      margin: 0 0 2px;
+      font-size: 0.9rem;
+      color: #c7d2fe;
+      position: sticky;
+      top: 0;
+      background: var(--panel);
+      padding: 4px;
+      z-index: 1;
+    }
+
     .hint-actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -337,7 +348,7 @@
 
     .clue-line {
       color: var(--muted);
-      padding: 2px 4px;
+      padding: 3px 4px;
       border-radius: 6px;
       border: 1px solid transparent;
       cursor: pointer;
@@ -1664,7 +1675,7 @@
 
           const heading = document.createElement('h3');
           heading.textContent = title;
-          heading.style.cssText = 'margin:0 0 2px;font-size:0.9rem;color:#c7d2fe;position:sticky;top:0;background:var(--panel);padding:4px 4px 4px;z-index:1';
+          heading.className = 'clue-section-heading';
           section.append(heading);
 
           list.forEach((entry) => {
@@ -1828,6 +1839,7 @@
       function updateBoardScale() {
         if (!game) return;
         const sidebarWidth = window.innerWidth > 960 ? 460 : 24;
+        // gaps: 2px between each pair of cells = (size-1)*2; padding: 2px on each side = 4
         const boardGaps = (game.size - 1) * 2 + 4;
         const maxByWidth = Math.floor((window.innerWidth - sidebarWidth - boardGaps) / game.size);
         const maxByHeight = Math.floor((window.innerHeight - 170 - boardGaps) / game.size);
