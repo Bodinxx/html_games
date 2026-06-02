@@ -749,7 +749,8 @@
             Answer: String(row.Answer || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, MAX_ANSWER_LENGTH),
             Length: Number(row.Length) || 0,
           }))
-          .filter((row) => row.Theme && row.Answer && row.Answer.length <= MAX_ANSWER_LENGTH);
+          .filter((row) => row.Theme && row.Answer && row.Answer.length <= MAX_ANSWER_LENGTH
+            && (row.Theme === CROSSWORD_FILL_THEME || row.Clue));
         cluesDb = normalized
           .filter((row) => row.Theme !== CROSSWORD_FILL_THEME && row.Clue);
         fillWordsDb = normalized
@@ -1427,7 +1428,7 @@
               entries.push({
                 id: entryId,
                 clue: fillOption.item.Clue || fillOption.item.Answer,
-                theme: fillOption.item.Theme || CROSSWORD_FILL_THEME,
+                theme: fillOption.item.Theme,
                 answer: fillOption.item.Answer,
                 row: fillOption.place.row,
                 col: fillOption.place.col,
@@ -1518,7 +1519,7 @@
 
       function getFillPool() {
         return fillWordsDb
-          .filter((item) => item.Answer.length >= 3 && item.Answer.length <= MAX_ANSWER_LENGTH)
+          .filter((item) => item.Answer.length <= MAX_ANSWER_LENGTH)
           .map((item) => ({ ...item }));
       }
 
