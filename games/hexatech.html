@@ -293,7 +293,7 @@
           </select>
         </div>
         <div class="field">
-          <label for="opponents">Opponent Count (1-7)</label>
+          <label for="opponent-count">Opponent Count (1-7)</label>
           <input id="opponent-count" type="number" min="1" max="7" value="3" />
         </div>
         <div class="field">
@@ -397,6 +397,13 @@
       const SCORE_MAP = { UT: 20, BL: 20, P2: 20, MR: 40, FZ: 30, GF: 25, VT: 50, PL: 40, MG: 50, SP: 35, CH: 60 };
       const WILD_CODES = new Set(['MR', 'VT', 'PL', 'MG', 'SP', 'CH']);
       const PENALTY_CODES = new Set(['P2', 'FZ', 'MG']);
+      const SHUFFLE_PASSES = 3;
+      const INITIAL_HAND_SIZE = 7;
+      const EASY_DRAW_PLAY_PROBABILITY = 0.45;
+      const STANDARD_DRAW_PLAY_PROBABILITY = 0.9;
+      const MIRROR_REACTION_SECONDS = 3;
+      const SPY_VIEW_DURATION_MS = 5000;
+      const MAX_REFLECTION_CHAIN_BUFFER = 2;
       const STATE = {
         STATE_GAME_INIT: 'STATE_GAME_INIT',
         STATE_CHOOSE_TURN: 'STATE_CHOOSE_TURN',
@@ -420,7 +427,7 @@
         playDrawnBtn: document.getElementById('play-drawn-btn'),
         saveBtn: document.getElementById('save-btn'),
         newMatchBtn: document.getElementById('new-match-btn'),
-        opponents: document.getElementById('opponent-count'),
+        opponents: document.getElementById('opponents'),
         hand: document.getElementById('hand'),
         drawCount: document.getElementById('draw-count'),
         discardCard: document.getElementById('discard-card'),
@@ -435,7 +442,7 @@
         fields: {
           handle: document.getElementById('handle'),
           difficulty: document.getElementById('difficulty'),
-          opponents: document.getElementById('opponents'),
+          opponents: document.getElementById('opponent-count'),
           winCondition: document.getElementById('win-condition'),
           pointsTarget: document.getElementById('points-target'),
           palette: document.getElementById('palette')
@@ -544,7 +551,7 @@
       }
 
       function shuffle(arr) {
-        for (let p = 0; p < 3; p += 1) {
+        for (let p = 0; p < SHUFFLE_PASSES; p += 1) {
           for (let i = arr.length - 1; i > 0; i -= 1) {
             const j = Math.floor(Math.random() * (i + 1));
             [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -579,7 +586,7 @@
           gameState.engine.players.forEach(p => { p.hand = []; p.freezeTurns = 0; });
         }
 
-        for (let c = 0; c < 7; c += 1) {
+        for (let c = 0; c < INITIAL_HAND_SIZE; c += 1) {
           gameState.engine.players.forEach(player => player.hand.push(drawFromPile()));
         }
 
@@ -668,7 +675,7 @@
           if (drawn) {
             player.hand.push(drawn);
             log(`${player.name} draws 1 card.`);
-            if (isPlayable(drawn) && Math.random() < (gameState.config.difficulty === 'easy' ? 0.45 : 0.9)) {
+            if (isPlayable(drawn) && Math.random() < (gameState.config.difficulty === 'easy' ? EASY_DRAW_PLAY_PROBABILITY : STANDARD_DRAW_PLAY_PROBABILITY)) {
               player.hand.pop();
               await playCard(gameState.engine.activePlayerIndex, drawn, player.hand.length, true);
               return;
@@ -788,7 +795,7 @@
         let target = initialTarget;
         let depth = 0;
 
-        while (depth < gameState.engine.players.length + 2) {
+        while (depth < gameState.engine.players.length + MAX_REFLECTION_CHAIN_BUFFER) {
           const reflected = await reactionMirrorCheck(target, penalty);
           if (!reflected) break;
           target = nextIndex(target);
@@ -850,7 +857,7 @@
 
       function promptMirrorChoice(penalty) {
         return new Promise(resolve => {
-          let seconds = 3;
+          let seconds = MIRROR_REACTION_SECONDS;
           const modal = document.createElement('div');
           modal.className = 'modal';
           modal.innerHTML = `
@@ -986,7 +993,7 @@
           });
           modal.appendChild(list);
           openModal(modal);
-          await sleep(5000);
+          await sleep(SPY_VIEW_DURATION_MS);
           closeModal();
         }
       }
@@ -1007,7 +1014,7 @@
         }
 
         if (players.reduce((sum, p) => sum + p.hand.length, 0) !== totalCards) {
-          log('Chaos distribution mismatch corrected by reshuffle fallback.');
+          log('Chaos distribution mismatch detected.');
         }
         log('Chaos protocol complete. Hands redistributed.');
       }
@@ -1174,7 +1181,7 @@
 
         const color = COLOR_META[card.color]?.css || '#fff';
         const label = card.value;
-        const top = card.value.length > 1 ? card.value : card.value;
+        const top = card.value;
 
         return `
           <svg class="hex-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="${labelCard(card)}">
