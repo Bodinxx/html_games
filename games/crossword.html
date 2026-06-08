@@ -654,6 +654,7 @@
       const SHORT_WORD_MAX_LENGTH = 5;
       const DENSE_EMPTY_TARGET_15 = 10;
       const PBKDF2_ITERATIONS = 600000;
+      const CROSSWORD_FILL_THEME = 'Crossword Fill';
 
       const setupScreen = document.getElementById('setupScreen');
       const scoreScreen = document.getElementById('scoreScreen');
@@ -704,6 +705,7 @@
       const fireworksCtx = fireworksCanvas.getContext('2d');
 
       let cluesDb = [];
+      let fillWordsDb = [];
       let puzzlesDb = [];
       let themes = [];
       let game = null;
@@ -740,14 +742,20 @@
         const response = await fetch(CLUE_PATH);
         if (!response.ok) throw new Error(`Could not load clues (${response.status})`);
         const data = await response.json();
-        cluesDb = data
+        const normalized = data
           .map((row) => ({
             Theme: String(row.Theme || '').trim(),
             Clue: String(row.Clue || '').trim(),
             Answer: String(row.Answer || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, MAX_ANSWER_LENGTH),
             Length: Number(row.Length) || 0,
           }))
-          .filter((row) => row.Theme && row.Clue && row.Answer && row.Answer.length <= MAX_ANSWER_LENGTH);
+          .filter((row) => row.Theme && row.Answer && row.Answer.length <= MAX_ANSWER_LENGTH
+            && (row.Theme === CROSSWORD_FILL_THEME || row.Clue));
+        cluesDb = normalized
+          .filter((row) => row.Theme !== CROSSWORD_FILL_THEME && row.Clue);
+        fillWordsDb = normalized
+          .filter((row) => row.Theme === CROSSWORD_FILL_THEME && row.Answer.length >= 3)
+          .map((row, idx) => ({ ...row, _id: `${CROSSWORD_FILL_THEME}|${row.Answer}|${idx}` }));
         themes = [...new Set(cluesDb.map((c) => c.Theme))].sort((a, b) => a.localeCompare(b));
       }
 
@@ -1332,7 +1340,7 @@
         });
       }
 
-      function tryBuildDenseBoard(size, pool, minWords, timeLimitMs) {
+      function tryBuildDenseBoard(size, pool, minWords, timeLimitMs, fillPool = []) {
         const start = performance.now();
         let best = null;
         const totalCells = size * size;
@@ -1348,6 +1356,7 @@
           const used = new Set();
           const candidateOrder = shuffle(pool);
           const shortWordCandidates = candidateOrder.filter((item) => item.Answer.length <= SHORT_WORD_MAX_LENGTH);
+          const fillWordCandidates = fillPool.length ? fillPool : shortWordCandidates;
           const maxEntries = Math.min(pool.length, size * 5);
 
           let placedAny = true;
@@ -1403,7 +1412,38 @@
           while (shortFill && entries.length < maxEntries && countFilledCells(grid) < targetFilledCells) {
             shortFill = false;
 
-            const shortScan = shuffle(shortWordCandidates).slice(0, Math.min(MAX_WORD_SCAN, shortWordCandidates.length));
+            if (fillPool.length) {
+              const fillOption = pickFillPlacement(grid, size, fillWordCandidates, used, entryById);
+              if (!fillOption) break;
+
+              const entryId = entries.length;
+              const cells = placeWord(
+                grid,
+                fillOption.item.Answer,
+                fillOption.place.row,
+                fillOption.place.col,
+                fillOption.place.dir,
+                entryId
+              );
+              entries.push({
+                id: entryId,
+                clue: fillOption.item.Clue || fillOption.item.Answer,
+                theme: fillOption.item.Theme,
+                answer: fillOption.item.Answer,
+                row: fillOption.place.row,
+                col: fillOption.place.col,
+                dir: fillOption.place.dir,
+                cells,
+                locked: false,
+                number: 0,
+              });
+              entryById.set(entryId, entries[entries.length - 1]);
+              used.add(fillOption.item._id);
+              shortFill = true;
+              continue;
+            }
+
+            const shortScan = shuffle(fillWordCandidates).slice(0, Math.min(MAX_WORD_SCAN, fillWordCandidates.length));
             for (const item of shortScan) {
               if (used.has(item._id)) continue;
               const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, entries.length > 0, entryById));
@@ -1475,6 +1515,53 @@
           .filter((item) => themeSet.has(item.Theme))
           .filter((item) => item.Answer.length >= 3 && item.Answer.length <= MAX_ANSWER_LENGTH)
           .map((item, idx) => ({ ...item, _id: `${item.Theme}|${item.Clue}|${item.Answer}|${idx}` }));
+      }
+
+      function getFillPool() {
+        return fillWordsDb
+          .filter((item) => item.Answer.length <= MAX_ANSWER_LENGTH)
+          .map((item) => ({ ...item }));
+      }
+
+      function countFixedLettersForPlacement(grid, answer, row, col, dir) {
+        const dr = dir === 'down' ? 1 : 0;
+        const dc = dir === 'across' ? 1 : 0;
+        let fixed = 0;
+        for (let i = 0; i < answer.length; i += 1) {
+          const r = row + dr * i;
+          const c = col + dc * i;
+          if (grid[r][c]) fixed += 1;
+        }
+        return fixed;
+      }
+
+      function pickFillPlacement(grid, size, fillPool, used, entryById) {
+        const scanWords = shuffle(fillPool).slice(0, Math.min(MAX_WORD_SCAN, fillPool.length));
+        let bestOption = null;
+
+        for (const item of scanWords) {
+          if (used.has(item._id)) continue;
+          const placements = uniquePlacements(findPlacementsForWord(grid, size, item.Answer, true, entryById));
+          if (!placements.length) continue;
+
+          const ranked = placements
+            .map((place) => ({
+              place,
+              fixed: countFixedLettersForPlacement(grid, item.Answer, place.row, place.col, place.dir),
+            }))
+            .filter((itemPlacement) => itemPlacement.fixed > 0);
+          if (!ranked.length) continue;
+
+          ranked.sort((a, b) => (b.fixed - a.fixed) || (b.place.score - a.place.score));
+          const top = ranked.slice(0, Math.min(4, ranked.length));
+          const pick = top[rand(top.length)];
+          const score = pick.fixed * 10 + pick.place.score * 6 + Math.min(item.Answer.length, 8);
+          if (!bestOption || score > bestOption.score) {
+            bestOption = { item, place: pick.place, score };
+          }
+        }
+
+        return bestOption;
       }
 
       function computeCompletion(grid) {
@@ -2090,7 +2177,7 @@
         }
 
         const desiredWords = Math.max(12, Math.floor(size * 2.2));
-        const result = tryBuildDenseBoard(size, pool, desiredWords, 7000);
+        const result = tryBuildDenseBoard(size, pool, desiredWords, 7000, getFillPool());
 
         newGameBtn.disabled = false;
         updateResumeButton();
