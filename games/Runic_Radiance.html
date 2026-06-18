@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Runic Radiance</title>
+  <style>
+    :root {
+      --bg-1: #070910;
+      --bg-2: #11172b;
+      --panel: rgba(20, 24, 44, 0.9);
+      --panel-border: rgba(143, 173, 255, 0.28);
+      --text: #ebefff;
+      --muted: #a7b0d9;
+      --gold: #ffcf62;
+      --rose: #ff7ed6;
+      --teal: #77f0ff;
+      --cell-size: 64px;
+      --cell-gap: 2px;
+      --board-size: 526px;
+      --shadow: 0 0 25px rgba(93, 125, 255, 0.28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top, rgba(68, 38, 110, 0.35), transparent 35%),
+        radial-gradient(circle at bottom, rgba(0, 150, 255, 0.12), transparent 40%),
+        linear-gradient(180deg, var(--bg-2), var(--bg-1));
+      color: var(--text);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      overflow-x: hidden;
+    }
+
+    body {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      padding: 22px;
+    }
+
+    #starfield {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .star {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      animation: twinkle var(--dur) ease-in-out infinite alternate;
+      opacity: var(--alpha);
+    }
+
+    @keyframes twinkle {
+      from { transform: scale(0.9); opacity: 0.15; }
+      to { transform: scale(1.6); opacity: 1; }
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 1180px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #fdf0aa, #ffd56f 32%, #8ce7ff 68%, #f28cff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 0 18px rgba(255, 215, 128, 0.24);
+    }
+
+    #main-layout {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 18px;
+    }
+
+    .side-panel {
+      width: 200px;
+      background: linear-gradient(180deg, rgba(24, 29, 52, 0.95), rgba(14, 17, 34, 0.95));
+      border: 1px solid var(--panel-border);
+      border-radius: 18px;
+      padding: 16px 14px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    .panel-title {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      color: #d6deff;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .stat-card,
+    .legend-section,
+    .score-ref {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .label {
+      font-size: 0.76rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .score-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--gold);
+      text-shadow: 0 0 12px rgba(255, 207, 98, 0.35);
+    }
+
+    .level-line,
+    .mini-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      margin-top: 6px;
+      font-size: 0.95rem;
+    }
+
+    .progress-shell {
+      width: 100%;
+      height: 12px;
+      margin-top: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #5f9dff, #71eaff, #ffdd77);
+      border-radius: inherit;
+      transition: width 0.25s ease;
+      box-shadow: 0 0 14px rgba(125, 211, 255, 0.55);
+    }
+
+    .combo-badge,
+    .inline-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 70px;
+      padding: 7px 12px;
+      margin-top: 8px;
+      border-radius: 999px;
+      font-weight: 800;
+      background: linear-gradient(90deg, rgba(95, 157, 255, 0.18), rgba(255, 126, 214, 0.18));
+      border: 1px solid rgba(146, 186, 255, 0.25);
+      box-shadow: 0 0 12px rgba(106, 142, 255, 0.16);
+    }
+
+    .inline-badge.combo-pop {
+      animation: comboPop 0.4s ease;
+    }
+
+    @keyframes comboPop {
+      0% { transform: scale(0); }
+      60% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    .control-buttons {
+      display: grid;
+      gap: 10px;
+    }
+
+    .action-btn,
+    .modal-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 11px 14px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.96rem;
+      font-weight: 700;
+      background: linear-gradient(180deg, rgba(94, 119, 255, 0.5), rgba(56, 70, 144, 0.76));
+      box-shadow: 0 8px 20px rgba(18, 25, 64, 0.36);
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    .action-btn:hover,
+    .modal-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    .action-btn:active,
+    .modal-btn:active {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    #board-wrapper {
+      position: relative;
+      width: var(--board-size);
+      min-width: var(--board-size);
+      border-radius: 20px;
+      padding: 14px;
+      background: linear-gradient(180deg, rgba(20, 24, 43, 0.9), rgba(11, 14, 28, 0.95));
+      border: 1px solid rgba(154, 175, 255, 0.22);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 18px 40px rgba(0,0,0,0.45), var(--shadow);
+    }
+
+    #board-wrapper.flash-board {
+      animation: boardFlash 0.3s ease 3;
+    }
+
+    @keyframes boardFlash {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.5); }
+    }
+
+    #board {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(8, var(--cell-size));
+      grid-template-rows: repeat(8, var(--cell-size));
+      gap: var(--cell-gap);
+      width: var(--board-size);
+      height: var(--board-size);
+      background:
+        linear-gradient(180deg, rgba(69, 82, 122, 0.24), rgba(26, 31, 54, 0.24)),
+        radial-gradient(circle at top, rgba(108, 148, 255, 0.1), transparent 38%),
+        rgba(8, 10, 20, 0.96);
+      border-radius: 16px;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .cell {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 28% 24%, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 35%, rgba(0,0,0,0.34) 100%);
+      border: 1px solid rgba(255,255,255,0.06);
+      user-select: none;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .cell::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent 40%);
+      pointer-events: none;
+    }
+
+    .cell.selected {
+      box-shadow: inset 0 0 0 3px rgba(255, 223, 117, 0.9), 0 0 16px rgba(255, 223, 117, 0.5);
+      z-index: 5;
+    }
+
+    .cell.hinted {
+      animation: hintPulse 0.8s ease-in-out infinite alternate;
+      z-index: 4;
+    }
+
+    @keyframes hintPulse {
+      from { transform: scale(1); box-shadow: inset 0 0 0 2px rgba(121, 239, 255, 0.72), 0 0 12px rgba(121, 239, 255, 0.28); }
+      to { transform: scale(1.08); box-shadow: inset 0 0 0 3px rgba(255, 223, 117, 0.92), 0 0 20px rgba(255, 223, 117, 0.48); }
+    }
+
+    .gem {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      transition: transform 0.15s ease;
+      filter: drop-shadow(0 0 9px color-mix(in srgb, var(--gem-color) 70%, white 30%));
+    }
+
+    .gem.special {
+      animation: pulseGlow 0.95s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+      from { filter: drop-shadow(0 0 8px var(--gem-color)); }
+      to { filter: drop-shadow(0 0 20px var(--gem-color)); }
+    }
+
+    .special-icon {
+      position: absolute;
+      right: 2px;
+      bottom: 2px;
+      min-width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      background: rgba(8, 10, 21, 0.82);
+      border: 1px solid rgba(255,255,255,0.14);
+      text-shadow: 0 0 10px rgba(255,255,255,0.75);
+      box-shadow: 0 0 10px rgba(0,0,0,0.35);
+      pointer-events: none;
+    }
+
+    .cell.popping .gem {
+      animation: popGem 0.3s ease forwards;
+    }
+
+    .cell.exploding .gem {
+      animation: explodeGem 0.4s ease forwards;
+    }
+
+    .cell.fall-in .gem {
+      animation: fallIn 0.3s ease;
+    }
+
+    @keyframes popGem {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 1; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+
+    @keyframes explodeGem {
+      0% { transform: scale(1); opacity: 1; }
+      45% { transform: scale(2); opacity: 0.6; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+
+    @keyframes fallIn {
+      from { transform: translateY(-100%); }
+      to { transform: translateY(0); }
+    }
+
+    .score-float {
+      position: absolute;
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--gold);
+      text-shadow: 0 0 10px rgba(255, 223, 117, 0.72);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      animation: scoreFloat 1s ease forwards;
+      z-index: 20;
+    }
+
+    @keyframes scoreFloat {
+      from { transform: translate(-50%, -50%); opacity: 1; }
+      to { transform: translate(-50%, calc(-50% - 80px)); opacity: 0; }
+    }
+
+    .particle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      pointer-events: none;
+      animation: particleBurst 0.6s ease-out forwards;
+      z-index: 15;
+    }
+
+    @keyframes particleBurst {
+      from { transform: translate(0, 0) scale(1); opacity: 1; }
+      to { transform: translate(var(--dx), var(--dy)) scale(0.25); opacity: 0; }
+    }
+
+    .legend-item,
+    .special-item,
+    .score-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.86rem;
+      line-height: 1.3;
+      margin-bottom: 7px;
+      color: #d8deff;
+    }
+
+    .legend-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      margin-top: 3px;
+      flex: 0 0 auto;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .special-mark {
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.08);
+      flex: 0 0 auto;
+    }
+
+    .small-note {
+      color: var(--muted);
+      font-size: 0.78rem;
+      margin-top: 8px;
+      line-height: 1.35;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 5, 12, 0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 18px;
+      backdrop-filter: blur(6px);
+    }
+
+    .modal.visible {
+      display: flex;
+    }
+
+    .modal-card {
+      width: min(100%, 560px);
+      background: linear-gradient(180deg, rgba(28, 33, 58, 0.98), rgba(14, 17, 31, 0.98));
+      border: 1px solid rgba(154, 175, 255, 0.24);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5), var(--shadow);
+      padding: 22px;
+    }
+
+    .modal-card h2 {
+      margin: 0 0 12px;
+      font-size: 1.9rem;
+      color: #eff3ff;
+    }
+
+    .modal-card p {
+      color: #ccd5ff;
+      line-height: 1.45;
+    }
+
+    .stars {
+      font-size: 2rem;
+      letter-spacing: 0.18em;
+      margin: 10px 0 16px;
+    }
+
+    .record-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(255, 212, 96, 0.2), rgba(255, 132, 204, 0.18));
+      border: 1px solid rgba(255, 215, 127, 0.34);
+      font-weight: 800;
+      margin: 10px 0;
+      color: #ffe18a;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .name-label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 16px;
+    }
+
+    .name-input {
+      padding: 12px 14px;
+      font-size: 1rem;
+      border-radius: 12px;
+      border: 1px solid rgba(154, 175, 255, 0.24);
+      background: rgba(7, 10, 19, 0.8);
+      color: var(--text);
+      outline: none;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 0.92rem;
+    }
+
+    th,
+    td {
+      padding: 8px 6px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    th {
+      color: #f0f3ff;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    tbody tr:nth-child(1) { background: rgba(255, 214, 102, 0.14); color: #ffe9a9; }
+    tbody tr:nth-child(2) { background: rgba(210, 223, 240, 0.12); color: #e4edf7; }
+    tbody tr:nth-child(3) { background: rgba(194, 138, 96, 0.16); color: #ffd6b0; }
+
+    @media (max-width: 719px) {
+      body {
+        padding: 14px;
+      }
+
+      .side-panel {
+        display: none;
+      }
+
+      #main-layout {
+        gap: 0;
+      }
+
+      #board-wrapper {
+        transform: scale(min(1, calc((100vw - 28px) / 554)));
+        transform-origin: top center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="starfield"></div>
+  <div id="app">
+    <h1 class="title">✦ Runic Radiance ✦</h1>
+    <div id="main-layout">
+      <aside class="side-panel" id="left-panel">
+        <div class="stat-card">
+          <div class="label">Score</div>
+          <div class="score-value" id="score-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Level</div>
+          <div class="level-line"><span id="level-value">1</span><span id="target-value">Goal 1400</span></div>
+          <div class="progress-shell"><div class="progress-fill" id="progress-fill"></div></div>
+          <div class="small-note"><span id="level-score-value">0</span> / <span id="level-target-value">1400</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Combo Multiplier</div>
+          <div class="inline-badge" id="combo-value">x1</div>
+          <div class="mini-line"><span>Best</span><strong id="best-value">0</strong></div>
+        </div>
+        <div class="control-buttons">
+          <button class="action-btn" id="scores-btn">🏆 Scores</button>
+          <button class="action-btn" id="hint-btn">💡 Hint</button>
+          <button class="action-btn" id="mute-btn">🔊 Sound On</button>
+        </div>
+      </aside>
+
+      <section id="board-wrapper">
+        <div id="board"></div>
+      </section>
+
+      <aside class="side-panel" id="right-panel">
+        <div class="legend-section">
+          <h2 class="panel-title">Gem Legend</h2>
+          <div id="gem-legend"></div>
+        </div>
+        <div class="legend-section">
+          <h2 class="panel-title">Specials</h2>
+          <div id="special-legend"></div>
+        </div>
+        <div class="score-ref">
+          <h2 class="panel-title">Scoring</h2>
+          <div id="score-reference"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="modal" id="level-modal">
+    <div class="modal-card">
+      <h2>Level Complete</h2>
+      <p id="level-modal-text"></p>
+      <div class="stars" id="level-stars">★</div>
+      <div class="modal-actions">
+        <button class="modal-btn" id="level-continue-btn">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="gameover-modal">
+    <div class="modal-card">
+      <h2>Game Over</h2>
+      <p id="gameover-text"></p>
+      <div class="record-badge" id="new-record-badge" style="display:none;">🌟 New Record</div>
+      <label class="name-label" for="player-name-input">Your name</label>
+      <input class="name-input" id="player-name-input" type="text" maxlength="20" value="Adventurer" aria-label="Player name">
+      <div class="modal-actions">
+        <button class="modal-btn" id="save-score-btn">Save &amp; Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="scores-modal">
+    <div class="modal-card">
+      <h2>Hall of Heroes</h2>
+      <p>The finest rune-weavers recorded in crystal memory.</p>
+      <div id="scores-table-wrap"></div>
+      <div class="modal-actions">
+        <button class="modal-btn" id="scores-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const ROWS = 8;
+    const COLS = 8;
+    const CELL_SIZE = 64;
+    const CELL_GAP = 2;
+    const SCORE_KEY = 'runic_radiance_scores';
+    const GEM_TYPES = [
+      { key: 'fire', name: 'Fire Ruby', color: '#ff4400', shape: 'pentagon' },
+      { key: 'ocean', name: 'Ocean Sapphire', color: '#0088ff', shape: 'circle' },
+      { key: 'forest', name: 'Forest Emerald', color: '#44aa22', shape: 'rounded-square' },
+      { key: 'sun', name: 'Sun Topaz', color: '#ffcc00', shape: 'star' },
+      { key: 'shadow', name: 'Shadow Amethyst', color: '#aa44ff', shape: 'hexagon' },
+      { key: 'storm', name: 'Storm Crystal', color: '#00ccff', shape: 'starburst' },
+      { key: 'blood', name: 'Blood Garnet', color: '#cc0044', shape: 'teardrop' }
+    ];
+    const SPECIALS = {
+      bomb: { icon: '💣', name: 'Rune Bomb', desc: 'Blast 3×3 around itself', power: 1 },
+      row: { icon: '⚡', name: 'Row Rune', desc: 'Destroy an entire row', power: 2 },
+      col: { icon: '🌊', name: 'Column Rune', desc: 'Destroy an entire column', power: 3 },
+      cross: { icon: '✨', name: 'Arcane Cross', desc: 'Destroy its row and column', power: 4 },
+      dragon: { icon: '🐉', name: 'Dragon Eye', desc: 'Blast a 5×5 zone', power: 5 },
+      void: { icon: '🌀', name: 'Void Orb', desc: 'Erase all gems of one color', power: 6 }
+    };
+    const SCORE_RULES = [
+      ['Match 3', '50 pts'],
+      ['Match 4', '150 pts'],
+      ['Match 5', '300 pts'],
+      ['Match 6+', '300 + 100 each above 5'],
+      ['Special hits', '50 pts per gem'],
+      ['Special create', '+200 bonus'],
+      ['Cascades', 'All values × current combo']
+    ];
+    const STORM_POINT_COUNT = 14;
+    const STORM_INNER_RADIUS = 12;
+    const STORM_OUTER_RADIUS = 23;
+    const stormPoints = makeStarPoints(STORM_POINT_COUNT, STORM_INNER_RADIUS, STORM_OUTER_RADIUS);
+    const SPECIAL_ORDER = ['bomb', 'row', 'col', 'cross', 'dragon', 'void'];
+
+    const MAX_BOARD_INIT_ATTEMPTS = 100;
+    const DEFAULT_SHUFFLE_ATTEMPTS = 100;
+    const NO_MOVES_SHUFFLE_ATTEMPTS = 50;
+    const LEVEL_COMPLETE_MAX_ATTEMPTS = 100;
+
+    let board = [];
+    let selectedCell = null;
+    let hintedCells = [];
+    let hintTimeout = null;
+    let isAnimating = false;
+    let score = 0;
+    let level = 1;
+    let levelScore = 0;
+    let cascadeMultiplier = 1;
+    let muted = false;
+    let audioCtx = null;
+    let levelModalResolver = null;
+    let gameOverResolver = null;
+
+    const boardEl = document.getElementById('board');
+    const boardWrapperEl = document.getElementById('board-wrapper');
+    const scoreValueEl = document.getElementById('score-value');
+    const levelValueEl = document.getElementById('level-value');
+    const targetValueEl = document.getElementById('target-value');
+    const levelScoreValueEl = document.getElementById('level-score-value');
+    const levelTargetValueEl = document.getElementById('level-target-value');
+    const progressFillEl = document.getElementById('progress-fill');
+    const comboValueEl = document.getElementById('combo-value');
+    const bestValueEl = document.getElementById('best-value');
+    const gemLegendEl = document.getElementById('gem-legend');
+    const specialLegendEl = document.getElementById('special-legend');
+    const scoreReferenceEl = document.getElementById('score-reference');
+    const levelModalEl = document.getElementById('level-modal');
+    const levelModalTextEl = document.getElementById('level-modal-text');
+    const levelStarsEl = document.getElementById('level-stars');
+    const gameoverModalEl = document.getElementById('gameover-modal');
+    const gameoverTextEl = document.getElementById('gameover-text');
+    const newRecordBadgeEl = document.getElementById('new-record-badge');
+    const playerNameInputEl = document.getElementById('player-name-input');
+    const scoresModalEl = document.getElementById('scores-modal');
+    const scoresTableWrapEl = document.getElementById('scores-table-wrap');
+    const muteBtnEl = document.getElementById('mute-btn');
+
+    function makeStarPoints(points, inner, outer) {
+      const coords = [];
+      for (let i = 0; i < points * 2; i++) {
+        const angle = (Math.PI / points) * i - Math.PI / 2;
+        const radius = i % 2 === 0 ? outer : inner;
+        const x = 26 + Math.cos(angle) * radius;
+        const y = 26 + Math.sin(angle) * radius;
+        coords.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+      }
+      return coords.join(' ');
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function keyOf(r, c) {
+      return `${r},${c}`;
+    }
+
+    function parseKey(key) {
+      const [r, c] = key.split(',').map(Number);
+      return { r, c };
+    }
+
+    function isInside(r, c) {
+      return r >= 0 && r < ROWS && c >= 0 && c < COLS;
+    }
+
+    function cloneGem(gem) {
+      return gem ? { type: gem.type, special: gem.special || null } : null;
+    }
+
+    function gemMeta(type) {
+      return GEM_TYPES.find(g => g.key === type);
+    }
+
+    function getLevelTarget(currentLevel) {
+      return Math.floor(1000 * currentLevel * (1 + currentLevel * 0.4));
+    }
+
+    function getScores() {
+      try {
+        const raw = localStorage.getItem(SCORE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveScores(scores) {
+      localStorage.setItem(SCORE_KEY, JSON.stringify(scores));
+    }
+
+    function bestScore() {
+      return getScores()[0]?.score || 0;
+    }
+
+    function formatDate(value) {
+      return new Date(value).toLocaleDateString();
+    }
+
+    function createStarfield() {
+      const field = document.getElementById('starfield');
+      field.innerHTML = '';
+      for (let i = 0; i < 100; i++) {
+        const star = document.createElement('span');
+        const size = Math.random() * 2.4 + 1;
+        star.className = 'star';
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.top = `${Math.random() * 100}%`;
+        star.style.setProperty('--alpha', (Math.random() * 0.7 + 0.2).toFixed(2));
+        star.style.setProperty('--dur', `${Math.random() * 2.8 + 1.2}s`);
+        star.style.animationDelay = `${Math.random() * 3}s`;
+        field.appendChild(star);
+      }
+    }
+
+    function buildLegends() {
+      gemLegendEl.innerHTML = GEM_TYPES.map(gem => `
+        <div class="legend-item">
+          <span class="legend-dot" style="color:${gem.color}; background:${gem.color};"></span>
+          <span><strong>${gem.name}</strong></span>
+        </div>
+      `).join('');
+      specialLegendEl.innerHTML = Object.values(SPECIALS).map(special => `
+        <div class="special-item">
+          <span class="special-mark">${special.icon}</span>
+          <span><strong>${special.name}</strong><br>${special.desc}</span>
+        </div>
+      `).join('');
+      scoreReferenceEl.innerHTML = SCORE_RULES.map(rule => `
+        <div class="score-item">
+          <span>✦</span>
+          <span><strong>${rule[0]}:</strong> ${rule[1]}</span>
+        </div>
+      `).join('');
+    }
+
+    function createRandomGem() {
+      const base = GEM_TYPES[Math.floor(Math.random() * GEM_TYPES.length)];
+      return { type: base.key, special: null };
+    }
+
+    function causesImmediateMatch(targetBoard, r, c) {
+      const type = targetBoard[r][c].type;
+      return (
+        (c >= 2 && targetBoard[r][c - 1]?.type === type && targetBoard[r][c - 2]?.type === type) ||
+        (r >= 2 && targetBoard[r - 1][c]?.type === type && targetBoard[r - 2][c]?.type === type)
+      );
+    }
+
+    function initBoard() {
+      board = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => null));
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          let gem;
+          do {
+            gem = createRandomGem();
+            board[r][c] = gem;
+          } while (causesImmediateMatch(board, r, c));
+        }
+      }
+      let attempts = 0;
+      while ((!hasValidMoves() || findMatchInfo(board).mergedGroups.length) && attempts < MAX_BOARD_INIT_ATTEMPTS) {
+        shuffleExistingBoard(1);
+        attempts += 1;
+      }
+    }
+
+    function shuffleArray(items) {
+      for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+    }
+
+    function shuffleExistingBoard(maxAttempts = DEFAULT_SHUFFLE_ATTEMPTS) {
+      const gems = board.flat().map(cloneGem);
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        shuffleArray(gems);
+        const nextBoard = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => null));
+        let index = 0;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            nextBoard[r][c] = cloneGem(gems[index]);
+            index += 1;
+          }
+        }
+        board = nextBoard;
+        if (!findMatchInfo(board).mergedGroups.length && hasValidMoves()) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function renderGemSvg(gem, r, c) {
+      const meta = gemMeta(gem.type);
+      const gradId = `grad-${meta.key}-${r}-${c}`;
+      const glowId = `glow-${meta.key}-${r}-${c}`;
+      let shapeMarkup = '';
+      switch (meta.shape) {
+        case 'pentagon':
+          shapeMarkup = '<polygon points="26,6 44,19 37,43 15,43 8,19" />';
+          break;
+        case 'circle':
+          shapeMarkup = '<circle cx="26" cy="26" r="17" />';
+          break;
+        case 'rounded-square':
+          shapeMarkup = '<rect x="11" y="11" width="30" height="30" rx="8" />';
+          break;
+        case 'star':
+          shapeMarkup = '<polygon points="26,5 31,18 45,18 33,27 38,42 26,33 14,42 19,27 7,18 21,18" />';
+          break;
+        case 'hexagon':
+          shapeMarkup = '<polygon points="26,6 42,16 42,36 26,46 10,36 10,16" />';
+          break;
+        case 'starburst':
+          shapeMarkup = `<polygon points="${stormPoints}" />`;
+          break;
+        case 'teardrop':
+          shapeMarkup = '<path d="M26 6 C20 16 12 22 12 31 C12 40 18 46 26 46 C34 46 40 40 40 31 C40 22 32 16 26 6 Z" />';
+          break;
+      }
+      return `
+        <div class="gem${gem.special ? ' special' : ''}" style="--gem-color:${meta.color};">
+          <svg viewBox="0 0 52 52" width="52" height="52" aria-hidden="true">
+            <defs>
+              <linearGradient id="${gradId}" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#ffffff" stop-opacity="0.98"></stop>
+                <stop offset="24%" stop-color="${meta.color}" stop-opacity="1"></stop>
+                <stop offset="100%" stop-color="#000000" stop-opacity="0.36"></stop>
+              </linearGradient>
+              <filter id="${glowId}" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="0" stdDeviation="2.2" flood-color="${meta.color}" flood-opacity="0.9"></feDropShadow>
+              </filter>
+            </defs>
+            <g fill="url(#${gradId})" stroke="rgba(255,255,255,0.85)" stroke-width="1.2" filter="url(#${glowId})">
+              ${shapeMarkup}
+            </g>
+            <ellipse cx="21" cy="16" rx="9" ry="5" fill="rgba(255,255,255,0.38)" transform="rotate(-24 21 16)"></ellipse>
+          </svg>
+          ${gem.special ? `<span class="special-icon">${SPECIALS[gem.special].icon}</span>` : ''}
+        </div>
+      `;
+    }
+
+    function renderBoard(fallKeys = []) {
+      const selectedKey = selectedCell ? keyOf(selectedCell.r, selectedCell.c) : null;
+      const hintedKeySet = new Set(hintedCells.map(cell => keyOf(cell.r, cell.c)));
+      const fallKeySet = new Set(fallKeys);
+      let markup = '';
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const gem = board[r][c];
+          const key = keyOf(r, c);
+          const classes = ['cell'];
+          if (selectedKey === key) classes.push('selected');
+          if (hintedKeySet.has(key)) classes.push('hinted');
+          if (fallKeySet.has(key)) classes.push('fall-in');
+          markup += `<div class="${classes.join(' ')}" data-r="${r}" data-c="${c}">${gem ? renderGemSvg(gem, r, c) : ''}</div>`;
+        }
+      }
+      boardEl.innerHTML = markup;
+    }
+
+    function updateHUD() {
+      const target = getLevelTarget(level);
+      scoreValueEl.textContent = score.toLocaleString();
+      levelValueEl.textContent = level;
+      targetValueEl.textContent = `Goal ${target.toLocaleString()}`;
+      levelScoreValueEl.textContent = levelScore.toLocaleString();
+      levelTargetValueEl.textContent = target.toLocaleString();
+      progressFillEl.style.width = `${Math.min(100, (levelScore / target) * 100)}%`;
+      comboValueEl.textContent = `x${cascadeMultiplier}`;
+      comboValueEl.classList.remove('combo-pop');
+      void comboValueEl.offsetWidth;
+      comboValueEl.classList.add('combo-pop');
+      bestValueEl.textContent = Math.max(bestScore(), score).toLocaleString();
+      muteBtnEl.textContent = muted ? '🔇 Sound Off' : '🔊 Sound On';
+    }
+
+    function openModal(modal) {
+      modal.classList.add('visible');
+    }
+
+    function closeModal(modal) {
+      modal.classList.remove('visible');
+    }
+
+    function clearHint() {
+      hintedCells = [];
+      if (hintTimeout) {
+        clearTimeout(hintTimeout);
+        hintTimeout = null;
+      }
+      renderBoard();
+    }
+
+    function areAdjacent(a, b) {
+      return Math.abs(a.r - b.r) + Math.abs(a.c - b.c) === 1;
+    }
+
+    function swapCells(a, b) {
+      [board[a.r][a.c], board[b.r][b.c]] = [board[b.r][b.c], board[a.r][a.c]];
+    }
+
+    function findRuns(targetBoard) {
+      const runs = [];
+      for (let r = 0; r < ROWS; r++) {
+        let c = 0;
+        while (c < COLS) {
+          const start = c;
+          const type = targetBoard[r][c]?.type;
+          while (c < COLS && targetBoard[r][c]?.type === type) c += 1;
+          const len = c - start;
+          if (type && len >= 3) {
+            const cells = [];
+            for (let i = start; i < c; i++) cells.push({ r, c: i });
+            runs.push({ dir: 'h', type, len, cells });
+          }
+        }
+      }
+      for (let c = 0; c < COLS; c++) {
+        let r = 0;
+        while (r < ROWS) {
+          const start = r;
+          const type = targetBoard[r][c]?.type;
+          while (r < ROWS && targetBoard[r][c]?.type === type) r += 1;
+          const len = r - start;
+          if (type && len >= 3) {
+            const cells = [];
+            for (let i = start; i < r; i++) cells.push({ r: i, c });
+            runs.push({ dir: 'v', type, len, cells });
+          }
+        }
+      }
+      return runs;
+    }
+
+    function cellsOverlap(cellsA, cellsB) {
+      const setA = new Set(cellsA.map(cell => keyOf(cell.r, cell.c)));
+      return cellsB.some(cell => setA.has(keyOf(cell.r, cell.c)));
+    }
+
+    function mergeRuns(runs) {
+      const used = new Array(runs.length).fill(false);
+      const merged = [];
+      for (let i = 0; i < runs.length; i++) {
+        if (used[i]) continue;
+        used[i] = true;
+        const stack = [i];
+        const component = [];
+        while (stack.length) {
+          const index = stack.pop();
+          component.push(index);
+          for (let j = 0; j < runs.length; j++) {
+            if (used[j]) continue;
+            if (runs[j].type === runs[index].type && cellsOverlap(runs[j].cells, runs[index].cells)) {
+              used[j] = true;
+              stack.push(j);
+            }
+          }
+        }
+        const cellMap = new Map();
+        component.forEach(index => {
+          runs[index].cells.forEach(cell => cellMap.set(keyOf(cell.r, cell.c), cell));
+        });
+        merged.push({
+          type: runs[i].type,
+          dir: component.length === 1 ? runs[i].dir : 'mix',
+          len: cellMap.size,
+          cells: [...cellMap.values()],
+          runIndexes: component
+        });
+      }
+      return merged;
+    }
+
+    function findMatchInfo(targetBoard) {
+      const runs = findRuns(targetBoard);
+      return { runs, mergedGroups: mergeRuns(runs) };
+    }
+
+    function choosePlacement(cells, swapTarget, longestRun) {
+      if (swapTarget && cells.some(cell => cell.r === swapTarget.r && cell.c === swapTarget.c)) {
+        return { r: swapTarget.r, c: swapTarget.c };
+      }
+      const source = longestRun || { cells };
+      return source.cells[Math.floor(source.cells.length / 2)];
+    }
+
+    function determineSpecialCreations(runs, swapTarget) {
+      const creations = [];
+      const consumed = new Set();
+      const byType = GEM_TYPES.map(gem => gem.key);
+
+      byType.forEach(type => {
+        const typedRuns = runs.map((run, index) => ({ ...run, index })).filter(run => run.type === type);
+        const pending = new Set(typedRuns.map(run => run.index));
+        typedRuns.forEach(run => {
+          if (!pending.has(run.index)) return;
+          const queue = [run.index];
+          const component = [];
+          pending.delete(run.index);
+          while (queue.length) {
+            const current = queue.pop();
+            component.push(current);
+            typedRuns.forEach(other => {
+              if (!pending.has(other.index)) return;
+              if (cellsOverlap(runs[current].cells, other.cells)) {
+                pending.delete(other.index);
+                queue.push(other.index);
+              }
+            });
+          }
+          const componentRuns = component.map(index => runs[index]);
+          const hasH = componentRuns.some(item => item.dir === 'h');
+          const hasV = componentRuns.some(item => item.dir === 'v');
+          if (!hasH || !hasV) return;
+          const cellMap = new Map();
+          componentRuns.forEach(item => item.cells.forEach(cell => cellMap.set(keyOf(cell.r, cell.c), cell)));
+          const cells = [...cellMap.values()];
+          const longestRun = componentRuns.slice().sort((a, b) => b.len - a.len)[0];
+          let special = 'bomb';
+          if (cells.length >= 7 || (componentRuns.some(item => item.len === 3) && componentRuns.filter(item => item.len === 3).length >= 2 && cells.length === 5)) {
+            special = 'dragon';
+          } else if (cells.length >= 5 || componentRuns.some(item => item.len >= 4)) {
+            special = 'cross';
+          }
+          const placement = choosePlacement(cells, swapTarget, longestRun);
+          creations.push({ r: placement.r, c: placement.c, type, special, cells });
+          component.forEach(index => consumed.add(index));
+        });
+      });
+
+      runs.forEach((run, index) => {
+        if (consumed.has(index)) return;
+        if (run.len >= 5) {
+          const placement = choosePlacement(run.cells, swapTarget, run);
+          creations.push({ r: placement.r, c: placement.c, type: run.type, special: 'void', cells: run.cells });
+        } else if (run.len === 4) {
+          const placement = choosePlacement(run.cells, swapTarget, run);
+          creations.push({ r: placement.r, c: placement.c, type: run.type, special: run.dir === 'h' ? 'row' : 'col', cells: run.cells });
+        }
+      });
+
+      const unique = new Map();
+      creations.forEach(item => unique.set(keyOf(item.r, item.c), item));
+      return [...unique.values()];
+    }
+
+    function getMatchScore(size) {
+      if (size <= 3) return 50;
+      if (size === 4) return 150;
+      if (size === 5) return 300;
+      return 300 + (size - 5) * 100;
+    }
+
+    function cellCenter(cell) {
+      return {
+        x: cell.c * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2 + 14,
+        y: cell.r * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2 + 14
+      };
+    }
+
+    function showScoreFloat(text, cell, color = '#ffcf62') {
+      const point = cellCenter(cell);
+      const float = document.createElement('div');
+      float.className = 'score-float';
+      float.textContent = text;
+      float.style.left = `${point.x}px`;
+      float.style.top = `${point.y}px`;
+      float.style.color = color;
+      boardWrapperEl.appendChild(float);
+      setTimeout(() => float.remove(), 1000);
+    }
+
+    function spawnParticles(cell, color) {
+      const point = cellCenter(cell);
+      for (let i = 0; i < 6; i++) {
+        const particle = document.createElement('span');
+        const angle = (Math.PI * 2 / 6) * i + Math.random() * 0.4;
+        const distance = 12 + Math.random() * 22;
+        particle.className = 'particle';
+        particle.style.left = `${point.x}px`;
+        particle.style.top = `${point.y}px`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 10px ${color}`;
+        particle.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+        particle.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+        boardWrapperEl.appendChild(particle);
+        setTimeout(() => particle.remove(), 620);
+      }
+    }
+
+    function getCellElement(r, c) {
+      return boardEl.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+    }
+
+    async function animateCells(cells, className, duration) {
+      cells.forEach(cell => {
+        const gem = board[cell.r][cell.c];
+        if (gem) {
+          const meta = gemMeta(gem.type);
+          spawnParticles(cell, meta.color);
+        }
+        const el = getCellElement(cell.r, cell.c);
+        if (el) el.classList.add(className);
+      });
+      await wait(duration);
+    }
+
+    function addScore(amount, sourceCell) {
+      score += amount;
+      levelScore += amount;
+      if (sourceCell) showScoreFloat(`+${amount}`, sourceCell);
+      updateHUD();
+    }
+
+    function sortQueue(queue) {
+      queue.sort((a, b) => SPECIAL_ORDER.indexOf(a.special) - SPECIAL_ORDER.indexOf(b.special));
+    }
+
+    function queueSpecial(queue, seen, item) {
+      const key = `${item.r},${item.c},${item.special},${item.targetType || ''}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        queue.push(item);
+      }
+    }
+
+    function collectArea(r, c, radius) {
+      const cells = [];
+      for (let rr = r - radius; rr <= r + radius; rr++) {
+        for (let cc = c - radius; cc <= c + radius; cc++) {
+          if (isInside(rr, cc)) cells.push({ r: rr, c: cc });
+        }
+      }
+      return cells;
+    }
+
+    function collectEffectCells(effect) {
+      const keys = new Set();
+      const pushCell = (r, c) => {
+        if (isInside(r, c)) keys.add(keyOf(r, c));
+      };
+      if (effect.kind === 'combo') {
+        switch (effect.comboType) {
+          case 'board':
+            for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) pushCell(r, c);
+            break;
+          case 'megaBomb':
+            collectArea(effect.r, effect.c, 2).forEach(cell => pushCell(cell.r, cell.c));
+            break;
+          case 'tripleRows':
+            for (let rr = effect.r - 1; rr <= effect.r + 1; rr++) for (let c = 0; c < COLS; c++) pushCell(rr, c);
+            break;
+          case 'tripleCols':
+            for (let cc = effect.c - 1; cc <= effect.c + 1; cc++) for (let r = 0; r < ROWS; r++) pushCell(r, cc);
+            break;
+          case 'cross':
+            for (let i = 0; i < COLS; i++) pushCell(effect.r, i);
+            for (let i = 0; i < ROWS; i++) pushCell(i, effect.c);
+            break;
+          case 'rowBomb':
+            for (let i = 0; i < COLS; i++) pushCell(effect.r, i);
+            collectArea(effect.r, effect.c, 1).forEach(cell => pushCell(cell.r, cell.c));
+            break;
+          case 'colBomb':
+            for (let i = 0; i < ROWS; i++) pushCell(i, effect.c);
+            collectArea(effect.r, effect.c, 1).forEach(cell => pushCell(cell.r, cell.c));
+            break;
+          case 'dragon7':
+            collectArea(effect.r, effect.c, 3).forEach(cell => pushCell(cell.r, cell.c));
+            break;
+        }
+      } else {
+        switch (effect.special) {
+          case 'bomb':
+            collectArea(effect.r, effect.c, 1).forEach(cell => pushCell(cell.r, cell.c));
+            break;
+          case 'row':
+            for (let c = 0; c < COLS; c++) pushCell(effect.r, c);
+            break;
+          case 'col':
+            for (let r = 0; r < ROWS; r++) pushCell(r, effect.c);
+            break;
+          case 'cross':
+            for (let c = 0; c < COLS; c++) pushCell(effect.r, c);
+            for (let r = 0; r < ROWS; r++) pushCell(r, effect.c);
+            break;
+          case 'dragon':
+            collectArea(effect.r, effect.c, 2).forEach(cell => pushCell(cell.r, cell.c));
+            break;
+          case 'void':
+            for (let r = 0; r < ROWS; r++) {
+              for (let c = 0; c < COLS; c++) {
+                if (board[r][c] && board[r][c].type === effect.targetType) pushCell(r, c);
+              }
+            }
+            break;
+        }
+      }
+      pushCell(effect.r, effect.c);
+      return [...keys].map(parseKey).filter(cell => board[cell.r][cell.c]);
+    }
+
+    async function activateEffects(initialQueue, cascade) {
+      const queue = [];
+      const seen = new Set();
+      initialQueue.forEach(item => queueSpecial(queue, seen, item));
+      while (queue.length) {
+        sortQueue(queue);
+        const effect = queue.shift();
+        const targets = collectEffectCells(effect);
+        if (!targets.length) continue;
+        const nested = [];
+        const nestedSeen = new Set();
+        targets.forEach(cell => {
+          const gem = board[cell.r][cell.c];
+          if (!gem) return;
+          if (gem.special && !(cell.r === effect.r && cell.c === effect.c && effect.kind !== 'combo')) {
+            queueSpecial(nested, nestedSeen, { kind: 'special', r: cell.r, c: cell.c, special: gem.special, type: gem.type, targetType: gem.type });
+          }
+        });
+        playSpecial();
+        playExplosion();
+        await animateCells(targets, 'exploding', 400);
+        addScore(targets.length * 50 * cascade, targets[Math.floor(targets.length / 2)]);
+        targets.forEach(cell => {
+          board[cell.r][cell.c] = null;
+        });
+        renderBoard();
+        nested.forEach(item => queueSpecial(queue, seen, item));
+      }
+    }
+
+    function applyGravityAndFill() {
+      const fallKeys = [];
+      for (let c = 0; c < COLS; c++) {
+        const compacted = [];
+        for (let r = ROWS - 1; r >= 0; r--) {
+          if (board[r][c]) compacted.push(board[r][c]);
+        }
+        let pointer = ROWS - 1;
+        compacted.forEach(gem => {
+          board[pointer][c] = gem;
+          fallKeys.push(keyOf(pointer, c));
+          pointer -= 1;
+        });
+        while (pointer >= 0) {
+          board[pointer][c] = createRandomGem();
+          fallKeys.push(keyOf(pointer, c));
+          pointer -= 1;
+        }
+      }
+      return fallKeys;
+    }
+
+    async function resolveBoard(swapTarget = null, startingCascade = 1) {
+      let cascade = startingCascade;
+      let localTarget = swapTarget;
+      while (true) {
+        const info = findMatchInfo(board);
+        if (!info.mergedGroups.length) break;
+        if (cascade > 1) playCascade(cascade);
+        cascadeMultiplier = cascade;
+        updateHUD();
+        const creations = determineSpecialCreations(info.runs, localTarget);
+        const creationMap = new Map(creations.map(item => [keyOf(item.r, item.c), item]));
+        const allMatchedCells = new Map();
+        info.mergedGroups.forEach(group => {
+          group.cells.forEach(cell => allMatchedCells.set(keyOf(cell.r, cell.c), cell));
+          const scoreGain = getMatchScore(group.cells.length) * cascade;
+          addScore(scoreGain, group.cells[Math.floor(group.cells.length / 2)]);
+        });
+        playMatch(allMatchedCells.size);
+        const specialQueue = [];
+        const specialSeen = new Set();
+        const clearCells = [];
+        allMatchedCells.forEach((cell, key) => {
+          const gem = board[cell.r][cell.c];
+          if (gem?.special && !creationMap.has(key)) {
+            queueSpecial(specialQueue, specialSeen, { kind: 'special', r: cell.r, c: cell.c, special: gem.special, type: gem.type, targetType: gem.type });
+          }
+          if (!creationMap.has(key)) clearCells.push(cell);
+        });
+        await animateCells(clearCells, 'popping', 300);
+        clearCells.forEach(cell => {
+          board[cell.r][cell.c] = null;
+        });
+        creations.forEach(creation => {
+          board[creation.r][creation.c] = { type: creation.type, special: creation.special };
+          showScoreFloat('+200', { r: creation.r, c: creation.c }, '#8ce7ff');
+          score += 200;
+          levelScore += 200;
+        });
+        renderBoard();
+        updateHUD();
+        if (specialQueue.length) {
+          await activateEffects(specialQueue, cascade);
+        }
+        const fallKeys = applyGravityAndFill();
+        renderBoard(fallKeys);
+        await wait(320);
+        localTarget = null;
+        cascade += 1;
+      }
+      cascadeMultiplier = 1;
+      updateHUD();
+      await postActionChecks();
+    }
+
+    function findFirstValidMove() {
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const current = board[r][c];
+          const candidates = [
+            { r, c: c + 1 },
+            { r: r + 1, c }
+          ];
+          for (const target of candidates) {
+            if (!isInside(target.r, target.c)) continue;
+            const other = board[target.r][target.c];
+            if (current.special || other.special) {
+              return { a: { r, c }, b: target };
+            }
+            swapCells({ r, c }, target);
+            const valid = findMatchInfo(board).mergedGroups.length > 0;
+            swapCells({ r, c }, target);
+            if (valid) return { a: { r, c }, b: target };
+          }
+        }
+      }
+      return null;
+    }
+
+    function hasValidMoves() {
+      return Boolean(findFirstValidMove());
+    }
+
+    async function handleNoMoves() {
+      boardWrapperEl.classList.add('flash-board');
+      await wait(1000);
+      boardWrapperEl.classList.remove('flash-board');
+      const shuffled = shuffleExistingBoard(NO_MOVES_SHUFFLE_ATTEMPTS);
+      if (!shuffled) {
+        await showGameOver();
+        return;
+      }
+      renderBoard();
+      updateHUD();
+    }
+
+    async function showLevelComplete() {
+      playLevelUp();
+      const target = getLevelTarget(level);
+      const stars = levelScore >= target * 2 ? 3 : levelScore >= target * 1.5 ? 2 : 1;
+      levelModalTextEl.textContent = `You conquered level ${level} with ${levelScore.toLocaleString()} points.`;
+      levelStarsEl.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+      openModal(levelModalEl);
+      await new Promise(resolve => {
+        levelModalResolver = resolve;
+      });
+      closeModal(levelModalEl);
+      level += 1;
+      levelScore = 0;
+      let attempts = 0;
+      while (attempts < LEVEL_COMPLETE_MAX_ATTEMPTS && !shuffleExistingBoard(1)) attempts += 1;
+      if (!hasValidMoves()) {
+        await showGameOver();
+        return;
+      }
+      renderBoard();
+      updateHUD();
+    }
+
+    async function showGameOver() {
+      playGameOver();
+      const isNewRecord = score > bestScore();
+      gameoverTextEl.textContent = `Final score: ${score.toLocaleString()} — Level reached: ${level}`;
+      newRecordBadgeEl.style.display = isNewRecord ? 'inline-flex' : 'none';
+      playerNameInputEl.value = 'Adventurer';
+      openModal(gameoverModalEl);
+      await new Promise(resolve => {
+        gameOverResolver = resolve;
+      });
+      closeModal(gameoverModalEl);
+    }
+
+    async function postActionChecks() {
+      if (levelScore >= getLevelTarget(level)) {
+        await showLevelComplete();
+      }
+      if (!gameoverModalEl.classList.contains('visible') && !levelModalEl.classList.contains('visible') && !hasValidMoves()) {
+        await handleNoMoves();
+      }
+      renderBoard();
+      updateHUD();
+    }
+
+    function buildScoresTable() {
+      const scores = getScores();
+      if (!scores.length) {
+        scoresTableWrapEl.innerHTML = '<p>No heroes recorded yet.</p>';
+        return;
+      }
+      const medal = ['🥇', '🥈', '🥉'];
+      const rows = scores.map((entry, index) => `
+        <tr>
+          <td>${medal[index] || index + 1}</td>
+          <td>${entry.name}</td>
+          <td>${entry.score.toLocaleString()}</td>
+          <td>${entry.level}</td>
+          <td>${formatDate(entry.date)}</td>
+        </tr>
+      `).join('');
+      scoresTableWrapEl.innerHTML = `
+        <table>
+          <thead>
+            <tr><th>Rank</th><th>Name</th><th>Score</th><th>Level</th><th>Date</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    function saveCurrentScore() {
+      const name = playerNameInputEl.value.trim() || 'Adventurer';
+      const scores = getScores();
+      scores.push({ name, score, level, date: new Date().toISOString() });
+      scores.sort((a, b) => b.score - a.score);
+      saveScores(scores.slice(0, 10));
+    }
+
+    async function attemptSwap(a, b) {
+      swapCells(a, b);
+      renderBoard();
+      const first = board[a.r][a.c];
+      const second = board[b.r][b.c];
+      if (first.special || second.special) {
+        if (first.special && second.special) {
+          await runSpecialCombo(a, b);
+          return true;
+        }
+        const specialCell = first.special ? a : b;
+        const otherCell = first.special ? b : a;
+        const gem = board[specialCell.r][specialCell.c];
+        await activateEffects([
+          { kind: 'special', r: specialCell.r, c: specialCell.c, special: gem.special, type: gem.type, targetType: board[otherCell.r][otherCell.c].type }
+        ], 1);
+        const fallKeys = applyGravityAndFill();
+        renderBoard(fallKeys);
+        await wait(320);
+        await resolveBoard(null, 2);
+        return true;
+      }
+      if (findMatchInfo(board).mergedGroups.length) {
+        await resolveBoard(b, 1);
+        return true;
+      }
+      swapCells(a, b);
+      renderBoard();
+      playDeselect();
+      return false;
+    }
+
+    async function runSpecialCombo(a, b) {
+      const gemA = board[a.r][a.c];
+      const gemB = board[b.r][b.c];
+      const pair = [gemA.special, gemB.special].sort().join('+');
+      const effects = [];
+      if (gemA.special === 'void' && gemB.special === 'void') {
+        effects.push({ kind: 'combo', comboType: 'board', r: b.r, c: b.c });
+      } else if (gemA.special === 'void' || gemB.special === 'void') {
+        const voidCell = gemA.special === 'void' ? a : b;
+        const otherCell = gemA.special === 'void' ? b : a;
+        const otherGem = board[otherCell.r][otherCell.c];
+        effects.push({ kind: 'special', r: voidCell.r, c: voidCell.c, special: 'void', type: board[voidCell.r][voidCell.c].type, targetType: otherGem.type });
+        if (otherGem.special) {
+          effects.push({ kind: 'special', r: otherCell.r, c: otherCell.c, special: otherGem.special, type: otherGem.type, targetType: otherGem.type });
+        }
+      } else if (gemA.special === 'dragon' || gemB.special === 'dragon') {
+        effects.push({ kind: 'combo', comboType: 'dragon7', r: b.r, c: b.c });
+      } else {
+        switch (pair) {
+          case 'bomb+bomb':
+            effects.push({ kind: 'combo', comboType: 'megaBomb', r: b.r, c: b.c });
+            break;
+          case 'row+row':
+            effects.push({ kind: 'combo', comboType: 'tripleRows', r: b.r, c: b.c });
+            break;
+          case 'col+col':
+            effects.push({ kind: 'combo', comboType: 'tripleCols', r: b.r, c: b.c });
+            break;
+          case 'col+row':
+            effects.push({ kind: 'combo', comboType: 'cross', r: b.r, c: b.c });
+            break;
+          case 'bomb+row':
+            effects.push({ kind: 'combo', comboType: 'rowBomb', r: b.r, c: b.c });
+            break;
+          case 'bomb+col':
+            effects.push({ kind: 'combo', comboType: 'colBomb', r: b.r, c: b.c });
+            break;
+          default:
+            effects.push({ kind: 'combo', comboType: 'cross', r: b.r, c: b.c });
+            break;
+        }
+      }
+      await activateEffects(effects, 1);
+      const fallKeys = applyGravityAndFill();
+      renderBoard(fallKeys);
+      await wait(320);
+      await resolveBoard(null, 2);
+    }
+
+    function showHint() {
+      if (isAnimating) return;
+      const move = findFirstValidMove();
+      if (!move) return;
+      hintedCells = [move.a, move.b];
+      renderBoard();
+      hintTimeout = setTimeout(() => {
+        hintedCells = [];
+        renderBoard();
+        hintTimeout = null;
+      }, 3000);
+    }
+
+    async function handleCellClick(r, c) {
+      if (isAnimating) return;
+      await resumeAudio();
+      if (hintedCells.length) clearHint();
+      const clicked = { r, c };
+      if (!selectedCell) {
+        selectedCell = clicked;
+        playSelect();
+        renderBoard();
+        return;
+      }
+      if (selectedCell.r === r && selectedCell.c === c) {
+        selectedCell = null;
+        playDeselect();
+        renderBoard();
+        return;
+      }
+      if (!areAdjacent(selectedCell, clicked)) {
+        selectedCell = clicked;
+        playSelect();
+        renderBoard();
+        return;
+      }
+      const from = selectedCell;
+      selectedCell = null;
+      isAnimating = true;
+      renderBoard();
+      try {
+        await attemptSwap(from, clicked);
+      } finally {
+        isAnimating = false;
+      }
+    }
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    async function resumeAudio() {
+      initAudio();
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+    }
+
+    function tone(freq, start, duration, type = 'sine', volume = 0.06) {
+      if (muted) return;
+      initAudio();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.linearRampToValueAtTime(volume, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(start);
+      osc.stop(start + duration + 0.03);
+    }
+
+    function playSelect() {
+      if (!audioCtx || muted) return;
+      const now = audioCtx.currentTime;
+      tone(440, now, 0.15, 'sine', 0.05);
+    }
+
+    function playDeselect() {
+      if (!audioCtx || muted) return;
+      const now = audioCtx.currentTime;
+      tone(330, now, 0.1, 'sine', 0.05);
+    }
+
+    function playMatch(count) {
+      if (!audioCtx || muted) return;
+      const now = audioCtx.currentTime;
+      const base = 220 + count * 40;
+      [0, 4, 7].forEach((step, index) => tone(base * Math.pow(2, step / 12), now + index * 0.03, 0.3, 'triangle', 0.05));
+    }
+
+    function playCascade(levelValue) {
+      if (!audioCtx || muted) return;
+      const now = audioCtx.currentTime;
+      const base = 300 + levelValue * 100;
+      [0, 4, 7].forEach((step, index) => tone(base * Math.pow(2, step / 12), now + index * 0.03, 0.2, 'triangle', 0.045));
+    }
+
+    function playSpecial() {
+      if (!audioCtx || muted) return;
+      const now = audioCtx.currentTime;
+      [440, 554, 659, 880, 1108].forEach((freq, index) => tone(freq, now + index * 0.06, 0.18, 'sine', 0.045));
+    }
+
+    function playExplosion() {
+      if (!audioCtx || muted) return;
+      const now = audioCtx.currentTime;
+      tone(120, now, 0.3, 'sawtooth', 0.06);
+      tone(80, now + 0.08, 0.22, 'sawtooth', 0.05);
+    }
+
+    function playLevelUp() {
+      if (!audioCtx || muted) return;
+      const now = audioCtx.currentTime;
+      [523, 659, 784, 1047].forEach((freq, index) => tone(freq, now + index * 0.12, 0.22, 'triangle', 0.05));
+    }
+
+    function playGameOver() {
+      if (!audioCtx || muted) return;
+      const now = audioCtx.currentTime;
+      [440, 392, 349, 294].forEach((freq, index) => tone(freq, now + index * 0.15, 0.24, 'sawtooth', 0.05));
+    }
+
+    function resetGame() {
+      selectedCell = null;
+      hintedCells = [];
+      if (hintTimeout) {
+        clearTimeout(hintTimeout);
+        hintTimeout = null;
+      }
+      score = 0;
+      level = 1;
+      levelScore = 0;
+      cascadeMultiplier = 1;
+      initBoard();
+      renderBoard();
+      updateHUD();
+    }
+
+    boardEl.addEventListener('click', event => {
+      const cell = event.target.closest('.cell');
+      if (!cell) return;
+      const r = Number(cell.dataset.r);
+      const c = Number(cell.dataset.c);
+      handleCellClick(r, c);
+    });
+
+    document.getElementById('scores-btn').addEventListener('click', () => {
+      buildScoresTable();
+      openModal(scoresModalEl);
+    });
+
+    document.getElementById('scores-close-btn').addEventListener('click', () => {
+      closeModal(scoresModalEl);
+    });
+
+    document.getElementById('hint-btn').addEventListener('click', async () => {
+      await resumeAudio();
+      if (hintedCells.length) {
+        clearHint();
+      } else {
+        showHint();
+      }
+    });
+
+    muteBtnEl.addEventListener('click', async () => {
+      await resumeAudio();
+      muted = !muted;
+      updateHUD();
+    });
+
+    document.getElementById('level-continue-btn').addEventListener('click', () => {
+      if (levelModalResolver) {
+        const resolve = levelModalResolver;
+        levelModalResolver = null;
+        resolve();
+      }
+    });
+
+    document.getElementById('save-score-btn').addEventListener('click', () => {
+      saveCurrentScore();
+      if (gameOverResolver) {
+        const resolve = gameOverResolver;
+        gameOverResolver = null;
+        resolve();
+      }
+      buildScoresTable();
+      resetGame();
+    });
+
+    document.addEventListener('pointerdown', () => {
+      resumeAudio();
+    }, { passive: true });
+
+    createStarfield();
+    buildLegends();
+    resetGame();
+  </script>
+</body>
+</html>
