@@ -226,8 +226,8 @@
 
     #board-wrapper {
       position: relative;
-      width: var(--board-size);
-      min-width: var(--board-size);
+      width: calc(var(--board-size) + 30px);
+      min-width: calc(var(--board-size) + 30px);
       border-radius: 20px;
       padding: 14px;
       background: linear-gradient(180deg, rgba(20, 24, 43, 0.9), rgba(11, 14, 28, 0.95));
@@ -702,6 +702,7 @@
     const DEFAULT_SHUFFLE_ATTEMPTS = 100;
     const NO_MOVES_SHUFFLE_ATTEMPTS = 50;
     const LEVEL_COMPLETE_MAX_ATTEMPTS = 100;
+    const BOARD_WRAPPER_EXTRA = 30;
 
     let board = [];
     let selectedCell = null;
@@ -1262,8 +1263,8 @@
       cells.forEach(cell => {
         const gem = board[cell.r][cell.c];
         if (gem) {
-          const meta = gemMeta(gem.type);
-          spawnParticles(cell, meta.color);
+          const color = gem.type === 'rock' ? '#8f97b6' : gemMeta(gem.type)?.color || '#ffffff';
+          spawnParticles(cell, color);
         }
         const el = getCellElement(cell.r, cell.c);
         if (el) el.classList.add(className);
@@ -1856,12 +1857,12 @@
       const padX = isMobile ? 10 : 22;
       const padY = isMobile ? 10 : 22;
       const titleH = 80;   // title heading height + gap below it
-      const boardPad = 28; // board-wrapper padding (14 px each side)
+      const boardFrame = BOARD_WRAPPER_EXTRA; // board wrapper padding + border
       const leftPanelW = isMobile ? 0 : 200 + 18; // left panel + gap
       const scrollBar = 8; // small buffer for scrollbar / rounding
 
-      const avH = window.innerHeight - 2 * padY - titleH - boardPad - scrollBar;
-      const avW = window.innerWidth - 2 * padX - leftPanelW - boardPad;
+      const avH = window.innerHeight - 2 * padY - titleH - boardFrame - scrollBar;
+      const avW = window.innerWidth - 2 * padX - leftPanelW - boardFrame;
       const avail = Math.min(avH, avW);
       const newCellSize = Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, Math.floor((avail - 7 * CELL_GAP) / 8)));
       const newBoardSize = 8 * newCellSize + 7 * CELL_GAP;
