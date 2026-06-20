@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Runic Radiance</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2ZmZDU2ZiIvPjxzdG9wIG9mZnNldD0iNDAlIiBzdG9wLWNvbG9yPSIjZmY0NDAwIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjYWE0NGZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBvbHlnb24gcG9pbnRzPSIxNiwyIDE5LjUsMTIgMzAsMTIgMjEuNSwxOC41IDI0LjUsMjkgMTYsMjMgNy41LDI5IDEwLjUsMTguNSAyLDEyIDEyLjUsMTIiIGZpbGw9InVybCgjZykiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjU1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PGVsbGlwc2UgY3g9IjE2IiBjeT0iMTYiIHJ4PSI0IiByeT0iMyIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjQpIi8+PC9zdmc+">
   <style>
     :root {
       --bg-1: #070910;
@@ -339,7 +340,12 @@
     }
 
     .cell.fall-in .gem {
-      animation: fallIn 0.3s ease;
+      animation: fallIn 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .cell.is-rock {
+      cursor: not-allowed;
+      background: radial-gradient(circle at 40% 30%, rgba(100,110,135,0.35), rgba(30,35,50,0.6) 100%);
     }
 
     @keyframes popGem {
@@ -355,8 +361,8 @@
     }
 
     @keyframes fallIn {
-      from { transform: translateY(-100%); }
-      to { transform: translateY(0); }
+      from { transform: translateY(var(--fall-from, -66px)); opacity: 0.8; }
+      to { transform: translateY(0); opacity: 1; }
     }
 
     .score-float {
@@ -537,7 +543,7 @@
 
     @media (max-width: 719px) {
       body {
-        padding: 14px;
+        padding: 10px;
       }
 
       .side-panel {
@@ -547,11 +553,10 @@
       #main-layout {
         gap: 0;
       }
+    }
 
-      #board-wrapper {
-        transform: scale(min(1, calc((100vw - 28px) / 554)));
-        transform-origin: top center;
-      }
+    #right-panel {
+      display: none;
     }
   </style>
 </head>
@@ -579,6 +584,7 @@
         <div class="control-buttons">
           <button class="action-btn" id="scores-btn">🏆 Scores</button>
           <button class="action-btn" id="hint-btn">💡 Hint</button>
+          <button class="action-btn" id="help-btn">❓ Help</button>
           <button class="action-btn" id="mute-btn">🔊 Sound On</button>
         </div>
       </aside>
@@ -588,18 +594,6 @@
       </section>
 
       <aside class="side-panel" id="right-panel">
-        <div class="legend-section">
-          <h2 class="panel-title">Gem Legend</h2>
-          <div id="gem-legend"></div>
-        </div>
-        <div class="legend-section">
-          <h2 class="panel-title">Specials</h2>
-          <div id="special-legend"></div>
-        </div>
-        <div class="score-ref">
-          <h2 class="panel-title">Scoring</h2>
-          <div id="score-reference"></div>
-        </div>
       </aside>
     </div>
   </div>
@@ -639,12 +633,38 @@
     </div>
   </div>
 
+  <div class="modal" id="help-modal">
+    <div class="modal-card" style="max-height:88vh;overflow-y:auto;">
+      <h2>Game Guide</h2>
+      <div class="legend-section">
+        <h2 class="panel-title">Gem Legend</h2>
+        <div id="gem-legend"></div>
+      </div>
+      <div class="legend-section">
+        <h2 class="panel-title">Specials</h2>
+        <div id="special-legend"></div>
+      </div>
+      <div class="score-ref">
+        <h2 class="panel-title">Scoring</h2>
+        <div id="score-reference"></div>
+      </div>
+      <div class="legend-section">
+        <h2 class="panel-title">Rocks 🪨</h2>
+        <p style="color:#ccd5ff;font-size:0.88rem;line-height:1.45;">Starting at <strong>Level 4</strong>, Ancient Rocks may fall onto the board. They cannot be matched or moved, but any <strong>Special Gem</strong> effect will smash them.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn" id="help-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const ROWS = 8;
     const COLS = 8;
-    const CELL_SIZE = 64;
+    let CELL_SIZE = 64;
     const CELL_GAP = 2;
     const SCORE_KEY = 'runic_radiance_scores';
+    const GAME_STATE_KEY = 'runic_radiance_game';
     const GEM_TYPES = [
       { key: 'fire', name: 'Fire Ruby', color: '#ff4400', shape: 'pentagon' },
       { key: 'ocean', name: 'Ocean Sapphire', color: '#0088ff', shape: 'circle' },
@@ -669,7 +689,8 @@
       ['Match 6+', '300 + 100 each above 5'],
       ['Special hits', '50 pts per gem'],
       ['Special create', '+200 bonus'],
-      ['Cascades', 'All values × current combo']
+      ['Cascades', 'All values × current combo'],
+      ['Rocks (L4+)', 'Smashed by special gems only']
     ];
     const STORM_POINT_COUNT = 14;
     const STORM_INNER_RADIUS = 12;
@@ -821,13 +842,28 @@
       `).join('');
     }
 
+    function rockChance(currentLevel) {
+      const ROCK_CHANCE_PER_LEVEL = 0.03; // 3 % per level above 3
+      const MAX_ROCK_CHANCE = 0.15;        // cap at 15 %
+      if (currentLevel < 4) return 0;
+      return Math.min(MAX_ROCK_CHANCE, (currentLevel - 3) * ROCK_CHANCE_PER_LEVEL);
+    }
+
     function createRandomGem() {
       const base = GEM_TYPES[Math.floor(Math.random() * GEM_TYPES.length)];
       return { type: base.key, special: null };
     }
 
+    function createGemForLevel(currentLevel) {
+      if (Math.random() < rockChance(currentLevel)) {
+        return { type: 'rock', special: null };
+      }
+      return createRandomGem();
+    }
+
     function causesImmediateMatch(targetBoard, r, c) {
-      const type = targetBoard[r][c].type;
+      const type = targetBoard[r][c]?.type;
+      if (!type || type === 'rock') return false;
       return (
         (c >= 2 && targetBoard[r][c - 1]?.type === type && targetBoard[r][c - 2]?.type === type) ||
         (r >= 2 && targetBoard[r - 1][c]?.type === type && targetBoard[r - 2][c]?.type === type)
@@ -880,6 +916,20 @@
     }
 
     function renderGemSvg(gem, r, c) {
+      if (gem.type === 'rock') {
+        return `<div class="gem rock" style="--gem-color:#667;filter:none;">
+          <svg viewBox="0 0 52 52" width="52" height="52" aria-hidden="true">
+            <polygon points="18,5 34,5 44,16 44,36 34,47 18,47 8,36 8,16"
+                     fill="#52586a" stroke="rgba(200,210,230,0.4)" stroke-width="1.5"/>
+            <polygon points="20,11 32,10 39,18 39,34 31,42 20,43 13,35 12,19"
+                     fill="#666d80" stroke="rgba(255,255,255,0.1)" stroke-width="0.8"/>
+            <line x1="19" y1="17" x2="29" y2="23" stroke="rgba(255,255,255,0.1)" stroke-width="1.2"/>
+            <line x1="22" y1="31" x2="33" y2="37" stroke="rgba(0,0,0,0.25)" stroke-width="1"/>
+            <ellipse cx="21" cy="19" rx="6" ry="3" fill="rgba(255,255,255,0.07)" transform="rotate(-12 21 19)"/>
+          </svg>
+          <span class="special-icon" style="font-size:0.65rem;background:rgba(30,32,45,0.92)">🪨</span>
+        </div>`;
+      }
       const meta = gemMeta(gem.type);
       const gradId = `grad-${meta.key}-${r}-${c}`;
       const glowId = `glow-${meta.key}-${r}-${c}`;
@@ -930,23 +980,46 @@
       `;
     }
 
-    function renderBoard(fallKeys = []) {
+    function initBoardDOM() {
+      boardEl.innerHTML = '';
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.r = String(r);
+          cell.dataset.c = String(c);
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    function renderBoard(fallData = null) {
       const selectedKey = selectedCell ? keyOf(selectedCell.r, selectedCell.c) : null;
       const hintedKeySet = new Set(hintedCells.map(cell => keyOf(cell.r, cell.c)));
-      const fallKeySet = new Set(fallKeys);
-      let markup = '';
+      const fallMap = fallData instanceof Map ? fallData : new Map(
+        Array.isArray(fallData) ? fallData.map(k => [k, 1]) : []
+      );
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const gem = board[r][c];
           const key = keyOf(r, c);
+          const el = getCellElement(r, c);
+          if (!el) continue;
           const classes = ['cell'];
+          if (gem?.type === 'rock') classes.push('is-rock');
           if (selectedKey === key) classes.push('selected');
           if (hintedKeySet.has(key)) classes.push('hinted');
-          if (fallKeySet.has(key)) classes.push('fall-in');
-          markup += `<div class="${classes.join(' ')}" data-r="${r}" data-c="${c}">${gem ? renderGemSvg(gem, r, c) : ''}</div>`;
+          const fallDist = fallMap.get(key);
+          if (fallDist !== undefined) {
+            classes.push('fall-in');
+            el.style.setProperty('--fall-from', `${-(fallDist * (CELL_SIZE + CELL_GAP))}px`);
+          } else {
+            el.style.removeProperty('--fall-from');
+          }
+          el.className = classes.join(' ');
+          el.innerHTML = gem ? renderGemSvg(gem, r, c) : '';
         }
       }
-      boardEl.innerHTML = markup;
     }
 
     function updateHUD() {
@@ -995,11 +1068,12 @@
       for (let r = 0; r < ROWS; r++) {
         let c = 0;
         while (c < COLS) {
-          const start = c;
           const type = targetBoard[r][c]?.type;
+          if (!type || type === 'rock') { c++; continue; }
+          const start = c;
           while (c < COLS && targetBoard[r][c]?.type === type) c += 1;
           const len = c - start;
-          if (type && len >= 3) {
+          if (len >= 3) {
             const cells = [];
             for (let i = start; i < c; i++) cells.push({ r, c: i });
             runs.push({ dir: 'h', type, len, cells });
@@ -1009,11 +1083,12 @@
       for (let c = 0; c < COLS; c++) {
         let r = 0;
         while (r < ROWS) {
-          const start = r;
           const type = targetBoard[r][c]?.type;
+          if (!type || type === 'rock') { r++; continue; }
+          const start = r;
           while (r < ROWS && targetBoard[r][c]?.type === type) r += 1;
           const len = r - start;
-          if (type && len >= 3) {
+          if (len >= 3) {
             const cells = [];
             for (let i = start; i < r; i++) cells.push({ r: i, c });
             runs.push({ dir: 'v', type, len, cells });
@@ -1322,25 +1397,27 @@
     }
 
     function applyGravityAndFill() {
-      const fallKeys = [];
+      const fallData = new Map(); // key -> fallDistance
       for (let c = 0; c < COLS; c++) {
-        const compacted = [];
+        // Collect existing gems (bottom to top order)
+        const stack = [];
         for (let r = ROWS - 1; r >= 0; r--) {
-          if (board[r][c]) compacted.push(board[r][c]);
+          if (board[r][c]) stack.push({ gem: board[r][c], origRow: r });
         }
-        let pointer = ROWS - 1;
-        compacted.forEach(gem => {
-          board[pointer][c] = gem;
-          fallKeys.push(keyOf(pointer, c));
-          pointer -= 1;
+        let destRow = ROWS - 1;
+        stack.forEach(({ gem, origRow }) => {
+          board[destRow][c] = gem;
+          const dist = destRow - origRow;
+          if (dist > 0) fallData.set(keyOf(destRow, c), dist);
+          destRow--;
         });
-        while (pointer >= 0) {
-          board[pointer][c] = createRandomGem();
-          fallKeys.push(keyOf(pointer, c));
-          pointer -= 1;
+        while (destRow >= 0) {
+          board[destRow][c] = createGemForLevel(level);
+          fallData.set(keyOf(destRow, c), destRow + 1);
+          destRow--;
         }
       }
-      return fallKeys;
+      return fallData;
     }
 
     async function resolveBoard(swapTarget = null, startingCascade = 1) {
@@ -1395,12 +1472,14 @@
       cascadeMultiplier = 1;
       updateHUD();
       await postActionChecks();
+      saveGameState();
     }
 
     function findFirstValidMove() {
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const current = board[r][c];
+          if (!current || current.type === 'rock') continue;
           const candidates = [
             { r, c: c + 1 },
             { r: r + 1, c }
@@ -1408,6 +1487,7 @@
           for (const target of candidates) {
             if (!isInside(target.r, target.c)) continue;
             const other = board[target.r][target.c];
+            if (!other || other.type === 'rock') continue;
             if (current.special || other.special) {
               return { a: { r, c }, b: target };
             }
@@ -1457,11 +1537,13 @@
         await showGameOver();
         return;
       }
+      saveGameState();
       renderBoard();
       updateHUD();
     }
 
     async function showGameOver() {
+      clearGameState();
       playGameOver();
       const isNewRecord = score > bestScore();
       gameoverTextEl.textContent = `Final score: ${score.toLocaleString()} — Level reached: ${level}`;
@@ -1615,6 +1697,8 @@
 
     async function handleCellClick(r, c) {
       if (isAnimating) return;
+      const clickedGem = board[r][c];
+      if (clickedGem?.type === 'rock') return;
       await resumeAudio();
       if (hintedCells.length) clearHint();
       const clicked = { r, c };
@@ -1727,7 +1811,68 @@
       [440, 392, 349, 294].forEach((freq, index) => tone(freq, now + index * 0.15, 0.24, 'sawtooth', 0.05));
     }
 
-    function resetGame() {
+    // ── Persistence ──────────────────────────────────────────────────────────
+
+    function saveGameState() {
+      try {
+        localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+          board, score, level, levelScore, cascadeMultiplier
+        }));
+      } catch (e) {
+        console.warn('Failed to save game state:', e);
+      }
+    }
+
+    function loadGameState() {
+      try {
+        const raw = localStorage.getItem(GAME_STATE_KEY);
+        if (!raw) return false;
+        const state = JSON.parse(raw);
+        if (!Array.isArray(state.board) || state.board.length !== ROWS) return false;
+        board = state.board;
+        score = Number(state.score) || 0;
+        level = Number(state.level) || 1;
+        levelScore = Number(state.levelScore) || 0;
+        cascadeMultiplier = Number(state.cascadeMultiplier) || 1;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function clearGameState() {
+      try { localStorage.removeItem(GAME_STATE_KEY); } catch (e) {
+        console.warn('Failed to clear game state:', e);
+      }
+    }
+
+    // ── Viewport scaling ─────────────────────────────────────────────────────
+
+    const MIN_CELL_SIZE = 34;
+    const MAX_CELL_SIZE = 72;
+
+    function computeLayout() {
+      const isMobile = window.innerWidth < 720;
+      const padX = isMobile ? 10 : 22;
+      const padY = isMobile ? 10 : 22;
+      const titleH = 80;   // title heading height + gap below it
+      const boardPad = 28; // board-wrapper padding (14 px each side)
+      const leftPanelW = isMobile ? 0 : 200 + 18; // left panel + gap
+      const scrollBar = 8; // small buffer for scrollbar / rounding
+
+      const avH = window.innerHeight - 2 * padY - titleH - boardPad - scrollBar;
+      const avW = window.innerWidth - 2 * padX - leftPanelW - boardPad;
+      const avail = Math.min(avH, avW);
+      const newCellSize = Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, Math.floor((avail - 7 * CELL_GAP) / 8)));
+      const newBoardSize = 8 * newCellSize + 7 * CELL_GAP;
+
+      CELL_SIZE = newCellSize;
+      const root = document.documentElement;
+      root.style.setProperty('--cell-size', `${newCellSize}px`);
+      root.style.setProperty('--board-size', `${newBoardSize}px`);
+    }
+
+    function resetGame(clearSave = false) {
       selectedCell = null;
       hintedCells = [];
       if (hintTimeout) {
@@ -1738,7 +1883,13 @@
       level = 1;
       levelScore = 0;
       cascadeMultiplier = 1;
-      initBoard();
+      if (!clearSave && loadGameState()) {
+        // Restored from saved state – board/score/level already set by loadGameState
+      } else {
+        clearGameState();
+        initBoard();
+      }
+      initBoardDOM();
       renderBoard();
       updateHUD();
     }
@@ -1791,13 +1942,27 @@
         resolve();
       }
       buildScoresTable();
-      resetGame();
+      resetGame(true); // fresh game after game over
+    });
+
+    document.getElementById('help-btn').addEventListener('click', () => {
+      openModal(document.getElementById('help-modal'));
+    });
+
+    document.getElementById('help-close-btn').addEventListener('click', () => {
+      closeModal(document.getElementById('help-modal'));
+    });
+
+    window.addEventListener('resize', () => {
+      computeLayout();
+      renderBoard();
     });
 
     document.addEventListener('pointerdown', () => {
       resumeAudio();
     }, { passive: true });
 
+    computeLayout();
     createStarfield();
     buildLegends();
     resetGame();
