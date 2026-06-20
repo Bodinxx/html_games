@@ -843,8 +843,10 @@
     }
 
     function rockChance(currentLevel) {
+      const ROCK_CHANCE_PER_LEVEL = 0.03; // 3 % per level above 3
+      const MAX_ROCK_CHANCE = 0.15;        // cap at 15 %
       if (currentLevel < 4) return 0;
-      return Math.min(0.15, (currentLevel - 3) * 0.03);
+      return Math.min(MAX_ROCK_CHANCE, (currentLevel - 3) * ROCK_CHANCE_PER_LEVEL);
     }
 
     function createRandomGem() {
@@ -1816,7 +1818,9 @@
         localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
           board, score, level, levelScore, cascadeMultiplier
         }));
-      } catch {}
+      } catch (e) {
+        console.warn('Failed to save game state:', e);
+      }
     }
 
     function loadGameState() {
@@ -1837,23 +1841,29 @@
     }
 
     function clearGameState() {
-      try { localStorage.removeItem(GAME_STATE_KEY); } catch {}
+      try { localStorage.removeItem(GAME_STATE_KEY); } catch (e) {
+        console.warn('Failed to clear game state:', e);
+      }
     }
 
     // ── Viewport scaling ─────────────────────────────────────────────────────
+
+    const MIN_CELL_SIZE = 34;
+    const MAX_CELL_SIZE = 72;
 
     function computeLayout() {
       const isMobile = window.innerWidth < 720;
       const padX = isMobile ? 10 : 22;
       const padY = isMobile ? 10 : 22;
-      const titleH = 80; // title + gap
-      const boardPad = 28; // board-wrapper padding * 2
-      const leftPanelW = isMobile ? 0 : 200 + 18; // panel + gap
+      const titleH = 80;   // title heading height + gap below it
+      const boardPad = 28; // board-wrapper padding (14 px each side)
+      const leftPanelW = isMobile ? 0 : 200 + 18; // left panel + gap
+      const scrollBar = 8; // small buffer for scrollbar / rounding
 
-      const avH = window.innerHeight - 2 * padY - titleH - boardPad - 8;
+      const avH = window.innerHeight - 2 * padY - titleH - boardPad - scrollBar;
       const avW = window.innerWidth - 2 * padX - leftPanelW - boardPad;
       const avail = Math.min(avH, avW);
-      const newCellSize = Math.max(34, Math.min(72, Math.floor((avail - 7 * CELL_GAP) / 8)));
+      const newCellSize = Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, Math.floor((avail - 7 * CELL_GAP) / 8)));
       const newBoardSize = 8 * newCellSize + 7 * CELL_GAP;
 
       CELL_SIZE = newCellSize;
