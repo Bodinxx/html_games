@@ -703,6 +703,8 @@
     const NO_MOVES_SHUFFLE_ATTEMPTS = 50;
     const LEVEL_COMPLETE_MAX_ATTEMPTS = 100;
     const BOARD_WRAPPER_EXTRA = 30;
+    const ROCK_PARTICLE_COLOR = '#8f97b6';
+    const DEFAULT_PARTICLE_COLOR = '#ffffff';
 
     let board = [];
     let selectedCell = null;
@@ -1263,7 +1265,7 @@
       cells.forEach(cell => {
         const gem = board[cell.r][cell.c];
         if (gem) {
-          const color = gem.type === 'rock' ? '#8f97b6' : gemMeta(gem.type)?.color || '#ffffff';
+          const color = gem.type === 'rock' ? ROCK_PARTICLE_COLOR : gemMeta(gem.type)?.color || DEFAULT_PARTICLE_COLOR;
           spawnParticles(cell, color);
         }
         const el = getCellElement(cell.r, cell.c);
@@ -1857,12 +1859,12 @@
       const padX = isMobile ? 10 : 22;
       const padY = isMobile ? 10 : 22;
       const titleH = 80;   // title heading height + gap below it
-      const boardFrame = BOARD_WRAPPER_EXTRA; // board wrapper padding + border
+      const boardFrameExtra = BOARD_WRAPPER_EXTRA; // board wrapper padding + border
       const leftPanelW = isMobile ? 0 : 200 + 18; // left panel + gap
       const scrollBar = 8; // small buffer for scrollbar / rounding
 
-      const avH = window.innerHeight - 2 * padY - titleH - boardFrame - scrollBar;
-      const avW = window.innerWidth - 2 * padX - leftPanelW - boardFrame;
+      const avH = window.innerHeight - 2 * padY - titleH - boardFrameExtra - scrollBar;
+      const avW = window.innerWidth - 2 * padX - leftPanelW - boardFrameExtra;
       const avail = Math.min(avH, avW);
       const newCellSize = Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, Math.floor((avail - 7 * CELL_GAP) / 8)));
       const newBoardSize = 8 * newCellSize + 7 * CELL_GAP;
