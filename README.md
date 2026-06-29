@@ -17,6 +17,14 @@ Amusement Architect: A sophisticated theme park management simulation. Design yo
 
 ---
 
+### Crystal Volley
+
+A vibrant gem-launching arcade puzzle. Fire colored crystals from a rotating cannon at a descending hexagonal grid. Match 3 or more of the same crystal to pop them, trigger cascade combos for bonus points, and unleash 5 unique power-ups across 8 patterned levels of increasing difficulty. Features procedural level patterns (bands, checkerboard, spirals, waves, and more), synthesized sound effects, and both mouse and touch controls.
+
+**Tags:** `Arcade` `Puzzle` `Matching` `Retro` `Power-ups` `Single-player` `Hex-grid`
+
+---
+
 ### Cosmic Brick Breaker
 
 <img src="games/Cosmic_Brick_Breaker.webp" alt="Cosmic Brick Breaker" style="max-width:300px;">
