@@ -569,7 +569,7 @@ function landBullet(px, py) {
                 return acc || (cell && cell.pu && cell.pu !== PU.FROST ? cell.pu : null);
             }, null);
             doPopGroup(grp);
-            if (chainPU) setTimeout(() => triggerChainPU(chainPU, r, c), 120);
+            if (chainPU) triggerChainPU(chainPU, r, c);  // synchronous: no race condition
             afterEffect(true);
         } else {
             afterEffect(false);
@@ -683,7 +683,7 @@ function doNova(r, c) {
 function doPrism(r, c) {
     sfx.powerup();
     // Find largest adjacent same-color group
-    grid[r][c] = { color: '_prism', pu: null };
+    grid[r][c] = { color: '#e2e8f0', pu: null };  // valid placeholder color
     let bestGrp = [];
     const checked = new Set();
     for (const [nr, nc] of nbrs(r, c)) {
@@ -1053,6 +1053,7 @@ function update(dt) {
 }
 
 function loop(ts) {
+    if (!lastTS) { lastTS = ts; }   // skip giant first-frame dt
     const dt = Math.min((ts - lastTS) / 1000, 0.05);
     lastTS = ts;
     if (phase === 'playing') update(dt);
@@ -1090,6 +1091,18 @@ canvas.addEventListener('touchstart', e => {
     if (phase === 'playing') fireCannon();
 }, { passive: false });
 
+// HUD DOM elements — created before button handlers so updateHUD() always finds them
+const hudEl = document.createElement('div');
+hudEl.id = 'hud-overlay';
+hudEl.style.cssText = `position:absolute;top:0;left:0;width:100%;height:${HUD_H}px;
+    display:flex;justify-content:space-around;align-items:center;
+    font-size:12px;pointer-events:none;padding:0 10px;`;
+hudEl.innerHTML = `
+    <span>SCORE <b id="hud-score" style="color:#a78bfa">0</b></span>
+    <span>LVL <b id="hud-level" style="color:#a78bfa">1</b></span>
+    <span>SHOTS <b id="hud-shots" style="color:#a78bfa">6</b></span>`;
+document.getElementById('game-wrap').appendChild(hudEl);
+
 // ═══════════════════════════════════════════
 //  OVERLAYS
 // ═══════════════════════════════════════════
@@ -1116,18 +1129,6 @@ document.getElementById('btn-restart').addEventListener('click', () => {
     ensureAudio(); score = 0; level = 1;
     initLevel(level); hideOverlays(); phase = 'playing';
 });
-
-// HUD DOM (outside canvas, positioned by CSS)
-const hudEl = document.createElement('div');
-hudEl.id = 'hud-overlay';
-hudEl.style.cssText = `position:absolute;top:0;left:0;width:100%;height:${HUD_H}px;
-    display:flex;justify-content:space-around;align-items:center;
-    font-size:12px;pointer-events:none;padding:0 10px;`;
-hudEl.innerHTML = `
-    <span>SCORE <b id="hud-score" style="color:#a78bfa">0</b></span>
-    <span>LVL <b id="hud-level" style="color:#a78bfa">1</b></span>
-    <span>SHOTS <b id="hud-shots" style="color:#a78bfa">6</b></span>`;
-document.getElementById('game-wrap').appendChild(hudEl);
 
 // ═══════════════════════════════════════════
 //  BOOT
